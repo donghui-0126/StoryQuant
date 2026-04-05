@@ -1,5 +1,6 @@
 import os
 import sqlite3
+from contextlib import contextmanager
 
 
 def get_connection(db_path: str = "data/storyquant.db") -> sqlite3.Connection:
@@ -9,6 +10,30 @@ def get_connection(db_path: str = "data/storyquant.db") -> sqlite3.Connection:
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
     return conn
+
+
+def get_thread_connection(db_path: str = "data/storyquant.db") -> sqlite3.Connection:
+    """Return a new per-call SQLite connection suitable for background threads."""
+    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+    conn = sqlite3.connect(db_path)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=5000")
+    conn.execute("PRAGMA foreign_keys=ON")
+    return conn
+
+
+@contextmanager
+def thread_connection(db_path: str = "data/storyquant.db"):
+    """Context manager that opens a thread-local SQLite connection and closes it on exit."""
+    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+    conn = sqlite3.connect(db_path)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=5000")
+    conn.execute("PRAGMA foreign_keys=ON")
+    try:
+        yield conn
+    finally:
+        conn.close()
 
 
 def init_db(conn: sqlite3.Connection) -> None:

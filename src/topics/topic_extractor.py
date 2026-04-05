@@ -1,14 +1,89 @@
 """
 Topic extraction module for StoryQuant.
 Clusters news articles into topics using TF-IDF + KMeans.
+Supports Korean and English text.
 """
 
 import os
+import re
 import numpy as np
 import pandas as pd
 from datetime import datetime, timezone
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
+
+
+# ---------------------------------------------------------------------------
+# Korean text handling
+# ---------------------------------------------------------------------------
+
+# Common Korean particles and postpositions to strip from tokens
+_KO_PARTICLES = re.compile(
+    r'(이|가|을|를|은|는|의|에|에서|으로|로|와|과|도|만|까지|부터|한테|에게|께서|서|랑|이랑)$'
+)
+
+# Korean stop words (particles, auxiliary verbs, common filler words)
+KOREAN_STOP_WORDS = {
+    "은", "는", "이", "가", "을", "를", "의", "에", "에서", "으로", "로",
+    "와", "과", "도", "만", "까지", "부터", "위해", "대한", "통해", "따르면",
+    "있다", "없다", "했다", "한다", "된다", "되다", "하는", "있는", "것으로",
+    "것이", "관련", "대해", "합니다", "입니다", "했습니다", "됩니다", "있습니다",
+    "없습니다", "하며", "하고", "이며", "이고", "또한", "하지만", "그러나",
+    "그리고", "따라", "위한", "통한", "대한", "관한", "라고", "라는", "이라는",
+    "이라고", "으로서", "으로써", "에서는", "에서도", "에도", "에는", "에만",
+    "부터는", "까지는", "에서의", "에서가", "이후", "이전", "현재", "최근",
+    "지난", "올해", "이번", "다음", "계속", "이미", "아직", "매우", "더욱",
+    "가장", "함께", "모두", "각", "각각", "수", "것", "등", "및", "또",
+}
+
+
+def _contains_korean(text: str) -> bool:
+    """Return True if text contains any Hangul character."""
+    return bool(re.search(r'[\uAC00-\uD7A3\u1100-\u11FF\u3130-\u318F]', text))
+
+
+def _tokenize_korean(text: str) -> list:
+    """
+    Simple regex-based Korean tokenizer.
+    Splits on whitespace, strips trailing particles, removes single-char tokens
+    and stop words.
+    """
+    tokens = []
+    for word in text.split():
+        # Strip non-Korean/non-alphanumeric characters from edges
+        word = re.sub(r'^[^\w가-힣]+|[^\w가-힣]+$', '', word)
+        if not word:
+            continue
+        # Strip common particles from the end
+        stripped = _KO_PARTICLES.sub('', word)
+        token = stripped if stripped else word
+        # Skip single characters and stop words
+        if len(token) <= 1:
+            continue
+        if token in KOREAN_STOP_WORDS:
+            continue
+        tokens.append(token)
+    return tokens
+
+
+def _preprocess_korean(text: str) -> str:
+    """
+    Preprocess text for TF-IDF.
+    - Korean: tokenize with particle stripping, return space-joined tokens.
+    - English: return as-is.
+    """
+    if not text or not _contains_korean(text):
+        return text
+    tokens = _tokenize_korean(text)
+    return " ".join(tokens) if tokens else text
+
+
+def _korean_tokenizer(text: str) -> list:
+    """Custom tokenizer for TfidfVectorizer that handles Korean and English."""
+    if _contains_korean(text):
+        return _tokenize_korean(text)
+    # Fallback: simple whitespace + punctuation split for English
+    return re.findall(r'\b[a-zA-Z][a-zA-Z0-9]{1,}\b', text.lower())
 
 
 def _safe_n_clusters(n_articles: int, n_topics: int) -> int:
@@ -58,14 +133,17 @@ def extract_topics(news_df: pd.DataFrame, n_topics: int = 5) -> pd.DataFrame:
     # --- 1. Build text corpus ---
     title_col = df.get("title", pd.Series([""] * len(df))).fillna("")
     summary_col = df.get("summary", pd.Series([""] * len(df))).fillna("")
-    texts = (title_col + " " + summary_col).str.strip()
+    raw_texts = (title_col + " " + summary_col).str.strip()
+    # Preprocess Korean text before vectorization
+    texts = raw_texts.apply(_preprocess_korean)
 
     n_clusters = _safe_n_clusters(len(df), n_topics)
 
-    # --- 2. TF-IDF vectorization ---
+    # --- 2. TF-IDF vectorization (Korean/English mixed) ---
     vectorizer = TfidfVectorizer(
         max_features=1000,
-        stop_words="english",
+        tokenizer=_korean_tokenizer,
+        token_pattern=None,
         min_df=1,
     )
     try:
@@ -179,11 +257,12 @@ def assign_topics_to_articles(news_df: pd.DataFrame, n_topics: int = 5) -> pd.Da
 
     title_col = df.get("title", pd.Series([""] * len(df))).fillna("")
     summary_col = df.get("summary", pd.Series([""] * len(df))).fillna("")
-    texts = (title_col + " " + summary_col).str.strip()
+    texts = (title_col + " " + summary_col).str.strip().apply(_preprocess_korean)
 
     vectorizer = TfidfVectorizer(
         max_features=1000,
-        stop_words="english",
+        tokenizer=_korean_tokenizer,
+        token_pattern=None,
         min_df=1,
     )
     try:

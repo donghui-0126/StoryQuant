@@ -6,10 +6,8 @@ so the main process can start the dashboard while data flows in continuously.
 """
 
 import logging
-import sqlite3
 import threading
 import time
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -31,12 +29,12 @@ class BackgroundIngester:
         from src.db.schema import get_connection, init_db
 
         self.db_path = db_path
-        self.conn = get_connection(db_path)
-        init_db(self.conn)
+        # Use a dedicated connection only for init_db; workers open their own connections.
+        conn = get_connection(db_path)
+        init_db(conn)
+        conn.close()
         self.running = False
         self.threads: list[threading.Thread] = []
-        # Serialize all DB writes through a single lock
-        self._db_lock = threading.Lock()
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -131,14 +129,14 @@ class BackgroundIngester:
         """Crawl RSS feeds and save new articles to DB."""
         from src.crawlers.news_crawler import crawl_all_news
         from src.db.queries import insert_articles
+        from src.db.schema import thread_connection
 
         news_df = crawl_all_news(hours_back=1)
         if not news_df.empty:
-            # Map crawler columns -> DB columns
             news_df = news_df.rename(columns={"timestamp": "published_at"})
             news_df["source_type"] = "rss"
-            with self._db_lock:
-                insert_articles(self.conn, news_df)
+            with thread_connection(self.db_path) as conn:
+                insert_articles(conn, news_df)
             logger.info("[news-poller] Ingested %d articles", len(news_df))
         else:
             logger.debug("[news-poller] No new articles")
@@ -148,13 +146,14 @@ class BackgroundIngester:
         try:
             from src.crawlers.twitter_crawler import crawl_twitter
             from src.db.queries import insert_articles
+            from src.db.schema import thread_connection
 
             tweets_df = crawl_twitter(hours_back=1)
             if not tweets_df.empty:
                 tweets_df = tweets_df.rename(columns={"timestamp": "published_at"})
                 tweets_df["source_type"] = "twitter"
-                with self._db_lock:
-                    insert_articles(self.conn, tweets_df)
+                with thread_connection(self.db_path) as conn:
+                    insert_articles(conn, tweets_df)
                 logger.info("[twitter-poller] Ingested %d tweets", len(tweets_df))
             else:
                 logger.debug("[twitter-poller] No new tweets")
@@ -166,12 +165,13 @@ class BackgroundIngester:
         try:
             from src.crawlers.exchange_crawler import fetch_binance_announcements
             from src.db.queries import insert_articles
+            from src.db.schema import thread_connection
 
             ann_df = fetch_binance_announcements(hours_back=24)
             if not ann_df.empty:
                 ann_df = ann_df.rename(columns={"timestamp": "published_at"})
-                with self._db_lock:
-                    insert_articles(self.conn, ann_df)
+                with thread_connection(self.db_path) as conn:
+                    insert_articles(conn, ann_df)
                 logger.info(
                     "[exchange-poller] Ingested %d announcements", len(ann_df)
                 )
@@ -187,12 +187,13 @@ class BackgroundIngester:
         try:
             from src.crawlers.community_crawler import crawl_all_community
             from src.db.queries import insert_articles
+            from src.db.schema import thread_connection
 
             community_df = crawl_all_community(hours_back=6)
             if not community_df.empty:
                 community_df = community_df.rename(columns={"timestamp": "published_at"})
-                with self._db_lock:
-                    insert_articles(self.conn, community_df)
+                with thread_connection(self.db_path) as conn:
+                    insert_articles(conn, community_df)
                 logger.info(
                     "[community-poller] Ingested %d articles", len(community_df)
                 )
@@ -208,6 +209,7 @@ class BackgroundIngester:
         from src.prices.price_fetcher import fetch_prices, get_default_tickers
         from src.prices.event_detector import detect_events
         from src.db.queries import insert_prices, insert_events
+        from src.db.schema import thread_connection
 
         tickers_map = get_default_tickers()
         all_tickers = [t for ts in tickers_map.values() for t in ts]
@@ -216,8 +218,8 @@ class BackgroundIngester:
             logger.debug("[price-poller] No price data returned")
             return
 
-        with self._db_lock:
-            insert_prices(self.conn, price_df)
+        with thread_connection(self.db_path) as conn:
+            insert_prices(conn, price_df)
 
         logger.info(
             "[price-poller] Saved %d price rows for %d tickers",
@@ -227,8 +229,8 @@ class BackgroundIngester:
 
         events_df = detect_events(price_df)
         if not events_df.empty:
-            with self._db_lock:
-                events_df = insert_events(self.conn, events_df)
+            with thread_connection(self.db_path) as conn:
+                events_df = insert_events(conn, events_df)
             logger.info("[price-poller] Detected %d events", len(events_df))
             self._run_attribution(events_df)
 
@@ -237,12 +239,13 @@ class BackgroundIngester:
         try:
             from src.prices.binance_ws import run_binance_ws
             from src.db.queries import insert_prices
+            from src.db.schema import thread_connection
             import pandas as pd
 
             def on_kline(data: dict) -> None:
                 df = pd.DataFrame([data])
-                with self._db_lock:
-                    insert_prices(self.conn, df)
+                with thread_connection(self.db_path) as conn:
+                    insert_prices(conn, df)
 
             logger.info("[binance-ws] Connecting…")
             run_binance_ws(on_kline)
@@ -255,9 +258,12 @@ class BackgroundIngester:
         """Recompute TF-IDF topics from the last 6 hours of articles."""
         from src.db.queries import get_recent_articles, insert_topics
         from src.topics.topic_extractor import extract_topics
+        from src.db.schema import thread_connection
         from datetime import datetime, timezone
 
-        articles_df = get_recent_articles(self.conn, hours=6)
+        with thread_connection(self.db_path) as conn:
+            articles_df = get_recent_articles(conn, hours=6)
+
         if len(articles_df) < 3:
             logger.debug(
                 "[topic-recomputer] Only %d articles — skipping (need ≥3)",
@@ -278,8 +284,8 @@ class BackgroundIngester:
         topics_df["window_end"] = now.isoformat()
         topics_df["window_start"] = (now.replace(hour=now.hour - 6) if now.hour >= 6 else now).isoformat()
 
-        with self._db_lock:
-            insert_topics(self.conn, topics_df)
+        with thread_connection(self.db_path) as conn:
+            insert_topics(conn, topics_df)
         logger.info("[topic-recomputer] Saved %d topics", len(topics_df))
 
     def _ingest_derivatives(self) -> None:
@@ -290,6 +296,7 @@ class BackgroundIngester:
             fetch_liquidations,
         )
         from src.db.queries import insert_open_interest, insert_liquidations
+        from src.db.schema import thread_connection
 
         for symbol in ["BTCUSDT", "ETHUSDT", "SOLUSDT"]:
             try:
@@ -301,12 +308,12 @@ class BackgroundIngester:
                         on="timestamp",
                         how="left",
                     )
-                    with self._db_lock:
-                        insert_open_interest(self.conn, merged)
+                    with thread_connection(self.db_path) as conn:
+                        insert_open_interest(conn, merged)
                     logger.info("[derivatives-poller] Saved OI for %s (%d rows)", symbol, len(merged))
                 elif not oi_hist.empty:
-                    with self._db_lock:
-                        insert_open_interest(self.conn, oi_hist)
+                    with thread_connection(self.db_path) as conn:
+                        insert_open_interest(conn, oi_hist)
                     logger.info("[derivatives-poller] Saved OI for %s (%d rows, no L/S)", symbol, len(oi_hist))
             except Exception as exc:
                 logger.error("[derivatives-poller] OI fetch failed for %s: %s", symbol, exc)
@@ -314,8 +321,8 @@ class BackgroundIngester:
         try:
             liqs = fetch_liquidations()
             if not liqs.empty:
-                with self._db_lock:
-                    insert_liquidations(self.conn, liqs)
+                with thread_connection(self.db_path) as conn:
+                    insert_liquidations(conn, liqs)
                 logger.info("[derivatives-poller] Saved %d liquidation rows", len(liqs))
         except Exception as exc:
             logger.error("[derivatives-poller] Liquidations fetch failed: %s", exc)
@@ -325,6 +332,7 @@ class BackgroundIngester:
         try:
             from src.prices.whale_tracker import fetch_whale_movements, arkham_available, whale_alert_available
             from src.db.queries import insert_whale_transfers
+            from src.db.schema import thread_connection
 
             if not arkham_available() and not whale_alert_available():
                 return  # No API keys configured, skip silently
@@ -332,8 +340,8 @@ class BackgroundIngester:
             df = fetch_whale_movements(min_usd=1_000_000, hours_back=1)
             if not df.empty:
                 df["source"] = "arkham" if arkham_available() else "whale_alert"
-                with self._db_lock:
-                    insert_whale_transfers(self.conn, df)
+                with thread_connection(self.db_path) as conn:
+                    insert_whale_transfers(conn, df)
                 logger.info("[whale-poller] Ingested %d whale transfers", len(df))
         except ImportError:
             logger.warning("[whale-poller] Whale tracker not available")
@@ -342,8 +350,10 @@ class BackgroundIngester:
         """Run paper trading cycle."""
         try:
             from src.analysis.paper_trader import run_paper_trading_cycle
-            with self._db_lock:
-                run_paper_trading_cycle(self.conn)
+            from src.db.schema import thread_connection
+
+            with thread_connection(self.db_path) as conn:
+                run_paper_trading_cycle(conn)
         except ImportError:
             logger.warning("[paper-trader] Paper trader not available")
 
@@ -351,8 +361,10 @@ class BackgroundIngester:
         """Check for new events and send alerts."""
         try:
             from src.alerts.dispatcher import dispatch_alerts
-            with self._db_lock:
-                dispatch_alerts(self.conn)
+            from src.db.schema import thread_connection
+
+            with thread_connection(self.db_path) as conn:
+                dispatch_alerts(conn)
         except ImportError:
             pass  # Silently skip if not available
 
@@ -360,8 +372,10 @@ class BackgroundIngester:
         """Score sentiment for new articles."""
         try:
             from src.analysis.sentiment import update_article_sentiments
-            with self._db_lock:
-                count = update_article_sentiments(self.conn, use_llm=False)  # Rule-based by default
+            from src.db.schema import thread_connection
+
+            with thread_connection(self.db_path) as conn:
+                count = update_article_sentiments(conn, use_llm=False)  # Rule-based by default
                 if count:
                     logger.info("[sentiment] Scored %d articles", count)
         except ImportError:
@@ -372,12 +386,13 @@ class BackgroundIngester:
         try:
             from src.crawlers.playwright_crawler import crawl_all_playwright
             from src.db.queries import insert_articles
+            from src.db.schema import thread_connection
 
             df = crawl_all_playwright(hours_back=1)
             if not df.empty:
                 df = df.rename(columns={"timestamp": "published_at"})
-                with self._db_lock:
-                    insert_articles(self.conn, df)
+                with thread_connection(self.db_path) as conn:
+                    insert_articles(conn, df)
                 logger.info("[playwright-poller] Ingested %d articles", len(df))
             else:
                 logger.debug("[playwright-poller] No new articles")
@@ -390,8 +405,10 @@ class BackgroundIngester:
         """Detect cross-market signals and log notable findings."""
         try:
             from src.analysis.cross_market import detect_cross_market_signals
-            with self._db_lock:
-                signals = detect_cross_market_signals(self.conn, hours=48)
+            from src.db.schema import thread_connection
+
+            with thread_connection(self.db_path) as conn:
+                signals = detect_cross_market_signals(conn, hours=48)
             if not signals.empty:
                 logger.info(
                     "[cross-market-detector] %d cross-market signals detected",
@@ -422,8 +439,11 @@ class BackgroundIngester:
         """Run attribution for freshly detected events and persist results."""
         from src.db.queries import get_recent_articles, insert_attributions
         from src.attribution.mapper import attribute_all_events
+        from src.db.schema import thread_connection
 
-        articles_df = get_recent_articles(self.conn, hours=6)
+        with thread_connection(self.db_path) as conn:
+            articles_df = get_recent_articles(conn, hours=6)
+
         if articles_df.empty or events_df.empty:
             return
 
@@ -433,8 +453,8 @@ class BackgroundIngester:
 
         attr_df = attribute_all_events(events_df, articles_df)
         if not attr_df.empty:
-            with self._db_lock:
-                insert_attributions(self.conn, attr_df)
+            with thread_connection(self.db_path) as conn:
+                insert_attributions(conn, attr_df)
             logger.info("[attribution] Saved %d attribution rows", len(attr_df))
 
 

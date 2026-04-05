@@ -80,9 +80,24 @@ def detect_events(
         df.loc[mask, "return_zscore"] = ticker_df["return_zscore"]
         df.loc[mask, "is_return_event"] = ticker_df["is_return_event"]
 
+    # --- Realized volatility shock detection ---
+    # rolling_24h_rv  = std of 1h returns over 24 periods * sqrt(24)
+    # 7d_avg_rv       = mean of rolling_24h_rv over 168 periods (7 * 24)
+    # vol_shock fires when rolling_24h_rv > 2x 7d_avg_rv
+    df["rv_24h"] = (
+        df.groupby("ticker")["return_1h"]
+        .transform(lambda s: s.rolling(window=24, min_periods=6).std() * np.sqrt(24))
+    )
+    df["rv_7d_avg"] = (
+        df.groupby("ticker")["rv_24h"]
+        .transform(lambda s: s.rolling(window=168, min_periods=24).mean().shift(1))
+    )
+    df["vol_ratio"] = df["rv_24h"] / df["rv_7d_avg"].replace(0, np.nan)
+    df["is_vol_shock"] = df["vol_ratio"] > 2.0
+
     # --- Event flags ---
     vol_spike = df["volume_ratio"] > volume_threshold
-    is_event = df["is_return_event"].fillna(False) | vol_spike
+    is_event = df["is_return_event"].fillna(False) | vol_spike | df["is_vol_shock"].fillna(False)
 
     events = df[is_event].copy()
 
@@ -92,12 +107,16 @@ def detect_events(
                      "return_zscore", "event_type", "severity"]
         )
 
-    # --- Event type (price takes priority over volume spike) ---
+    # --- Event type (price takes priority over volume spike; vol_shock is independent) ---
     def classify_type(row):
+        if row.get("is_vol_shock") and not row["is_return_event"]:
+            return "vol_shock"
         if row["is_return_event"] and row["return_1h"] > 0:
             return "surge"
         if row["is_return_event"] and row["return_1h"] < 0:
             return "crash"
+        if row.get("is_vol_shock"):
+            return "vol_shock"
         return "volume_spike"
 
     events["event_type"] = events.apply(classify_type, axis=1)
@@ -107,7 +126,16 @@ def detect_events(
         abs_ret = abs(row["return_1h"]) if not np.isnan(row["return_1h"]) else 0.0
         vol_r   = row["volume_ratio"]   if not np.isnan(row["volume_ratio"])  else 1.0
 
-        if row["event_type"] in ("surge", "crash"):
+        if row["event_type"] == "vol_shock":
+            vr = row.get("vol_ratio", np.nan)
+            if np.isnan(vr):
+                return "low"
+            if vr >= 3.0:
+                return "high"
+            if vr >= 2.5:
+                return "medium"
+            return "low"
+        elif row["event_type"] in ("surge", "crash"):
             if abs_ret >= 0.10:
                 return "high"
             if abs_ret >= 0.05:
