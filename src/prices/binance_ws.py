@@ -49,7 +49,7 @@ class BinanceWebSocket:
         on_kline: Optional[Callable[[Dict], None]] = None,
     ):
         if symbols is None:
-            symbols = ["btcusdt", "ethusdt", "solusdt"]
+            symbols = ["btcusdt", "ethusdt", "solusdt", "bnbusdt", "xrpusdt", "adausdt", "dogeusdt"]
         self.symbols = [s.lower() for s in symbols]
         self.on_kline = on_kline
         self.latest_prices: Dict[str, float] = {}

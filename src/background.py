@@ -259,7 +259,7 @@ class BackgroundIngester:
         from src.db.queries import get_recent_articles, insert_topics
         from src.topics.topic_extractor import extract_topics
         from src.db.schema import thread_connection
-        from datetime import datetime, timezone
+        from datetime import datetime, timezone, timedelta
 
         with thread_connection(self.db_path) as conn:
             articles_df = get_recent_articles(conn, hours=6)
@@ -282,7 +282,7 @@ class BackgroundIngester:
         # Add window metadata expected by insert_topics
         now = datetime.now(timezone.utc)
         topics_df["window_end"] = now.isoformat()
-        topics_df["window_start"] = (now.replace(hour=now.hour - 6) if now.hour >= 6 else now).isoformat()
+        topics_df["window_start"] = (now - timedelta(hours=6)).isoformat()
 
         with thread_connection(self.db_path) as conn:
             insert_topics(conn, topics_df)

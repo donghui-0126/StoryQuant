@@ -18,19 +18,17 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 
+from src.config.tickers import get_price_tickers, get_all_tickers
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
 
-TICKERS = {
-    "crypto": ["BTC-USD", "ETH-USD", "SOL-USD"],
-    "us": ["NVDA", "AAPL", "TSLA", "SPY"],
-    "kr": ["005930.KS", "000660.KS", "035420.KS"],
-}
+TICKERS = get_price_tickers()
 
-ALL_TICKERS = [t for ts in TICKERS.values() for t in ts]
+ALL_TICKERS = get_all_tickers()
 
 # Event detection thresholds (same as event_detector.py)
 RETURN_THRESHOLD = 0.02   # ±2%

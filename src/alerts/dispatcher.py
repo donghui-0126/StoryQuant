@@ -69,6 +69,9 @@ def dispatch_alerts(conn: sqlite3.Connection):
     # --- 3. Whale Movement Alerts ---
     _dispatch_whale_alerts(conn, cutoff, send_message, format_whale_alert_msg)
 
+    # --- 4. Narrative Alerts ---
+    _dispatch_narrative_alerts(conn, send_message)
+
     _set_last_alert_time(conn, datetime.now(timezone.utc).isoformat(timespec="seconds"))
 
 
@@ -178,6 +181,42 @@ def _get_historical_stats(conn, ticker, event_type) -> dict:
     except Exception:
         pass
     return None
+
+
+def _dispatch_narrative_alerts(conn, send_message):
+    """Send alerts for emerging/building narratives with strength >= 0.3."""
+    try:
+        from src.analysis.narrative import (
+            detect_narratives, format_narrative_telegram,
+            get_narrative_signals, format_signals_telegram,
+        )
+    except ImportError:
+        return
+
+    try:
+        narratives = detect_narratives(conn, hours=6)
+    except Exception as exc:
+        logger.debug("detect_narratives failed: %s", exc)
+        return
+
+    actionable = [
+        n for n in narratives
+        if n.get("lifecycle") in ("EMERGING", "BUILDING")
+        and n.get("strength", 0) >= 0.3
+    ]
+
+    if not actionable:
+        return
+
+    try:
+        msg = format_narrative_telegram(actionable)
+        signals = get_narrative_signals(actionable)
+        if signals:
+            msg += "\n\n" + format_signals_telegram(signals)
+        send_message(msg)
+        logger.info("[alerts] Narrative alert: %d actionable narratives", len(actionable))
+    except Exception as exc:
+        logger.warning("[alerts] Narrative alert send failed: %s", exc)
 
 
 def _get_topic_historical(conn, topic_label: str) -> dict:

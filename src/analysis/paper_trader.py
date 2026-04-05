@@ -99,6 +99,34 @@ def generate_signals(conn) -> list[dict]:
     except Exception:
         pass
 
+    # 3. Narrative-based signals
+    try:
+        from src.analysis.narrative import detect_narratives, get_narrative_signals
+        narratives = detect_narratives(conn, hours=6)
+        narrative_sigs = get_narrative_signals(narratives)
+        for ns in narrative_sigs:
+            price = conn.execute(
+                "SELECT close FROM prices WHERE ticker = ? ORDER BY timestamp DESC LIMIT 1",
+                [ns["ticker"]]
+            ).fetchone()
+            if not price:
+                continue
+            signals.append({
+                "signal_type": "narrative_signal",
+                "ticker": ns["ticker"],
+                "direction": ns["direction"],
+                "entry_price": price[0],
+                "entry_time": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                "signal_details": json.dumps({
+                    "narrative": ns["narrative"],
+                    "lifecycle": ns["lifecycle"],
+                    "strength": ns["strength"],
+                    "confidence": ns["confidence"],
+                }, ensure_ascii=False),
+            })
+    except Exception:
+        pass
+
     return signals
 
 

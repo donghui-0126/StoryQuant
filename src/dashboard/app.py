@@ -247,16 +247,6 @@ def get_db():
         return None
 
 
-def _conn():
-    """Get a usable connection object for cached data functions."""
-    try:
-        from src.db.schema import thread_connection
-        with thread_connection() as c:
-            return c
-    except Exception:
-        return None
-
-
 # ── Data loaders ──────────────────────────────────────────────
 
 @st.cache_data(ttl=30)
@@ -451,7 +441,7 @@ def _render_narrative_card(n: dict):
     assets_html = " | ".join(asset_parts) if asset_parts else "—"
 
     # Sample headline
-    headlines = n.get("sample_headlines", [])
+    headlines = n.get("headlines", [])
     headline_html = ""
     if headlines:
         h = headlines[0][:80] + ("…" if len(headlines[0]) > 80 else "")

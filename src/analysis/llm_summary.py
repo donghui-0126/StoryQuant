@@ -203,7 +203,7 @@ def _fetch_events(conn: sqlite3.Connection, since: str) -> list[dict]:
     try:
         import pandas as pd
         df = pd.read_sql_query(
-            "SELECT ticker, return_1h, event_type, severity, timestamp FROM price_events WHERE timestamp >= ? ORDER BY ABS(return_1h) DESC LIMIT 10",
+            "SELECT ticker, return_1h, event_type, severity, timestamp FROM events WHERE timestamp >= ? ORDER BY ABS(return_1h) DESC LIMIT 10",
             conn,
             params=(since,),
         )
@@ -217,7 +217,13 @@ def _fetch_attributions(conn: sqlite3.Connection, since: str) -> list[dict]:
     try:
         import pandas as pd
         df = pd.read_sql_query(
-            "SELECT ticker, news_title, confidence, return_1h FROM news_price_attribution WHERE event_time >= ? ORDER BY confidence DESC LIMIT 30",
+            """SELECT e.ticker, ar.title as news_title, a.confidence, e.return_1h
+               FROM attributions a
+               JOIN events e ON a.event_id = e.id
+               JOIN articles ar ON a.article_id = ar.id
+               WHERE e.timestamp >= ?
+               ORDER BY a.total_score DESC
+               LIMIT 30""",
             conn,
             params=(since,),
         )
@@ -231,7 +237,7 @@ def _fetch_topics(conn: sqlite3.Connection) -> list[dict]:
     try:
         import pandas as pd
         df = pd.read_sql_query(
-            "SELECT topic_label, frequency, momentum_score FROM hot_topics ORDER BY momentum_score DESC LIMIT 10",
+            "SELECT topic_label, frequency, momentum_score FROM topics ORDER BY momentum_score DESC LIMIT 10",
             conn,
         )
         return df.to_dict(orient="records")

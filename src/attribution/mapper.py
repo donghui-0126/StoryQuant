@@ -9,63 +9,17 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 
+from src.config.tickers import TICKERS
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Ticker metadata (hardcoded for PoC)
+# Ticker metadata derived from centralized config
 # ---------------------------------------------------------------------------
 
 TICKER_METADATA = {
-    "BTC-USD": {
-        "name": "Bitcoin",
-        "sector": "crypto",
-        "keywords": ["bitcoin", "btc", "crypto", "etf"],
-    },
-    "ETH-USD": {
-        "name": "Ethereum",
-        "sector": "crypto",
-        "keywords": ["ethereum", "eth", "defi"],
-    },
-    "SOL-USD": {
-        "name": "Solana",
-        "sector": "crypto",
-        "keywords": ["solana", "sol"],
-    },
-    "NVDA": {
-        "name": "NVIDIA",
-        "sector": "semiconductors",
-        "keywords": ["nvidia", "gpu", "ai", "chip"],
-    },
-    "AAPL": {
-        "name": "Apple",
-        "sector": "tech",
-        "keywords": ["apple", "iphone", "mac"],
-    },
-    "TSLA": {
-        "name": "Tesla",
-        "sector": "ev",
-        "keywords": ["tesla", "ev", "musk", "electric"],
-    },
-    "SPY": {
-        "name": "S&P 500",
-        "sector": "index",
-        "keywords": ["s&p", "market", "fed", "rate", "inflation"],
-    },
-    "005930.KS": {
-        "name": "삼성전자",
-        "sector": "semiconductors",
-        "keywords": ["삼성", "samsung", "반도체", "갤럭시"],
-    },
-    "000660.KS": {
-        "name": "SK하이닉스",
-        "sector": "semiconductors",
-        "keywords": ["하이닉스", "hynix", "반도체", "hbm"],
-    },
-    "035420.KS": {
-        "name": "네이버",
-        "sector": "tech",
-        "keywords": ["네이버", "naver", "검색", "라인"],
-    },
+    ticker: {"name": cfg["name"], "sector": cfg["sector"], "keywords": cfg["keywords"]}
+    for ticker, cfg in TICKERS.items()
 }
 
 # Sector-level shared keywords

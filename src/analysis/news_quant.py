@@ -20,21 +20,12 @@ from collections import Counter
 import numpy as np
 import pandas as pd
 
+from src.config.tickers import get_ticker_keywords
+
 logger = logging.getLogger(__name__)
 
 # Ticker keywords for matching articles to tickers
-TICKER_KEYWORDS = {
-    "BTC-USD": ["bitcoin", "btc", "비트코인"],
-    "ETH-USD": ["ethereum", "eth", "이더리움", "ether"],
-    "SOL-USD": ["solana", "sol", "솔라나"],
-    "NVDA": ["nvidia", "nvda", "엔비디아"],
-    "AAPL": ["apple", "aapl", "애플"],
-    "TSLA": ["tesla", "tsla", "테슬라"],
-    "SPY": ["s&p", "spy", "s&p 500"],
-    "005930.KS": ["samsung", "삼성전자", "삼성"],
-    "000660.KS": ["sk hynix", "sk하이닉스", "하이닉스"],
-    "035420.KS": ["naver", "네이버"],
-}
+TICKER_KEYWORDS = get_ticker_keywords()
 
 # Sentiment keywords
 BULLISH_KW = [

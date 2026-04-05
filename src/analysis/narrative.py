@@ -35,7 +35,7 @@ NARRATIVE_TEMPLATES = {
         "keywords": ["ai", "artificial intelligence", "gpu", "capex", "data center",
                      "nvidia", "hyperscaler", "cloud", "인공지능", "AI 투자",
                      "데이터센터", "반도체"],
-        "assets": ["NVDA", "000660.KS", "005930.KS"],
+        "assets": ["NVDA", "MSFT", "GOOGL", "AMD", "AVGO", "TSM", "000660.KS", "005930.KS"],
         "direction": "bullish",
     },
     "etf_flow": {
@@ -43,7 +43,7 @@ NARRATIVE_TEMPLATES = {
         "label_ko": "크립토 ETF 자금 유입",
         "keywords": ["etf", "inflow", "outflow", "grayscale", "blackrock", "fidelity",
                      "spot bitcoin", "spot ethereum", "etf 승인", "자금 유입"],
-        "assets": ["BTC-USD", "ETH-USD"],
+        "assets": ["BTC-USD", "ETH-USD", "COIN", "MSTR", "MARA"],
         "direction": "bullish",
     },
     "fed_hawkish": {
@@ -51,7 +51,7 @@ NARRATIVE_TEMPLATES = {
         "label_ko": "연준 긴축 시그널",
         "keywords": ["fed", "fomc", "rate hike", "hawkish", "powell", "inflation",
                      "cpi", "금리", "긴축", "연준", "인플레이션"],
-        "assets": ["SPY", "BTC-USD", "TSLA"],
+        "assets": ["SPY", "QQQ", "BTC-USD", "TSLA"],
         "direction": "bearish",
     },
     "fed_dovish": {
@@ -59,7 +59,7 @@ NARRATIVE_TEMPLATES = {
         "label_ko": "연준 완화 시그널",
         "keywords": ["rate cut", "dovish", "pivot", "easing", "pause",
                      "금리 인하", "완화", "피벗"],
-        "assets": ["SPY", "BTC-USD", "TSLA", "NVDA"],
+        "assets": ["SPY", "QQQ", "BTC-USD", "TSLA", "NVDA"],
         "direction": "bullish",
     },
     "trade_war": {
@@ -67,7 +67,7 @@ NARRATIVE_TEMPLATES = {
         "label_ko": "무역전쟁 / 관세",
         "keywords": ["tariff", "trade war", "sanctions", "ban", "restrict",
                      "china", "관세", "무역전쟁", "제재", "규제"],
-        "assets": ["SPY", "AAPL", "NVDA", "005930.KS", "000660.KS"],
+        "assets": ["SPY", "AAPL", "NVDA", "TSM", "AVGO", "005930.KS", "000660.KS"],
         "direction": "bearish",
     },
     "defi_boom": {
@@ -75,7 +75,7 @@ NARRATIVE_TEMPLATES = {
         "label_ko": "디파이 / L1 모멘텀",
         "keywords": ["defi", "tvl", "staking", "layer 1", "l1", "solana",
                      "ethereum upgrade", "디파이", "스테이킹"],
-        "assets": ["ETH-USD", "SOL-USD"],
+        "assets": ["ETH-USD", "SOL-USD", "UNI-USD", "AVAX-USD", "ARB-USD", "OP-USD"],
         "direction": "bullish",
     },
     "regulation": {
@@ -125,6 +125,34 @@ NARRATIVE_TEMPLATES = {
                      "테더", "디페깅", "스테이블코인"],
         "assets": ["BTC-USD", "ETH-USD", "SOL-USD"],
         "direction": "bearish",
+    },
+    "meme_coin": {
+        "label": "Meme Coin Rally",
+        "label_ko": "밈코인 랠리",
+        "keywords": ["meme", "doge", "shib", "pepe", "memecoin", "밈코인", "도지"],
+        "assets": ["DOGE-USD"],
+        "direction": "bullish",
+    },
+    "bitcoin_treasury": {
+        "label": "Corporate Bitcoin Treasury",
+        "label_ko": "기업 비트코인 매입",
+        "keywords": ["treasury", "microstrategy", "saylor", "bitcoin purchase", "corporate bitcoin", "비트코인 매입"],
+        "assets": ["BTC-USD", "MSTR", "MARA", "COIN"],
+        "direction": "bullish",
+    },
+    "ev_battery": {
+        "label": "EV & Battery",
+        "label_ko": "전기차 / 배터리",
+        "keywords": ["ev", "electric vehicle", "battery", "lithium", "전기차", "배터리", "리튬"],
+        "assets": ["TSLA", "373220.KS", "006400.KS", "051910.KS", "005380.KS"],
+        "direction": "bullish",
+    },
+    "kr_finance": {
+        "label": "K-Finance / Valuation",
+        "label_ko": "한국 금융주 밸류업",
+        "keywords": ["밸류업", "value up", "배당", "자사주", "금융주", "은행주"],
+        "assets": ["105560.KS", "055550.KS"],
+        "direction": "bullish",
     },
 }
 

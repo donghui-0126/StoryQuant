@@ -17,7 +17,10 @@ logger = logging.getLogger(__name__)
 
 FUTURES_BASE = "https://fapi.binance.com"
 FUTURES_DATA_BASE = "https://fapi.binance.com/futures/data"
-FUTURES_SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT"]
+FUTURES_SYMBOLS = [
+    "BTCUSDT", "ETHUSDT", "SOLUSDT",
+    "BNBUSDT", "XRPUSDT", "ADAUSDT", "DOGEUSDT", "AVAXUSDT", "DOTUSDT", "LINKUSDT",
+]
 _TIMEOUT = 10
 
 

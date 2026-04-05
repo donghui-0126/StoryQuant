@@ -29,26 +29,20 @@ from datetime import datetime, timedelta, timezone
 import numpy as np
 import pandas as pd
 
+from src.config.tickers import get_market_map
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Market map
 # ---------------------------------------------------------------------------
 
+# Base map from centralized config, augmented with Binance USDT ticker variants
 MARKET_MAP: dict[str, str] = {
-    "BTC-USD":   "crypto",
-    "ETH-USD":   "crypto",
-    "SOL-USD":   "crypto",
+    **get_market_map(),
     "BTC-USDT":  "crypto",
     "ETH-USDT":  "crypto",
     "SOL-USDT":  "crypto",
-    "NVDA":      "us",
-    "AAPL":      "us",
-    "TSLA":      "us",
-    "SPY":       "us",
-    "005930.KS": "kr",
-    "000660.KS": "kr",
-    "035420.KS": "kr",
 }
 
 # Ticker display names for reports

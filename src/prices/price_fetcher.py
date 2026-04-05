@@ -8,14 +8,12 @@ from datetime import datetime
 import pandas as pd
 import yfinance as yf
 
+from src.config.tickers import get_price_tickers
+
 
 def get_default_tickers() -> dict[str, list[str]]:
     """Return a mapping of market name to list of tickers."""
-    return {
-        "crypto": ["BTC-USD", "ETH-USD", "SOL-USD"],
-        "us_stocks": ["NVDA", "AAPL", "TSLA", "SPY"],
-        "korean_stocks": ["005930.KS", "000660.KS", "035420.KS"],
-    }
+    return get_price_tickers()
 
 
 def fetch_prices(
