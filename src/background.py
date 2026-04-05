@@ -64,6 +64,7 @@ class BackgroundIngester:
             (self._run_paper_trading,             5 * 60,  "paper-trader"),
             (self._dispatch_alerts,               60,       "alert-dispatcher"),
             (self._score_sentiments,              5 * 60,  "sentiment-scorer"),
+            (self._ingest_playwright,            10 * 60,  "playwright-poller"),
         ]
 
         for func, interval, name in schedule:
@@ -364,6 +365,25 @@ class BackgroundIngester:
                     logger.info("[sentiment] Scored %d articles", count)
         except ImportError:
             pass
+
+    def _ingest_playwright(self) -> None:
+        """Crawl JS-rendered sites (Coinness, CoinMarketCap) via Playwright."""
+        try:
+            from src.crawlers.playwright_crawler import crawl_all_playwright
+            from src.db.queries import insert_articles
+
+            df = crawl_all_playwright(hours_back=1)
+            if not df.empty:
+                df = df.rename(columns={"timestamp": "published_at"})
+                with self._db_lock:
+                    insert_articles(self.conn, df)
+                logger.info("[playwright-poller] Ingested %d articles", len(df))
+            else:
+                logger.debug("[playwright-poller] No new articles")
+        except ImportError:
+            logger.warning("[playwright-poller] Playwright crawler not available — skipping")
+        except Exception as exc:
+            logger.error("[playwright-poller] Error: %s", exc)
 
     # ------------------------------------------------------------------
     # Attribution helper
