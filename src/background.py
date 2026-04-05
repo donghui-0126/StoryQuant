@@ -65,6 +65,7 @@ class BackgroundIngester:
             (self._dispatch_alerts,               60,       "alert-dispatcher"),
             (self._score_sentiments,              5 * 60,  "sentiment-scorer"),
             (self._ingest_playwright,            10 * 60,  "playwright-poller"),
+            (self._detect_cross_signals,          5 * 60,  "cross-market-detector"),
         ]
 
         for func, interval, name in schedule:
@@ -384,6 +385,34 @@ class BackgroundIngester:
             logger.warning("[playwright-poller] Playwright crawler not available — skipping")
         except Exception as exc:
             logger.error("[playwright-poller] Error: %s", exc)
+
+    def _detect_cross_signals(self) -> None:
+        """Detect cross-market signals and log notable findings."""
+        try:
+            from src.analysis.cross_market import detect_cross_market_signals
+            with self._db_lock:
+                signals = detect_cross_market_signals(self.conn, hours=48)
+            if not signals.empty:
+                logger.info(
+                    "[cross-market-detector] %d cross-market signals detected",
+                    len(signals),
+                )
+                # Log the top 3 most significant signals
+                for _, row in signals.head(3).iterrows():
+                    logger.info(
+                        "[cross-market-detector] %s (%s) -> %s (%s) | lag=%.0fh | src_ret=%.2f%% tgt_ret=%.2f%%",
+                        row["source_ticker"], row["source_event"],
+                        row["target_ticker"], row["target_event"],
+                        row["lag_hours"],
+                        row["source_return"] * 100,
+                        row["target_return"] * 100,
+                    )
+            else:
+                logger.debug("[cross-market-detector] No significant cross-market signals")
+        except ImportError:
+            logger.warning("[cross-market-detector] cross_market module not available — skipping")
+        except Exception as exc:
+            logger.error("[cross-market-detector] Error: %s", exc, exc_info=True)
 
     # ------------------------------------------------------------------
     # Attribution helper
