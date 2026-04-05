@@ -1,0 +1,3 @@
+"""
+StoryQuant historical analysis package.
+"""
