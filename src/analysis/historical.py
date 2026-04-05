@@ -42,6 +42,53 @@ _EVENT_CONTINUATION_COLS = [
 
 
 # ---------------------------------------------------------------------------
+# Forward return helper
+# ---------------------------------------------------------------------------
+
+def _compute_forward_return(
+    conn: sqlite3.Connection,
+    ticker: str,
+    event_ts: pd.Timestamp,
+    hours: int = 24,
+) -> float:
+    """Compute the price return from event_ts to event_ts + N hours.
+
+    Looks up the closest price rows in the prices table around the event
+    time and N hours later. Returns NaN if data is insufficient.
+    """
+    if pd.isna(event_ts):
+        return float("nan")
+
+    ts_str = event_ts.isoformat()
+    target_ts = (event_ts + timedelta(hours=hours)).isoformat()
+
+    # Get closest price at event time (within 1h window)
+    sql_at = """
+        SELECT close FROM prices
+        WHERE ticker = ? AND timestamp BETWEEN datetime(?, '-1 hour') AND datetime(?, '+1 hour')
+        ORDER BY ABS(julianday(timestamp) - julianday(?))
+        LIMIT 1
+    """
+    # Get closest price N hours later (within 2h window)
+    sql_after = """
+        SELECT close FROM prices
+        WHERE ticker = ? AND timestamp BETWEEN datetime(?, '-2 hours') AND datetime(?, '+2 hours')
+        ORDER BY ABS(julianday(timestamp) - julianday(?))
+        LIMIT 1
+    """
+    try:
+        row_at = conn.execute(sql_at, [ticker, ts_str, ts_str, ts_str]).fetchone()
+        row_after = conn.execute(sql_after, [ticker, target_ts, target_ts, target_ts]).fetchone()
+
+        if row_at and row_after and row_at[0] and row_after[0] and row_at[0] != 0:
+            return (row_after[0] - row_at[0]) / row_at[0]
+    except Exception as exc:
+        logger.debug("Forward return lookup failed for %s: %s", ticker, exc)
+
+    return float("nan")
+
+
+# ---------------------------------------------------------------------------
 # 1. News-topic → price impact
 # ---------------------------------------------------------------------------
 
@@ -92,23 +139,25 @@ def compute_news_impact(
     if df.empty:
         return pd.DataFrame(columns=_NEWS_IMPACT_COLS)
 
-    # avg_return_24h: we approximate with the next-available event return for
-    # the same ticker within 24 h (best effort with available schema).
-    # For a full 24 h forward return we would need price data; use return_1h
-    # as the primary signal and leave avg_return_24h as NaN when unavailable.
     df["event_ts"] = pd.to_datetime(df["event_ts"], utc=True, errors="coerce")
     df["article_ts"] = pd.to_datetime(df["article_ts"], utc=True, errors="coerce")
+
+    # Compute actual 24h forward return from prices table
+    df["return_24h"] = df.apply(
+        lambda row: _compute_forward_return(conn, row["ticker"], row["event_ts"], hours=24),
+        axis=1,
+    )
 
     agg = (
         df.groupby(["topic_label", "ticker"])
         .agg(
             avg_return_1h=("return_1h", "mean"),
+            avg_return_24h=("return_24h", "mean"),
             occurrence_count=("return_1h", "count"),
             last_seen=("article_ts", "max"),
         )
         .reset_index()
     )
-    agg["avg_return_24h"] = float("nan")  # requires price-forward lookup; placeholder
     agg["last_seen"] = agg["last_seen"].astype(str)
 
     return agg[_NEWS_IMPACT_COLS]
@@ -238,12 +287,8 @@ def compute_event_continuation(
             ]
             ret_next_1h = future["return_1h"].mean() if not future.empty else float("nan")
 
-            # Next event within 24 h
-            future_24 = group[
-                (group["timestamp"] > t0) &
-                (group["timestamp"] <= t0 + pd.Timedelta(hours=24))
-            ]
-            ret_next_24h = future_24["return_1h"].mean() if not future_24.empty else float("nan")
+            # Actual 24h forward return from price data
+            ret_next_24h = _compute_forward_return(conn, ticker, t0, hours=24)
 
             # Continuation: same sign as original move
             continued = (
@@ -369,20 +414,40 @@ def compute_topic_performance(conn, lookback_days=30) -> pd.DataFrame:
     sql = """
         SELECT
             t.topic_label,
-            AVG(e.return_1h) as avg_return_1h,
-            COUNT(*) as sample_count,
-            SUM(CASE WHEN e.return_1h > 0 THEN 1 ELSE 0 END) * 1.0 / COUNT(*) as hit_rate
+            e.ticker,
+            e.return_1h,
+            e.timestamp as event_ts,
+            t.created_at as topic_ts
         FROM topics t
         JOIN events e ON e.timestamp > t.created_at
             AND e.timestamp <= datetime(t.created_at, '+24 hours')
             AND e.event_type IS NOT NULL
         WHERE t.created_at >= datetime('now', ?)
-        GROUP BY t.topic_label
-        HAVING sample_count >= 2
-        ORDER BY sample_count DESC
     """
     try:
-        df = pd.read_sql_query(sql, conn, params=[f'-{lookback_days} days'])
+        raw = pd.read_sql_query(sql, conn, params=[f'-{lookback_days} days'])
+        if raw.empty:
+            return pd.DataFrame(columns=["topic_label", "avg_return_1h", "avg_return_24h", "hit_rate", "sample_count"])
+
+        # Compute 24h forward return for each event
+        raw["event_ts"] = pd.to_datetime(raw["event_ts"], utc=True, errors="coerce")
+        raw["return_24h"] = raw.apply(
+            lambda r: _compute_forward_return(conn, r["ticker"], r["event_ts"], hours=24),
+            axis=1,
+        )
+
+        df = (
+            raw.groupby("topic_label")
+            .agg(
+                avg_return_1h=("return_1h", "mean"),
+                avg_return_24h=("return_24h", "mean"),
+                sample_count=("return_1h", "count"),
+                hit_rate=("return_1h", lambda x: (x > 0).mean()),
+            )
+            .reset_index()
+            .query("sample_count >= 2")
+            .sort_values("sample_count", ascending=False)
+        )
         return df
     except Exception:
         return pd.DataFrame(columns=["topic_label", "avg_return_1h", "hit_rate", "sample_count"])
@@ -499,8 +564,10 @@ def generate_historical_context(conn) -> str:
         lines.append("=== 토픽별 과거 성과 ===")
         for _, r in topic_perf.head(10).iterrows():
             hit = r.get('hit_rate', 0) * 100
-            avg_ret = r.get('avg_return_1h', 0) * 100
-            lines.append(f"  '{r['topic_label']}' 등장 후: 평균 수익률 {avg_ret:+.2f}%, 적중률 {hit:.0f}%, 샘플 {r.get('sample_count',0)}건")
+            avg_ret_1h = r.get('avg_return_1h', 0) * 100
+            avg_ret_24h = r.get('avg_return_24h', float('nan'))
+            ret_24h_str = f", 24h {avg_ret_24h*100:+.2f}%" if pd.notna(avg_ret_24h) else ""
+            lines.append(f"  '{r['topic_label']}' 등장 후: 1h 평균 {avg_ret_1h:+.2f}%{ret_24h_str}, 적중률 {hit:.0f}%, 샘플 {r.get('sample_count',0)}건")
 
     # Event type stats
     event_stats = compute_event_type_stats(conn)
