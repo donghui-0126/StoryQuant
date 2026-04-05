@@ -1,6 +1,6 @@
 """
-StoryQuant Dashboard — Redesigned
-4-tab layout: Overview | Signals | News & Topics | Performance
+StoryQuant Dashboard — Narrative-Driven
+4-tab layout: Narratives | Signals & Events | News Feed | Performance
 """
 
 import sys
@@ -134,6 +134,49 @@ st.markdown("""
     margin-top: 4px;
   }
 
+  /* ---- Narrative cards ---- */
+  .narrative-card {
+    background: #141720;
+    border-radius: 6px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    border: 1px solid #1f2535;
+  }
+  .narrative-card.emerging { border-left: 4px solid #3b82f6; }
+  .narrative-card.building { border-left: 4px solid #22c55e; }
+  .narrative-card.peaking  { border-left: 4px solid #f59e0b; }
+  .narrative-card.fading   { border-left: 4px solid #6b7280; }
+  .narrative-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #e8ecf4;
+  }
+  .narrative-meta {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    color: #5a6480;
+    margin-top: 3px;
+  }
+  .narrative-assets {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    color: #8892a4;
+    margin-top: 6px;
+  }
+  .narrative-headline {
+    font-size: 0.78rem;
+    color: #5a6480;
+    font-style: italic;
+    margin-top: 4px;
+  }
+  .narrative-signal {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    color: #60a5fa;
+    margin-top: 6px;
+    font-weight: 500;
+  }
+
   /* ---- Alert badge ---- */
   .alert-badge {
     display: inline-block;
@@ -148,6 +191,21 @@ st.markdown("""
   .alert-high   { background: #2d0f0f; color: #f87171; border: 1px solid #7f1d1d; }
   .alert-medium { background: #2d1f0f; color: #fbbf24; border: 1px solid #78350f; }
   .alert-low    { background: #0f1f2d; color: #60a5fa; border: 1px solid #1e3a5f; }
+
+  /* ---- Signal chip ---- */
+  .signal-chip {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.72rem;
+    font-weight: 500;
+    margin-right: 6px;
+    margin-bottom: 4px;
+  }
+  .chip-buy  { background: #052a1a; color: #22c55e; border: 1px solid #15803d; }
+  .chip-sell { background: #2a0505; color: #f87171; border: 1px solid #7f1d1d; }
+  .chip-neutral { background: #141720; color: #8892a4; border: 1px solid #1f2535; }
 
   /* ---- Sidebar ---- */
   section[data-testid="stSidebar"] {
@@ -183,10 +241,18 @@ st.markdown("""
 @st.cache_resource
 def get_db():
     try:
-        from src.db.schema import thread_connection, init_db, get_connection
-        conn = get_connection(DB_PATH)
-        init_db(conn)
-        return conn
+        from src.db.schema import thread_connection
+        return thread_connection
+    except Exception:
+        return None
+
+
+def _conn():
+    """Get a usable connection object for cached data functions."""
+    try:
+        from src.db.schema import thread_connection
+        with thread_connection() as c:
+            return c
     except Exception:
         return None
 
@@ -194,115 +260,106 @@ def get_db():
 # ── Data loaders ──────────────────────────────────────────────
 
 @st.cache_data(ttl=30)
-def load_articles(hours: int = 24, market: str = None) -> pd.DataFrame:
-    conn = get_db()
-    if conn is None:
-        return pd.DataFrame()
+def load_narratives(hours: int = 24) -> list:
     try:
-        from src.db.queries import get_recent_articles
-        return get_recent_articles(conn, hours=hours, market=market)
+        from src.db.schema import thread_connection
+        from src.analysis.narrative import detect_narratives
+        with thread_connection() as conn:
+            return detect_narratives(conn, hours=hours)
+    except Exception:
+        return []
+
+
+@st.cache_data(ttl=30)
+def load_composite_signals(hours: int = 6) -> pd.DataFrame:
+    try:
+        from src.db.schema import thread_connection
+        from src.analysis.news_quant import compute_composite_signal
+        with thread_connection() as conn:
+            return compute_composite_signal(conn, hours=hours)
     except Exception:
         return pd.DataFrame()
 
 
 @st.cache_data(ttl=30)
-def load_topics(hours: int = 24) -> pd.DataFrame:
-    conn = get_db()
-    if conn is None:
-        return pd.DataFrame()
+def load_articles(hours: int = 24, market: str = None) -> pd.DataFrame:
     try:
-        from src.db.queries import get_recent_topics
-        return get_recent_topics(conn, hours=hours)
+        from src.db.schema import thread_connection
+        from src.db.queries import get_recent_articles
+        with thread_connection() as conn:
+            return get_recent_articles(conn, hours=hours, market=market)
     except Exception:
         return pd.DataFrame()
 
 
 @st.cache_data(ttl=30)
 def load_events(hours: int = 24) -> pd.DataFrame:
-    conn = get_db()
-    if conn is None:
-        return pd.DataFrame()
     try:
+        from src.db.schema import thread_connection
         from src.db.queries import get_recent_events
-        return get_recent_events(conn, hours=hours)
-    except Exception:
-        return pd.DataFrame()
-
-
-@st.cache_data(ttl=30)
-def load_prices(ticker: str = None, hours: int = 72) -> pd.DataFrame:
-    conn = get_db()
-    if conn is None:
-        return pd.DataFrame()
-    try:
-        from src.db.queries import get_recent_prices
-        return get_recent_prices(conn, ticker=ticker, hours=hours)
+        with thread_connection() as conn:
+            return get_recent_events(conn, hours=hours)
     except Exception:
         return pd.DataFrame()
 
 
 @st.cache_data(ttl=60)
 def load_cross_market_signals() -> pd.DataFrame:
-    conn = get_db()
-    if conn is None:
-        return pd.DataFrame()
     try:
+        from src.db.schema import thread_connection
         from src.analysis.cross_market import detect_cross_market_signals
-        return detect_cross_market_signals(conn, hours=48)
+        with thread_connection() as conn:
+            return detect_cross_market_signals(conn, hours=48)
+    except Exception:
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=60)
+def load_cross_market_correlations() -> pd.DataFrame:
+    try:
+        from src.db.schema import thread_connection
+        from src.analysis.cross_market import compute_cross_market_correlations
+        with thread_connection() as conn:
+            return compute_cross_market_correlations(conn)
     except Exception:
         return pd.DataFrame()
 
 
 @st.cache_data(ttl=120)
 def load_performance(days: int = 30) -> dict:
-    conn = get_db()
-    if conn is None:
-        return {"has_data": False}
     try:
+        from src.db.schema import thread_connection
         from src.analysis.leaderboard import compute_performance
-        return compute_performance(conn, days=days)
+        with thread_connection() as conn:
+            return compute_performance(conn, days=days)
     except Exception:
         return {"has_data": False}
 
 
-@st.cache_data(ttl=30)
-def load_trade_stats() -> dict:
-    conn = get_db()
-    if conn is None:
-        return {}
+@st.cache_data(ttl=300)
+def load_historical_context() -> str:
     try:
-        from src.db.queries import get_trade_stats
-        return get_trade_stats(conn)
+        from src.db.schema import thread_connection
+        from src.analysis.historical import generate_historical_context
+        with thread_connection() as conn:
+            return generate_historical_context(conn)
     except Exception:
-        return {}
-
-
-@st.cache_data(ttl=30)
-def load_trade_history(limit: int = 50) -> pd.DataFrame:
-    conn = get_db()
-    if conn is None:
-        return pd.DataFrame()
-    try:
-        from src.db.queries import get_trade_history
-        return get_trade_history(conn, limit=limit)
-    except Exception:
-        return pd.DataFrame()
+        return ""
 
 
 @st.cache_data(ttl=30)
 def get_db_stats() -> dict:
-    conn = get_db()
-    if conn is None:
-        return {}
     try:
-        stats = {}
-        stats["articles"] = conn.execute("SELECT COUNT(*) FROM articles").fetchone()[0]
-        stats["events"]   = conn.execute("SELECT COUNT(*) FROM events").fetchone()[0]
-        stats["prices"]   = conn.execute("SELECT COUNT(*) FROM prices").fetchone()[0]
-        stats["trades"]   = conn.execute("SELECT COUNT(*) FROM trades").fetchone()[0]
-        db_file = Path(DB_PATH)
-        stats["db_size_mb"] = round(db_file.stat().st_size / 1024 / 1024, 2) if db_file.exists() else 0
-        return stats
+        from src.db.schema import thread_connection
+        with thread_connection() as conn:
+            stats = {}
+            stats["articles"] = conn.execute("SELECT COUNT(*) FROM articles").fetchone()[0]
+            stats["events"]   = conn.execute("SELECT COUNT(*) FROM events").fetchone()[0]
+            stats["prices"]   = conn.execute("SELECT COUNT(*) FROM prices").fetchone()[0]
+            stats["trades"]   = conn.execute("SELECT COUNT(*) FROM trades").fetchone()[0]
+            db_file = Path(DB_PATH)
+            stats["db_size_mb"] = round(db_file.stat().st_size / 1024 / 1024, 2) if db_file.exists() else 0
+            return stats
     except Exception:
         return {}
 
@@ -318,16 +375,6 @@ def fmt_pct(val, decimals=2) -> str:
         return "—"
 
 
-def pct_delta(val) -> str:
-    """Return delta string suitable for st.metric."""
-    try:
-        v = float(val)
-        sign = "+" if v >= 0 else ""
-        return f"{sign}{v:.2f}%"
-    except Exception:
-        return None
-
-
 def severity_color(sev: str) -> str:
     m = {"high": "#f87171", "medium": "#fbbf24", "low": "#60a5fa"}
     return m.get(str(sev).lower(), "#8892a4")
@@ -338,15 +385,6 @@ def return_color(val) -> str:
         return "#22c55e" if float(val) >= 0 else "#f87171"
     except Exception:
         return "#8892a4"
-
-
-def source_type_class(st_val: str) -> str:
-    m = {
-        "exchange_announcement": "exchange",
-        "twitter": "twitter",
-        "community": "community",
-    }
-    return m.get(str(st_val).lower(), "")
 
 
 def _no_data(label: str = "No data available"):
@@ -362,6 +400,94 @@ def _section(title: str):
     st.markdown(f'<p class="sq-section">{title}</p>', unsafe_allow_html=True)
 
 
+_LIFECYCLE_ICON = {
+    "EMERGING": "🌱",
+    "BUILDING": "📈",
+    "PEAKING":  "🔥",
+    "FADING":   "📉",
+}
+
+_LIFECYCLE_COLOR = {
+    "EMERGING": "#3b82f6",
+    "BUILDING": "#22c55e",
+    "PEAKING":  "#f59e0b",
+    "FADING":   "#6b7280",
+}
+
+_LIFECYCLE_CLASS = {
+    "EMERGING": "emerging",
+    "BUILDING": "building",
+    "PEAKING":  "peaking",
+    "FADING":   "fading",
+}
+
+
+def _render_narrative_card(n: dict):
+    lc = n.get("lifecycle", "FADING")
+    icon = _LIFECYCLE_ICON.get(lc, "")
+    lc_color = _LIFECYCLE_COLOR.get(lc, "#6b7280")
+    lc_class = _LIFECYCLE_CLASS.get(lc, "fading")
+    strength_pct = int(n.get("strength", 0) * 100)
+    direction = n.get("direction", "bullish")
+    dir_icon = "📈" if direction == "bullish" else "📉"
+    dir_color = "#22c55e" if direction == "bullish" else "#f87171"
+    sentiment = n.get("sentiment_bias", 0)
+    sent_str = f"+{sentiment:.2f}" if sentiment >= 0 else f"{sentiment:.2f}"
+    article_count = n.get("article_count", 0)
+    label_ko = n.get("label_ko", n.get("label", ""))
+
+    # Assets with price reactions
+    assets = n.get("affected_assets", [])
+    reactions = n.get("price_reactions", {})
+    asset_parts = []
+    for ticker in assets[:4]:
+        ret = reactions.get(ticker, 0)
+        ret_str = fmt_pct(ret * 100, 1) if ret != 0 else "+0.0%"
+        color = "#22c55e" if ret >= 0 else "#f87171"
+        asset_parts.append(
+            f'<span style="color:{color};font-family:DM Mono,monospace;font-size:0.7rem;">'
+            f'{ticker} {ret_str}</span>'
+        )
+    assets_html = " | ".join(asset_parts) if asset_parts else "—"
+
+    # Sample headline
+    headlines = n.get("sample_headlines", [])
+    headline_html = ""
+    if headlines:
+        h = headlines[0][:80] + ("…" if len(headlines[0]) > 80 else "")
+        headline_html = f'<p class="narrative-headline">→ "{h}"</p>'
+
+    # Signal tickers
+    sigs = [
+        f'{t} {"LONG" if direction == "bullish" else "SHORT"}'
+        for t in assets[:3]
+    ]
+    signal_str = ", ".join(sigs) if sigs else ""
+
+    st.markdown(f"""
+<div class="narrative-card {lc_class}">
+  <div style="display:flex;align-items:center;justify-content:space-between;">
+    <span class="narrative-title">{icon} {label_ko}</span>
+    <span style="font-family:DM Mono,monospace;font-size:0.68rem;
+                 color:{lc_color};font-weight:600;letter-spacing:0.08em;">{lc} &nbsp;{strength_pct}%</span>
+  </div>
+  <p class="narrative-meta">
+    <span style="color:{dir_color};">{dir_icon} {direction.upper()}</span>
+    &nbsp;|&nbsp; 기사 {article_count}건
+    &nbsp;|&nbsp; 감성 {sent_str}
+  </p>
+  <div style="margin:8px 0 4px 0;">
+    <div style="background:#1f2535;border-radius:3px;height:4px;">
+      <div style="background:{lc_color};width:{strength_pct}%;height:4px;border-radius:3px;"></div>
+    </div>
+  </div>
+  <p class="narrative-assets">자산: {assets_html}</p>
+  {headline_html}
+  <p class="narrative-signal">⚡ Signal: {signal_str}</p>
+</div>
+""", unsafe_allow_html=True)
+
+
 # ── Sidebar ───────────────────────────────────────────────────
 
 with st.sidebar:
@@ -371,17 +497,6 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
     st.markdown('<hr style="border-color:#1f2535;margin:10px 0 16px 0;">', unsafe_allow_html=True)
-
-    # Market filter
-    st.markdown('<p class="sq-sidebar-label">Market</p>', unsafe_allow_html=True)
-    market_filter = st.multiselect(
-        label="market",
-        options=["crypto", "us", "kr"],
-        default=["crypto", "us", "kr"],
-        label_visibility="collapsed",
-    )
-
-    st.markdown('<hr style="border-color:#1f2535;margin:12px 0;">', unsafe_allow_html=True)
 
     # Time window
     st.markdown('<p class="sq-sidebar-label">Time Window</p>', unsafe_allow_html=True)
@@ -397,22 +512,29 @@ with st.sidebar:
 
     st.markdown('<hr style="border-color:#1f2535;margin:12px 0;">', unsafe_allow_html=True)
 
+    # Market filter
+    st.markdown('<p class="sq-sidebar-label">Market</p>', unsafe_allow_html=True)
+    market_filter = st.multiselect(
+        label="market",
+        options=["crypto", "us", "kr"],
+        default=["crypto", "us", "kr"],
+        label_visibility="collapsed",
+    )
+
+    st.markdown('<hr style="border-color:#1f2535;margin:12px 0;">', unsafe_allow_html=True)
+
     # DB stats (compact)
     stats = get_db_stats()
     if stats:
-        st.markdown('<p class="sq-sidebar-label">Database</p>', unsafe_allow_html=True)
-        cols = st.columns(2)
-        with cols[0]:
-            st.metric("Articles", f"{stats.get('articles', 0):,}")
-            st.metric("Prices", f"{stats.get('prices', 0):,}")
-        with cols[1]:
-            st.metric("Events", f"{stats.get('events', 0):,}")
-            st.metric("Trades", f"{stats.get('trades', 0):,}")
-        st.caption(f"DB: {stats.get('db_size_mb', 0)} MB")
+        st.markdown(
+            f'<p style="font-family:DM Mono,monospace;font-size:0.65rem;color:#5a6480;">'
+            f'기사 {stats.get("articles",0):,} · 이벤트 {stats.get("events",0):,} · '
+            f'가격 {stats.get("prices",0):,} · DB {stats.get("db_size_mb",0)}MB</p>',
+            unsafe_allow_html=True,
+        )
     else:
         st.caption("No DB connection")
 
-    st.markdown('<hr style="border-color:#1f2535;margin:12px 0;">', unsafe_allow_html=True)
     st.caption(f"Updated {datetime.now().strftime('%H:%M:%S')}")
 
 
@@ -423,8 +545,8 @@ st.markdown(
     f'<div style="display:flex;align-items:baseline;gap:16px;margin-bottom:8px;">'
     f'<span style="font-size:1.35rem;font-weight:600;color:#e8ecf4;'
     f'font-family:DM Sans,sans-serif;letter-spacing:-0.01em;">StoryQuant</span>'
-    f'<span style="font-family:DM Mono,monospace;font-size:0.7rem;color:#5a6480;">'
-    f'News-driven multi-asset intelligence</span>'
+    f'<span style="font-family:DM Mono,monospace;font-size:0.78rem;color:#5a6480;">'
+    f'시장을 움직이는 스토리</span>'
     f'<span style="margin-left:auto;font-family:DM Mono,monospace;font-size:0.68rem;'
     f'color:#3b4560;">{_now_str}</span>'
     f'</div>',
@@ -433,533 +555,233 @@ st.markdown(
 
 # ── Main tabs ─────────────────────────────────────────────────
 
-tab_overview, tab_signals, tab_news, tab_perf = st.tabs([
-    "Overview", "Signals", "News & Topics", "Performance"
+tab_narratives, tab_signals, tab_news, tab_perf = st.tabs([
+    "Narratives", "Signals & Events", "News Feed", "Performance"
 ])
 
 
 # ══════════════════════════════════════════════════════════════
-# TAB 1 — OVERVIEW
+# TAB 1 — NARRATIVES
 # ══════════════════════════════════════════════════════════════
 
-with tab_overview:
+with tab_narratives:
+    narratives = load_narratives(hours=selected_hours)
 
-    # Load data for the selected window
-    ov_events   = load_events(hours=selected_hours)
-    ov_articles = load_articles(hours=selected_hours)
-    ov_topics   = load_topics(hours=selected_hours)
-    trade_stats = load_trade_stats()
+    # ── Active Narrative Cards ──
+    _section("Active Narratives")
 
-    # ── KPI row ──
-    k1, k2, k3, k4 = st.columns(4)
-
-    with k1:
-        st.metric(
-            "Articles",
-            f"{len(ov_articles):,}",
-            delta=f"{time_window} window",
-        )
-    with k2:
-        n_events = len(ov_events) if not ov_events.empty else 0
-        n_high   = 0
-        if not ov_events.empty and "severity" in ov_events.columns:
-            n_high = int((ov_events["severity"] == "high").sum())
-        st.metric(
-            "Events",
-            f"{n_events:,}",
-            delta=f"{n_high} high severity" if n_high else None,
-            delta_color="inverse" if n_high else "normal",
-        )
-    with k3:
-        # Top signal: highest absolute return event
-        top_signal_label = "—"
-        if not ov_events.empty and "return_1h" in ov_events.columns:
-            ev_sorted = ov_events.dropna(subset=["return_1h"]).copy()
-            if not ev_sorted.empty:
-                ev_sorted["_abs"] = ev_sorted["return_1h"].abs()
-                top_ev = ev_sorted.loc[ev_sorted["_abs"].idxmax()]
-                ticker = top_ev.get("ticker", "?")
-                ret    = top_ev["return_1h"]
-                top_signal_label = f"{ticker} {fmt_pct(ret * 100, 1)}"
-        st.metric("Top Signal", top_signal_label)
-    with k4:
-        pnl_val  = trade_stats.get("total_pnl", 0)
-        win_rate = trade_stats.get("win_rate", 0)
-        st.metric(
-            "Portfolio PnL",
-            fmt_pct(pnl_val),
-            delta=f"Win rate {win_rate:.0f}%" if win_rate else None,
-            delta_color="normal" if pnl_val >= 0 else "inverse",
-        )
+    if not narratives:
+        _no_data(f"No active narratives detected in the last {time_window}")
+    else:
+        n_cols = min(len(narratives), 2)
+        col_pairs = st.columns(n_cols)
+        for i, n in enumerate(narratives):
+            with col_pairs[i % n_cols]:
+                _render_narrative_card(n)
 
     st.markdown('<hr class="sq-divider">', unsafe_allow_html=True)
 
-    # ── Two-column layout ──
-    col_left, col_right = st.columns([3, 2])
+    # ── Narrative Signals table ──
+    _section("Narrative Signals")
 
-    with col_left:
-        # Price sparklines for BTC, ETH, SPY
-        _section("Price Overview — BTC / ETH / SPY")
-        sparkline_tickers = ["BTC-USD", "ETH-USD", "SPY"]
-        price_frames = {}
-        for _t in sparkline_tickers:
-            _df = load_prices(ticker=_t, hours=selected_hours)
-            if not _df.empty and "timestamp" in _df.columns and "close" in _df.columns:
-                _df["timestamp"] = pd.to_datetime(_df["timestamp"], utc=True, errors="coerce")
-                _df = _df.dropna(subset=["timestamp", "close"]).sort_values("timestamp")
-                price_frames[_t] = _df
+    if narratives:
+        try:
+            from src.analysis.narrative import get_narrative_signals
+            signals = get_narrative_signals(narratives)
+        except Exception:
+            signals = []
 
-        if price_frames:
-            _COLORS = {"BTC-USD": "#f59e0b", "ETH-USD": "#8b5cf6", "SPY": "#22c55e"}
-            fig = go.Figure()
-            for _t, _df in price_frames.items():
-                # Normalize to % change from first point
-                first = _df["close"].iloc[0]
-                pct   = (_df["close"] / first - 1) * 100
-                fig.add_trace(go.Scatter(
-                    x=_df["timestamp"],
-                    y=pct,
-                    name=_t.replace("-USD", ""),
-                    mode="lines",
-                    line=dict(color=_COLORS.get(_t, "#60a5fa"), width=1.5),
-                    hovertemplate="%{x|%H:%M}<br>%{y:+.2f}%<extra>" + _t + "</extra>",
-                ))
-            fig.update_layout(
-                template="plotly_dark",
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
-                height=160,
-                margin=dict(l=0, r=0, t=8, b=0),
-                showlegend=True,
-                legend=dict(
-                    orientation="h", x=0, y=1.15,
-                    font=dict(size=10, color="#8892a4"),
-                    bgcolor="rgba(0,0,0,0)",
-                ),
-                xaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
-                yaxis=dict(
-                    showgrid=True,
-                    gridcolor="#1a1f2e",
-                    tickformat="+.1f",
-                    ticksuffix="%",
-                    tickfont=dict(size=9, color="#5a6480"),
-                    zeroline=True,
-                    zerolinecolor="#2a3050",
-                    zerolinewidth=1,
-                ),
-                hovermode="x unified",
-            )
-            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
-        else:
-            _no_data("No price data in selected window")
-
-        # Recent events table
-        st.markdown('<hr class="sq-divider">', unsafe_allow_html=True)
-        _section(f"Recent Events (last 5)")
-
-        if not ov_events.empty:
-            display_cols = []
-            col_map = {
-                "timestamp":  "Time",
-                "ticker":     "Ticker",
-                "event_type": "Type",
-                "return_1h":  "Return",
-                "severity":   "Severity",
-            }
-            ev_disp = ov_events.copy()
-
-            # Format timestamp
-            if "timestamp" in ev_disp.columns:
-                ev_disp["timestamp"] = pd.to_datetime(
-                    ev_disp["timestamp"], utc=True, errors="coerce"
-                ).dt.strftime("%m-%d %H:%M")
-
-            # Format return
-            if "return_1h" in ev_disp.columns:
-                ev_disp["return_1h"] = ev_disp["return_1h"].apply(
-                    lambda x: fmt_pct(float(x) * 100, 2) if pd.notna(x) else "—"
-                )
-
-            keep = [c for c in col_map if c in ev_disp.columns]
-            ev_disp = ev_disp[keep].rename(columns=col_map).head(5)
-
+        if signals:
+            sig_rows = []
+            for s in signals:
+                dir_icon = "🟢 LONG" if s["direction"] == "long" else "🔴 SHORT"
+                conf_pct = f"{s['confidence']:.0%}"
+                sig_rows.append({
+                    "Ticker":     s["ticker"],
+                    "Direction":  dir_icon,
+                    "Narrative":  s["narrative"],
+                    "Lifecycle":  s["lifecycle"],
+                    "Confidence": conf_pct,
+                })
             st.dataframe(
-                ev_disp,
+                pd.DataFrame(sig_rows),
                 use_container_width=True,
                 hide_index=True,
-                height=190,
             )
         else:
-            _no_data(f"No events in the last {time_window}")
+            _no_data("No actionable signals (need EMERGING/BUILDING narratives with strength ≥ 30%)")
+    else:
+        _no_data("No narrative signals available")
 
-    with col_right:
-        # Hot Topics bar chart
-        _section("Hot Topics — Top 5")
+    st.markdown('<hr class="sq-divider">', unsafe_allow_html=True)
 
-        if not ov_topics.empty:
-            tc = ov_topics.copy()
-            # Pick ranking column
-            rank_col = None
-            for c in ["momentum_score", "frequency", "novelty_score"]:
-                if c in tc.columns:
-                    rank_col = c
-                    break
+    # ── News Quant Summary strip ──
+    _section("News Quant — Composite Signals")
 
-            if rank_col and "topic_label" in tc.columns:
-                tc = tc.dropna(subset=["topic_label", rank_col])
-                tc = tc.sort_values(rank_col, ascending=False).head(5)
-                tc["topic_label"] = tc["topic_label"].str[:30]
+    composite_df = load_composite_signals(hours=min(selected_hours, 24))
+    if not composite_df.empty and "composite_signal" in composite_df.columns:
+        top3 = composite_df.nlargest(3, "signal_strength") if "signal_strength" in composite_df.columns else composite_df.head(3)
+        chips_html = ""
+        for _, row in top3.iterrows():
+            ticker = row.get("ticker", "?")
+            sig = row.get("composite_signal", 0)
+            label = row.get("signal_label", "NEUTRAL")
+            is_buy = sig > 0.05
+            is_sell = sig < -0.05
+            chip_class = "chip-buy" if is_buy else ("chip-sell" if is_sell else "chip-neutral")
+            icon = "🟢" if is_buy else ("🔴" if is_sell else "⚪")
+            sig_str = f"+{sig:.2f}" if sig >= 0 else f"{sig:.2f}"
+            chips_html += f'<span class="signal-chip {chip_class}">{icon} {ticker} {label} {sig_str}</span>'
 
-                # Color by momentum
-                if "momentum_score" in tc.columns:
-                    max_m = tc["momentum_score"].max()
-                    min_m = tc["momentum_score"].min()
-                    def _bar_color(m):
-                        if max_m == min_m:
-                            return "#3b82f6"
-                        norm = (m - min_m) / (max_m - min_m)
-                        if norm > 0.66:
-                            return "#22c55e"
-                        elif norm > 0.33:
-                            return "#3b82f6"
-                        return "#6366f1"
-                    bar_colors = tc["momentum_score"].apply(_bar_color).tolist()
-                else:
-                    bar_colors = ["#3b82f6"] * len(tc)
-
-                fig_t = go.Figure(go.Bar(
-                    y=tc["topic_label"].tolist(),
-                    x=tc[rank_col].tolist(),
-                    orientation="h",
-                    marker_color=bar_colors,
-                    hovertemplate="%{y}<br>Score: %{x:.2f}<extra></extra>",
-                ))
-                fig_t.update_layout(
-                    template="plotly_dark",
-                    paper_bgcolor="rgba(0,0,0,0)",
-                    plot_bgcolor="rgba(0,0,0,0)",
-                    height=175,
-                    margin=dict(l=0, r=0, t=4, b=0),
-                    showlegend=False,
-                    xaxis=dict(showgrid=True, gridcolor="#1a1f2e", tickfont=dict(size=9)),
-                    yaxis=dict(showgrid=False, tickfont=dict(size=10, color="#c8d0e0")),
-                )
-                st.plotly_chart(fig_t, use_container_width=True, config={"displayModeBar": False})
-            else:
-                _no_data("Topic data incomplete")
-        else:
-            _no_data(f"No topics in the last {time_window}")
-
-        # Cross-market alerts
-        st.markdown('<hr class="sq-divider">', unsafe_allow_html=True)
-        _section("Cross-Market Alerts")
-
-        xm_df = load_cross_market_signals()
-        if not xm_df.empty:
-            for _, row in xm_df.head(4).iterrows():
-                src = row.get("source_ticker", "?")
-                tgt = row.get("target_ticker", "?")
-                tgt_ret = row.get("target_return", 0)
-                lag     = row.get("lag_hours", 0)
-                ret_pct = float(tgt_ret) * 100
-                color   = "#22c55e" if ret_pct >= 0 else "#f87171"
-                st.markdown(
-                    f'<div style="background:#141720;border-left:3px solid {color};'
-                    f'padding:7px 12px;margin-bottom:5px;border-radius:0 4px 4px 0;">'
-                    f'<span style="font-family:DM Mono,monospace;font-size:0.72rem;'
-                    f'color:#8892a4;">{src}</span>'
-                    f'<span style="color:#5a6480;margin:0 6px;">→</span>'
-                    f'<span style="font-family:DM Mono,monospace;font-size:0.72rem;'
-                    f'color:#c8d0e0;">{tgt}</span>'
-                    f'<span style="font-family:DM Mono,monospace;font-size:0.72rem;'
-                    f'color:{color};margin-left:8px;">{fmt_pct(ret_pct, 1)}</span>'
-                    f'<span style="font-family:DM Mono,monospace;font-size:0.65rem;'
-                    f'color:#3b4560;margin-left:8px;">{lag:.0f}h lag</span>'
-                    f'</div>',
-                    unsafe_allow_html=True,
-                )
-        else:
-            _no_data("No cross-market signals detected")
+        st.markdown(
+            f'<div style="padding:10px 0;">{chips_html}</div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        _no_data("Composite signals not available")
 
 
 # ══════════════════════════════════════════════════════════════
-# TAB 2 — SIGNALS
+# TAB 2 — SIGNALS & EVENTS
 # ══════════════════════════════════════════════════════════════
 
 with tab_signals:
 
-    # ── Filters row ──
-    f_col1, f_col2, f_col3 = st.columns([2, 2, 4])
-    with f_col1:
-        sev_filter = st.radio(
-            "Severity",
-            options=["All", "High", "Medium"],
-            horizontal=True,
-            index=0,
-        )
-    with f_col2:
-        mkt_filter = st.radio(
-            "Market",
-            options=["All", "Crypto", "US", "KR"],
-            horizontal=True,
-            index=0,
-        )
-
-    st.markdown('<hr class="sq-divider">', unsafe_allow_html=True)
-
-    # ── Events table ──
+    # ── Price Events ──
     _section("Price Events")
 
-    sig_events = load_events(hours=selected_hours).copy()
+    events_df = load_events(hours=selected_hours)
 
-    # Apply filters
-    if not sig_events.empty:
-        if sev_filter != "All" and "severity" in sig_events.columns:
-            sig_events = sig_events[
-                sig_events["severity"].str.lower() == sev_filter.lower()
-            ]
-        if mkt_filter != "All":
-            _mkt_ticker_map = {
-                "Crypto": ["BTC-USD", "ETH-USD", "SOL-USD", "BTC-USDT", "ETH-USDT", "SOL-USDT"],
-                "US":     ["NVDA", "AAPL", "TSLA", "SPY"],
-                "KR":     ["005930.KS", "000660.KS", "035420.KS"],
-            }
-            allowed = _mkt_ticker_map.get(mkt_filter, [])
-            if "ticker" in sig_events.columns:
-                sig_events = sig_events[sig_events["ticker"].isin(allowed)]
+    if not events_df.empty:
+        # Filters
+        fc1, fc2, fc3 = st.columns(3)
+        with fc1:
+            sev_opts = ["All"] + sorted(events_df["severity"].dropna().unique().tolist()) if "severity" in events_df.columns else ["All"]
+            sev_filter = st.selectbox("Severity", sev_opts, label_visibility="visible")
+        with fc2:
+            mkt_opts = ["All"] + sorted(events_df["market"].dropna().unique().tolist()) if "market" in events_df.columns else ["All"]
+            mkt_sel = st.selectbox("Market", mkt_opts, label_visibility="visible")
+        with fc3:
+            etype_opts = ["All"] + sorted(events_df["event_type"].dropna().unique().tolist()) if "event_type" in events_df.columns else ["All"]
+            etype_sel = st.selectbox("Event Type", etype_opts, label_visibility="visible")
 
-    if not sig_events.empty:
-        ev_table = sig_events.copy()
+        filtered = events_df.copy()
+        if sev_filter != "All" and "severity" in filtered.columns:
+            filtered = filtered[filtered["severity"] == sev_filter]
+        if mkt_sel != "All" and "market" in filtered.columns:
+            filtered = filtered[filtered["market"] == mkt_sel]
+        if etype_sel != "All" and "event_type" in filtered.columns:
+            filtered = filtered[filtered["event_type"] == etype_sel]
 
-        # Format columns
-        if "timestamp" in ev_table.columns:
-            ev_table["timestamp"] = pd.to_datetime(
-                ev_table["timestamp"], utc=True, errors="coerce"
-            ).dt.strftime("%m-%d %H:%M")
-
-        if "return_1h" in ev_table.columns:
-            ev_table["return_1h"] = ev_table["return_1h"].apply(
-                lambda x: fmt_pct(float(x) * 100, 2) if pd.notna(x) else "—"
-            )
-
-        if "volume_ratio" in ev_table.columns:
-            ev_table["volume_ratio"] = ev_table["volume_ratio"].apply(
-                lambda x: f"{float(x):.1f}x" if pd.notna(x) else "—"
-            )
-
-        keep_cols = {
-            "timestamp":    "Time",
-            "ticker":       "Ticker",
-            "event_type":   "Type",
-            "severity":     "Severity",
-            "return_1h":    "Return",
-            "volume_ratio": "Vol Ratio",
-        }
-        present = [c for c in keep_cols if c in ev_table.columns]
-        ev_table = ev_table[present].rename(columns=keep_cols)
-
-        st.dataframe(
-            ev_table,
-            use_container_width=True,
-            hide_index=True,
-            height=320,
-        )
+        display_cols = [c for c in ["timestamp", "ticker", "event_type", "return_1h", "severity", "cause"]
+                        if c in filtered.columns]
+        if display_cols:
+            disp = filtered[display_cols].copy().head(100)
+            if "return_1h" in disp.columns:
+                disp["return_1h"] = disp["return_1h"].apply(
+                    lambda v: fmt_pct(v * 100, 2) if pd.notna(v) else "—"
+                )
+            st.dataframe(disp, use_container_width=True, hide_index=True)
+        else:
+            st.dataframe(filtered.head(100), use_container_width=True, hide_index=True)
     else:
-        _no_data(f"No events match the selected filters ({time_window})")
+        _no_data(f"No price events in the last {time_window}")
 
-    # ── Cross-market signals ──
     st.markdown('<hr class="sq-divider">', unsafe_allow_html=True)
-    _section("Cross-Market Lead-Lag Signals")
 
-    xm_signals = load_cross_market_signals()
+    # ── Cross-Market Correlations ──
+    _section("Cross-Market Correlations")
 
-    if not xm_signals.empty:
-        xm_display = xm_signals.copy()
-
-        if "source_return" in xm_display.columns:
-            xm_display["source_return"] = xm_display["source_return"].apply(
-                lambda x: fmt_pct(float(x) * 100, 2) if pd.notna(x) else "—"
-            )
-        if "target_return" in xm_display.columns:
-            xm_display["target_return"] = xm_display["target_return"].apply(
-                lambda x: fmt_pct(float(x) * 100, 2) if pd.notna(x) else "—"
-            )
-        if "lag_hours" in xm_display.columns:
-            xm_display["lag_hours"] = xm_display["lag_hours"].apply(
-                lambda x: f"{float(x):.0f}h" if pd.notna(x) else "—"
-            )
-
-        col_rename = {
-            "source_ticker": "Leader",
-            "source_event":  "Leader Event",
-            "source_return": "Leader Return",
-            "target_ticker": "Follower",
-            "target_event":  "Follower Event",
-            "target_return": "Follower Return",
-            "lag_hours":     "Lag",
-        }
-        present = [c for c in col_rename if c in xm_display.columns]
-        xm_display = xm_display[present].rename(columns=col_rename)
-
+    corr_df = load_cross_market_correlations()
+    if not corr_df.empty:
+        display_cols = [c for c in ["leader", "follower", "correlation", "lag_hours", "signal_count"]
+                        if c in corr_df.columns]
+        if not display_cols:
+            display_cols = corr_df.columns.tolist()
         st.dataframe(
-            xm_display,
+            corr_df[display_cols].head(30),
             use_container_width=True,
             hide_index=True,
-            height=220,
         )
     else:
-        _no_data("No cross-market signals detected in the last 48h")
+        _no_data("Cross-market correlations not available (requires price history)")
 
 
 # ══════════════════════════════════════════════════════════════
-# TAB 3 — NEWS & TOPICS
+# TAB 3 — NEWS FEED
 # ══════════════════════════════════════════════════════════════
 
 with tab_news:
 
-    news_col, topic_col = st.columns([3, 2])
+    # Time / market filter bar
+    nf1, nf2 = st.columns([1, 2])
+    with nf1:
+        news_hours = st.radio(
+            "Time",
+            options=["1h", "6h", "12h", "24h"],
+            index=2,
+            horizontal=True,
+            label_visibility="visible",
+        )
+        news_hours_int = {"1h": 1, "6h": 6, "12h": 12, "24h": 24}[news_hours]
+    with nf2:
+        news_market = st.radio(
+            "Market",
+            options=["All", "Crypto", "US", "KR"],
+            index=0,
+            horizontal=True,
+            label_visibility="visible",
+        )
 
-    # ── News feed ──
-    with news_col:
-        _section(f"News Feed — {time_window}")
+    mkt_arg = None if news_market == "All" else news_market.lower()
+    articles_df = load_articles(hours=news_hours_int, market=mkt_arg)
 
-        news_df = load_articles(hours=selected_hours)
+    _section(f"News Feed — {len(articles_df)} articles")
 
-        # Apply market filter
-        if not news_df.empty and market_filter and "market" in news_df.columns:
-            news_df = news_df[news_df["market"].isin(market_filter)]
+    if articles_df.empty:
+        _no_data(f"No articles found for the last {news_hours}")
+    else:
+        now_utc = datetime.now(timezone.utc)
 
-        if not news_df.empty:
-            # Ensure timestamp is parsed
-            if "published_at" in news_df.columns:
-                news_df["published_at"] = pd.to_datetime(
-                    news_df["published_at"], utc=True, errors="coerce"
-                )
-                news_df = news_df.sort_values("published_at", ascending=False)
+        def _time_ago(ts_str) -> str:
+            try:
+                ts = pd.to_datetime(ts_str, utc=True)
+                delta = now_utc - ts.to_pydatetime()
+                minutes = int(delta.total_seconds() / 60)
+                if minutes < 60:
+                    return f"{minutes}m ago"
+                hours_ago = minutes // 60
+                if hours_ago < 24:
+                    return f"{hours_ago}h ago"
+                return f"{hours_ago // 24}d ago"
+            except Exception:
+                return ts_str or "?"
 
-            shown = 0
-            for _, row in news_df.iterrows():
-                if shown >= 30:
-                    break
-                title    = row.get("title", "")
-                source   = row.get("source", "")
-                src_type = str(row.get("source_type", "rss"))
-                market   = str(row.get("market", ""))
-                ts       = row.get("published_at", None)
+        def _source_class(src: str) -> str:
+            s = str(src).lower()
+            if "exchange" in s or "binance" in s or "coinbase" in s:
+                return "exchange"
+            if "twitter" in s or "tweet" in s:
+                return "twitter"
+            if "reddit" in s or "community" in s:
+                return "community"
+            return ""
 
-                if not title:
-                    continue
+        for _, row in articles_df.head(50).iterrows():
+            title = row.get("title", "")
+            source = row.get("source", "")
+            pub = row.get("published_at", row.get("timestamp", ""))
+            src_class = _source_class(source)
+            time_str = _time_ago(pub)
 
-                ts_str = ""
-                if pd.notna(ts):
-                    ts_str = pd.Timestamp(ts).strftime("%m-%d %H:%M")
-
-                card_class = source_type_class(src_type)
-                mkt_badge  = f'<span style="font-size:0.6rem;background:#1a2535;color:#60a5fa;padding:1px 6px;border-radius:2px;margin-left:6px;">{market.upper()}</span>' if market else ""
-
-                st.markdown(
-                    f'<div class="news-card {card_class}">'
-                    f'<div class="news-card-time">{ts_str}{mkt_badge}</div>'
-                    f'<div class="news-card-title">{title}</div>'
-                    f'<div class="news-card-source">{source}</div>'
-                    f'</div>',
-                    unsafe_allow_html=True,
-                )
-                shown += 1
-        else:
-            _no_data(f"No articles in the last {time_window}")
-
-    # ── Topics panel ──
-    with topic_col:
-        _section(f"Topic Ranking — {time_window}")
-
-        topics_df = load_topics(hours=selected_hours)
-
-        if not topics_df.empty:
-            rank_col = None
-            for c in ["momentum_score", "frequency", "novelty_score"]:
-                if c in topics_df.columns:
-                    rank_col = c
-                    break
-
-            if rank_col and "topic_label" in topics_df.columns:
-                tc = topics_df.dropna(subset=["topic_label", rank_col]).copy()
-                tc = tc.sort_values(rank_col, ascending=False).head(15)
-                tc["topic_label"] = tc["topic_label"].str[:32]
-
-                # Render as ranked list
-                for i, (_, row) in enumerate(tc.iterrows(), 1):
-                    label = row["topic_label"]
-                    score = float(row[rank_col])
-                    freq  = int(row["frequency"]) if "frequency" in row and pd.notna(row.get("frequency")) else 0
-
-                    # Bar width as percentage of max
-                    max_score = float(tc[rank_col].max())
-                    bar_w = int((score / max_score) * 100) if max_score > 0 else 0
-
-                    rank_color = "#22c55e" if i <= 3 else "#3b82f6" if i <= 7 else "#6366f1"
-
-                    st.markdown(
-                        f'<div style="margin-bottom:8px;">'
-                        f'<div style="display:flex;align-items:center;gap:8px;margin-bottom:3px;">'
-                        f'<span style="font-family:DM Mono,monospace;font-size:0.65rem;'
-                        f'color:{rank_color};width:18px;">#{i}</span>'
-                        f'<span style="font-size:0.8rem;color:#c8d0e0;">{label}</span>'
-                        f'<span style="margin-left:auto;font-family:DM Mono,monospace;'
-                        f'font-size:0.68rem;color:#5a6480;">{freq} art</span>'
-                        f'</div>'
-                        f'<div style="height:3px;background:#1a1f2e;border-radius:2px;">'
-                        f'<div style="height:3px;width:{bar_w}%;background:{rank_color};border-radius:2px;"></div>'
-                        f'</div>'
-                        f'</div>',
-                        unsafe_allow_html=True,
-                    )
-
-        else:
-            _no_data(f"No topics in the last {time_window}")
-
-        # Topic heatmap (if enough data)
-        st.markdown('<hr class="sq-divider">', unsafe_allow_html=True)
-        _section("Topic Momentum Heatmap")
-
-        if not topics_df.empty and "momentum_score" in topics_df.columns and "topic_label" in topics_df.columns:
-            hm_data = topics_df.dropna(subset=["topic_label", "momentum_score"]).copy()
-            hm_data = hm_data.sort_values("momentum_score", ascending=False).head(12)
-
-            if len(hm_data) >= 4:
-                fig_hm = go.Figure(go.Bar(
-                    x=hm_data["topic_label"].str[:20].tolist(),
-                    y=hm_data["momentum_score"].tolist(),
-                    marker=dict(
-                        color=hm_data["momentum_score"].tolist(),
-                        colorscale=[[0, "#1e3a5f"], [0.5, "#3b82f6"], [1, "#22c55e"]],
-                        showscale=False,
-                    ),
-                    hovertemplate="%{x}<br>Momentum: %{y:.3f}<extra></extra>",
-                ))
-                fig_hm.update_layout(
-                    template="plotly_dark",
-                    paper_bgcolor="rgba(0,0,0,0)",
-                    plot_bgcolor="rgba(0,0,0,0)",
-                    height=160,
-                    margin=dict(l=0, r=0, t=4, b=40),
-                    showlegend=False,
-                    xaxis=dict(
-                        showgrid=False,
-                        tickangle=-30,
-                        tickfont=dict(size=9, color="#8892a4"),
-                    ),
-                    yaxis=dict(
-                        showgrid=True,
-                        gridcolor="#1a1f2e",
-                        tickfont=dict(size=9, color="#5a6480"),
-                    ),
-                )
-                st.plotly_chart(fig_hm, use_container_width=True, config={"displayModeBar": False})
-            else:
-                _no_data("Not enough topic data for heatmap")
-        else:
-            _no_data("No momentum data available")
+            st.markdown(
+                f'<div class="news-card {src_class}">'
+                f'<span class="news-card-time">{time_str}</span>'
+                f'<p class="news-card-title">{title}</p>'
+                f'<span class="news-card-source">{source}</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
 
 
 # ══════════════════════════════════════════════════════════════
@@ -968,165 +790,60 @@ with tab_news:
 
 with tab_perf:
 
-    perf_days = st.select_slider(
-        "Performance window",
-        options=[7, 14, 30, 60, 90],
-        value=30,
-        label_visibility="collapsed",
-        format_func=lambda x: f"Last {x} days",
-    )
+    perf = load_performance(days=30)
 
-    perf = load_performance(days=perf_days)
-
-    # ── KPI row ──
-    p1, p2, p3, p4 = st.columns(4)
-
-    if perf.get("has_data"):
-        with p1:
-            total_pnl = perf.get("total_pnl", 0)
-            st.metric(
-                "Total PnL",
-                fmt_pct(total_pnl),
-                delta=pct_delta(total_pnl),
-                delta_color="normal" if total_pnl >= 0 else "inverse",
-            )
-        with p2:
-            wr = perf.get("win_rate", 0)
-            wins   = perf.get("wins", 0)
-            losses = perf.get("losses", 0)
-            st.metric(
-                "Win Rate",
-                f"{wr:.0%}",
-                delta=f"{wins}W / {losses}L",
-            )
-        with p3:
-            pf = perf.get("profit_factor", 0)
-            st.metric(
-                "Profit Factor",
-                f"{pf:.2f}" if pf != float("inf") else "∞",
-                delta="above 1 is profitable" if pf > 1 else None,
-            )
-        with p4:
-            st.metric(
-                "Trades",
-                f"{perf.get('closed_trades', 0)}",
-                delta=f"{perf.get('open_trades', 0)} open",
-            )
-    else:
-        with p1:
-            st.metric("Total PnL", "—")
-        with p2:
-            st.metric("Win Rate", "—")
-        with p3:
-            st.metric("Profit Factor", "—")
-        with p4:
-            st.metric("Trades", "—")
+    # ── KPI strip ──
+    k1, k2, k3 = st.columns(3)
+    with k1:
+        total_pnl = perf.get("total_pnl_pct", perf.get("total_pnl", 0))
+        st.metric(
+            "Total PnL",
+            fmt_pct(total_pnl),
+            delta_color="normal" if float(total_pnl or 0) >= 0 else "inverse",
+        )
+    with k2:
+        win_rate = perf.get("win_rate", 0)
+        st.metric("Win Rate", f"{float(win_rate or 0):.1f}%")
+    with k3:
+        pf = perf.get("profit_factor", 0)
+        st.metric("Profit Factor", f"{float(pf or 0):.2f}")
 
     st.markdown('<hr class="sq-divider">', unsafe_allow_html=True)
 
     # ── Per-ticker table ──
-    perf_left, perf_right = st.columns([3, 2])
+    _section("Per-Ticker Performance")
 
-    with perf_left:
-        _section("Per-Ticker Performance")
-
-        if perf.get("has_data") and perf.get("per_ticker"):
-            ticker_rows = []
-            for ticker, s in sorted(
-                perf["per_ticker"].items(),
-                key=lambda x: x[1]["total_pnl"],
-                reverse=True,
-            ):
-                ticker_rows.append({
-                    "Ticker":    ticker,
-                    "Trades":    s["trades"],
-                    "Win Rate":  f"{s['win_rate']:.0%}",
-                    "Total PnL": fmt_pct(s["total_pnl"], 2),
-                    "Avg PnL":   fmt_pct(s["avg_pnl"], 2),
-                    "Best":      fmt_pct(s["best"], 2),
-                    "Worst":     fmt_pct(s["worst"], 2),
-                })
-
-            st.dataframe(
-                pd.DataFrame(ticker_rows),
-                use_container_width=True,
-                hide_index=True,
-                height=260,
-            )
+    ticker_perf = perf.get("by_ticker")
+    if ticker_perf is not None and len(ticker_perf) > 0:
+        if isinstance(ticker_perf, list):
+            tp_df = pd.DataFrame(ticker_perf)
+        elif isinstance(ticker_perf, pd.DataFrame):
+            tp_df = ticker_perf
         else:
-            _no_data("No closed trades in the selected period")
+            tp_df = pd.DataFrame()
 
-    with perf_right:
-        _section("Summary Stats")
-
-        if perf.get("has_data"):
-            summary_items = [
-                ("Avg PnL / Trade", fmt_pct(perf.get("avg_pnl", 0), 2)),
-                ("Best Trade",      fmt_pct(perf.get("max_win", 0), 2)),
-                ("Worst Trade",     fmt_pct(perf.get("max_loss", 0), 2)),
-                ("Win Streak",      str(perf.get("max_win_streak", 0))),
-                ("Loss Streak",     str(perf.get("max_loss_streak", 0))),
-                ("Period",          f"{perf.get('period_days', perf_days)}d"),
-            ]
-            for label, value in summary_items:
-                is_pos = value.startswith("+")
-                is_neg = value.startswith("-")
-                val_color = "#22c55e" if is_pos else "#f87171" if is_neg else "#c8d0e0"
-                st.markdown(
-                    f'<div style="display:flex;justify-content:space-between;'
-                    f'padding:8px 0;border-bottom:1px solid #1a1f2e;">'
-                    f'<span style="font-size:0.8rem;color:#8892a4;">{label}</span>'
-                    f'<span style="font-family:DM Mono,monospace;font-size:0.82rem;'
-                    f'color:{val_color};font-weight:500;">{value}</span>'
-                    f'</div>',
-                    unsafe_allow_html=True,
-                )
+        if not tp_df.empty:
+            st.dataframe(tp_df, use_container_width=True, hide_index=True)
         else:
-            _no_data("No performance data available")
+            _no_data("No per-ticker data")
+    else:
+        if not perf.get("has_data", True) or perf.get("total_trades", 0) == 0:
+            _no_data("No closed trades yet — performance data will appear after first signals are closed")
+        else:
+            _no_data("Per-ticker breakdown not available")
 
-    # ── Trade history ──
     st.markdown('<hr class="sq-divider">', unsafe_allow_html=True)
-    _section("Trade History")
 
-    trade_hist = load_trade_history(limit=50)
-    if not trade_hist.empty:
-        th = trade_hist.copy()
+    # ── Historical Context ──
+    _section("Historical Context")
 
-        # Format timestamps
-        for tc in ["entry_time", "exit_time", "created_at"]:
-            if tc in th.columns:
-                th[tc] = pd.to_datetime(th[tc], errors="coerce").dt.strftime("%m-%d %H:%M")
-
-        # Format pnl
-        if "pnl_pct" in th.columns:
-            th["pnl_pct"] = th["pnl_pct"].apply(
-                lambda x: fmt_pct(float(x), 2) if pd.notna(x) else "—"
-            )
-
-        keep = {
-            "entry_time":   "Entry",
-            "exit_time":    "Exit",
-            "ticker":       "Ticker",
-            "direction":    "Dir",
-            "signal_type":  "Signal",
-            "entry_price":  "Entry $",
-            "exit_price":   "Exit $",
-            "pnl_pct":      "PnL",
-            "status":       "Status",
-        }
-        present = [c for c in keep if c in th.columns]
-        th = th[present].rename(columns=keep)
-
-        # Round price columns
-        for col in ["Entry $", "Exit $"]:
-            if col in th.columns:
-                th[col] = pd.to_numeric(th[col], errors="coerce").round(4)
-
-        st.dataframe(
-            th,
-            use_container_width=True,
-            hide_index=True,
-            height=280,
+    hist_ctx = load_historical_context()
+    if hist_ctx:
+        st.markdown(
+            f'<div style="background:#141720;border:1px solid #1f2535;border-radius:6px;'
+            f'padding:14px 16px;font-family:DM Mono,monospace;font-size:0.75rem;'
+            f'color:#8892a4;white-space:pre-wrap;line-height:1.6;">{hist_ctx}</div>',
+            unsafe_allow_html=True,
         )
     else:
-        _no_data("No trade history available")
+        _no_data("Historical context requires accumulated trade and price data")
