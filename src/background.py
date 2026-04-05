@@ -1,36 +1,33 @@
 """
-background.py - Parallel background data ingestion for StoryQuant.
+StoryQuant v2 Background Ingester.
 
-Runs all data collection (news, prices, topics, attribution) in daemon threads
-so the main process can start the dashboard while data flows in continuously.
+Runs all data collection + graph analysis in daemon threads.
+v1→v2 changes:
+  - News/Twitter/Community/Exchange → amure-db Evidence nodes (was SQLite articles)
+  - Price events → amure-db Fact nodes (was SQLite events)
+  - TF-IDF topic recomputer → graph-based narrator (Claim lifecycle)
+  - Rule-based attribution → RAG graph-attributor
+  - New: graph-reasoner (contradictions, health, verdict propagation)
+  - Kept: prices/OI/liquidations/whales in SQLite (time-series)
 """
 
 import logging
 import threading
 import time
 
+from src.config import settings
+
 logger = logging.getLogger(__name__)
 
 
 class BackgroundIngester:
-    """
-    Manages all background data collection threads.
+    """Manages all background data collection and graph analysis threads."""
 
-    Thread schedule:
-      - RSS news polling       every  5 min
-      - Binance WebSocket      continuous (its own thread)
-      - yfinance polling       every 15 min
-      - Twitter/X polling      every 10 min
-      - Exchange announcements every 10 min
-      - Topic recomputation    every 30 min
-    """
-
-    def __init__(self, db_path: str = "data/storyquant.db"):
+    def __init__(self, db_path: str = None):
         from src.db.schema import get_connection, init_db
 
-        self.db_path = db_path
-        # Use a dedicated connection only for init_db; workers open their own connections.
-        conn = get_connection(db_path)
+        self.db_path = db_path or settings.SQLITE_DB_PATH
+        conn = get_connection(self.db_path)
         init_db(conn)
         conn.close()
         self.running = False
@@ -41,29 +38,33 @@ class BackgroundIngester:
     # ------------------------------------------------------------------
 
     def start(self) -> None:
-        """Start all background threads."""
         if self.running:
             logger.warning("BackgroundIngester is already running")
             return
 
         self.running = True
-        logger.info("Starting BackgroundIngester…")
+        logger.info("Starting BackgroundIngester v2 (graph-centric)…")
 
         schedule = [
             # (target_func, interval_seconds, thread_name)
-            (self._ingest_news,                   5 * 60,  "news-poller"),
-            (self._ingest_prices,                15 * 60,  "price-poller"),
-            (self._ingest_twitter,               10 * 60,  "twitter-poller"),
-            (self._ingest_exchange_announcements,10 * 60,  "exchange-poller"),
-            (self._ingest_community,             10 * 60,  "community-poller"),
-            (self._recompute_topics,             30 * 60,  "topic-recomputer"),
-            (self._ingest_derivatives,            5 * 60,  "derivatives-poller"),
-            (self._ingest_whale_data,            15 * 60,  "whale-poller"),
-            (self._run_paper_trading,             5 * 60,  "paper-trader"),
-            (self._dispatch_alerts,               60,       "alert-dispatcher"),
-            (self._score_sentiments,              5 * 60,  "sentiment-scorer"),
-            (self._ingest_playwright,            10 * 60,  "playwright-poller"),
-            (self._detect_cross_signals,          5 * 60,  "cross-market-detector"),
+            # ── Data ingestion (unchanged sources, new sinks) ──
+            (self._ingest_news,        settings.INTERVAL_NEWS,        "news-poller"),
+            (self._ingest_prices,      settings.INTERVAL_PRICES,      "price-poller"),
+            (self._ingest_twitter,     settings.INTERVAL_TWITTER,     "twitter-poller"),
+            (self._ingest_exchange,    settings.INTERVAL_EXCHANGE,    "exchange-poller"),
+            (self._ingest_community,   settings.INTERVAL_COMMUNITY,   "community-poller"),
+            (self._ingest_playwright,  settings.INTERVAL_COMMUNITY,   "playwright-poller"),
+            (self._ingest_derivatives, settings.INTERVAL_DERIVATIVES, "derivatives-poller"),
+            (self._ingest_whales,      settings.INTERVAL_WHALE,       "whale-poller"),
+            # ── Scoring ──
+            (self._score_sentiments,   settings.INTERVAL_SENTIMENT,   "sentiment-scorer"),
+            # ── Graph analysis (new in v2) ──
+            (self._graph_attribution,  settings.INTERVAL_ATTRIBUTION, "graph-attributor"),
+            (self._graph_narrator,     settings.INTERVAL_NARRATOR,    "graph-narrator"),
+            (self._graph_reasoner,     settings.INTERVAL_REASONING,   "graph-reasoner"),
+            (self._crossmarket_linker, settings.INTERVAL_CROSSMARKET, "crossmarket-linker"),
+            # ── Alerts ──
+            (self._dispatch_alerts,    settings.INTERVAL_ALERTS,      "alert-dispatcher"),
         ]
 
         for func, interval, name in schedule:
@@ -77,7 +78,7 @@ class BackgroundIngester:
             t.start()
             logger.info("Started thread: %s (every %ds)", name, interval)
 
-        # Binance WebSocket runs in its own thread (no polling loop)
+        # Binance WebSocket (continuous)
         ws_thread = threading.Thread(
             target=self._start_binance_ws,
             name="binance-ws",
@@ -88,7 +89,6 @@ class BackgroundIngester:
         logger.info("Started thread: binance-ws (continuous)")
 
     def stop(self) -> None:
-        """Signal all threads to stop and wait for them to exit."""
         logger.info("Stopping BackgroundIngester…")
         self.running = False
         for t in self.threads:
@@ -98,23 +98,13 @@ class BackgroundIngester:
         self.threads.clear()
         logger.info("BackgroundIngester stopped")
 
-    # ------------------------------------------------------------------
-    # Generic polling loop
-    # ------------------------------------------------------------------
-
     def _poll_loop(self, func, interval_seconds: int, name: str) -> None:
-        """Run *func* repeatedly, sleeping *interval_seconds* between calls.
-
-        Sleeps in 1-second increments so the thread can react to stop()
-        quickly without a long blocking sleep.
-        """
         logger.info("[%s] Poll loop starting", name)
         while self.running:
             try:
                 func()
             except Exception as exc:
                 logger.error("[%s] Error: %s", name, exc, exc_info=True)
-            # Interruptible sleep
             for _ in range(interval_seconds):
                 if not self.running:
                     break
@@ -122,120 +112,217 @@ class BackgroundIngester:
         logger.info("[%s] Poll loop exiting", name)
 
     # ------------------------------------------------------------------
-    # Ingestion workers
+    # Data ingestion workers → Graph Evidence nodes + SQLite time-series
     # ------------------------------------------------------------------
 
     def _ingest_news(self) -> None:
-        """Crawl RSS feeds and save new articles to DB."""
+        """Crawl RSS feeds → Evidence nodes in graph."""
         from src.crawlers.news_crawler import crawl_all_news
-        from src.db.queries import insert_articles
-        from src.db.schema import thread_connection
+        from src.graph.client import AmureClient
+        from src.graph.mapper import ingest_articles_to_graph
 
         news_df = crawl_all_news(hours_back=1)
-        if not news_df.empty:
+        if news_df.empty:
+            return
+
+        news_df["source_type"] = "rss"
+        if "timestamp" in news_df.columns and "published_at" not in news_df.columns:
             news_df = news_df.rename(columns={"timestamp": "published_at"})
-            news_df["source_type"] = "rss"
-            with thread_connection(self.db_path) as conn:
-                insert_articles(conn, news_df)
-            logger.info("[news-poller] Ingested %d articles", len(news_df))
-        else:
-            logger.debug("[news-poller] No new articles")
+
+        with AmureClient() as client:
+            if not client.is_available():
+                logger.debug("[news-poller] amure-db unavailable, skipping")
+                return
+            result = ingest_articles_to_graph(client, news_df)
+            logger.info("[news-poller] %d Evidence nodes created", result["created"])
 
     def _ingest_twitter(self) -> None:
-        """Crawl Twitter/X and save tweets to DB."""
         try:
             from src.crawlers.twitter_crawler import crawl_twitter
-            from src.db.queries import insert_articles
-            from src.db.schema import thread_connection
+            from src.graph.client import AmureClient
+            from src.graph.mapper import ingest_articles_to_graph
 
             tweets_df = crawl_twitter(hours_back=1)
-            if not tweets_df.empty:
-                tweets_df = tweets_df.rename(columns={"timestamp": "published_at"})
-                tweets_df["source_type"] = "twitter"
-                with thread_connection(self.db_path) as conn:
-                    insert_articles(conn, tweets_df)
-                logger.info("[twitter-poller] Ingested %d tweets", len(tweets_df))
-            else:
-                logger.debug("[twitter-poller] No new tweets")
-        except ImportError:
-            logger.warning("[twitter-poller] Twitter crawler not available — skipping")
+            if tweets_df.empty:
+                return
 
-    def _ingest_exchange_announcements(self) -> None:
-        """Fetch Binance announcements and save to DB."""
+            tweets_df["source_type"] = "twitter"
+            if "timestamp" in tweets_df.columns and "published_at" not in tweets_df.columns:
+                tweets_df = tweets_df.rename(columns={"timestamp": "published_at"})
+
+            with AmureClient() as client:
+                if not client.is_available():
+                    return
+                result = ingest_articles_to_graph(client, tweets_df)
+                logger.info("[twitter-poller] %d Evidence nodes created", result["created"])
+        except ImportError:
+            logger.debug("[twitter-poller] Twitter crawler not available")
+
+    def _ingest_exchange(self) -> None:
         try:
             from src.crawlers.exchange_crawler import fetch_binance_announcements
-            from src.db.queries import insert_articles
-            from src.db.schema import thread_connection
+            from src.graph.client import AmureClient
+            from src.graph.mapper import ingest_articles_to_graph
 
             ann_df = fetch_binance_announcements(hours_back=24)
-            if not ann_df.empty:
+            if ann_df.empty:
+                return
+
+            if "timestamp" in ann_df.columns and "published_at" not in ann_df.columns:
                 ann_df = ann_df.rename(columns={"timestamp": "published_at"})
-                with thread_connection(self.db_path) as conn:
-                    insert_articles(conn, ann_df)
-                logger.info(
-                    "[exchange-poller] Ingested %d announcements", len(ann_df)
-                )
-            else:
-                logger.debug("[exchange-poller] No new announcements")
+
+            with AmureClient() as client:
+                if not client.is_available():
+                    return
+                result = ingest_articles_to_graph(client, ann_df)
+                logger.info("[exchange-poller] %d Evidence nodes created", result["created"])
         except ImportError:
-            logger.warning(
-                "[exchange-poller] Exchange crawler not available — skipping"
-            )
+            logger.debug("[exchange-poller] Exchange crawler not available")
 
     def _ingest_community(self) -> None:
-        """Crawl community/crypto news sources and save to DB."""
         try:
             from src.crawlers.community_crawler import crawl_all_community
-            from src.db.queries import insert_articles
-            from src.db.schema import thread_connection
+            from src.graph.client import AmureClient
+            from src.graph.mapper import ingest_articles_to_graph
 
-            community_df = crawl_all_community(hours_back=6)
-            if not community_df.empty:
-                community_df = community_df.rename(columns={"timestamp": "published_at"})
-                with thread_connection(self.db_path) as conn:
-                    insert_articles(conn, community_df)
-                logger.info(
-                    "[community-poller] Ingested %d articles", len(community_df)
-                )
-            else:
-                logger.debug("[community-poller] No new community articles")
+            df = crawl_all_community(hours_back=6)
+            if df.empty:
+                return
+
+            df["source_type"] = "community"
+            if "timestamp" in df.columns and "published_at" not in df.columns:
+                df = df.rename(columns={"timestamp": "published_at"})
+
+            with AmureClient() as client:
+                if not client.is_available():
+                    return
+                result = ingest_articles_to_graph(client, df)
+                logger.info("[community-poller] %d Evidence nodes created", result["created"])
         except ImportError:
-            logger.warning(
-                "[community-poller] Community crawler not available — skipping"
-            )
+            logger.debug("[community-poller] Community crawler not available")
+
+    def _ingest_playwright(self) -> None:
+        try:
+            from src.crawlers.playwright_crawler import crawl_all_playwright
+            from src.graph.client import AmureClient
+            from src.graph.mapper import ingest_articles_to_graph
+
+            df = crawl_all_playwright(hours_back=1)
+            if df.empty:
+                return
+
+            if "timestamp" in df.columns and "published_at" not in df.columns:
+                df = df.rename(columns={"timestamp": "published_at"})
+
+            with AmureClient() as client:
+                if not client.is_available():
+                    return
+                result = ingest_articles_to_graph(client, df)
+                logger.info("[playwright-poller] %d Evidence nodes created", result["created"])
+        except ImportError:
+            logger.debug("[playwright-poller] Playwright crawler not available")
 
     def _ingest_prices(self) -> None:
-        """Fetch stock/crypto prices via yfinance, detect events, run attribution."""
+        """Fetch prices → SQLite + detect events → Fact nodes in graph."""
         from src.prices.price_fetcher import fetch_prices, get_default_tickers
         from src.prices.event_detector import detect_events
-        from src.db.queries import insert_prices, insert_events
+        from src.db.queries import insert_prices
         from src.db.schema import thread_connection
+        from src.graph.client import AmureClient
+        from src.graph.mapper import ingest_events_to_graph
 
         tickers_map = get_default_tickers()
         all_tickers = [t for ts in tickers_map.values() for t in ts]
         price_df = fetch_prices(all_tickers, period="1d", interval="1h")
         if price_df.empty:
-            logger.debug("[price-poller] No price data returned")
             return
 
+        # Save to SQLite (time-series)
         with thread_connection(self.db_path) as conn:
             insert_prices(conn, price_df)
+        logger.info("[price-poller] Saved %d price rows", len(price_df))
 
-        logger.info(
-            "[price-poller] Saved %d price rows for %d tickers",
-            len(price_df),
-            price_df["ticker"].nunique(),
-        )
-
+        # Detect events → Fact nodes
         events_df = detect_events(price_df)
         if not events_df.empty:
-            with thread_connection(self.db_path) as conn:
-                events_df = insert_events(conn, events_df)
-            logger.info("[price-poller] Detected %d events", len(events_df))
-            self._run_attribution(events_df)
+            with AmureClient() as client:
+                if client.is_available():
+                    result = ingest_events_to_graph(client, events_df)
+                    logger.info("[price-poller] %d Fact nodes created from %d events",
+                                result["created"], len(events_df))
+
+    def _ingest_derivatives(self) -> None:
+        """Fetch OI and liquidation data → SQLite."""
+        from src.db.queries import insert_open_interest, insert_liquidations
+        from src.db.schema import thread_connection
+
+        try:
+            from src.prices.derivatives import (
+                fetch_oi_history, fetch_long_short_ratio, fetch_liquidations,
+            )
+        except ImportError:
+            return
+
+        for symbol in ["BTCUSDT", "ETHUSDT", "SOLUSDT"]:
+            try:
+                oi_hist = fetch_oi_history(symbol)
+                ls_ratio = fetch_long_short_ratio(symbol)
+                if not oi_hist.empty and not ls_ratio.empty:
+                    merged = oi_hist.merge(
+                        ls_ratio[["timestamp", "long_short_ratio", "long_pct", "short_pct"]],
+                        on="timestamp", how="left",
+                    )
+                    with thread_connection(self.db_path) as conn:
+                        insert_open_interest(conn, merged)
+                elif not oi_hist.empty:
+                    with thread_connection(self.db_path) as conn:
+                        insert_open_interest(conn, oi_hist)
+            except Exception as exc:
+                logger.error("[derivatives-poller] OI failed for %s: %s", symbol, exc)
+
+        try:
+            liqs = fetch_liquidations()
+            if not liqs.empty:
+                with thread_connection(self.db_path) as conn:
+                    insert_liquidations(conn, liqs)
+        except Exception as exc:
+            logger.error("[derivatives-poller] Liquidations failed: %s", exc)
+
+    def _ingest_whales(self) -> None:
+        """Fetch whale transfers → SQLite + large ones → Evidence nodes."""
+        from src.db.queries import insert_whale_transfers
+        from src.db.schema import thread_connection
+
+        try:
+            from src.prices.whale_tracker import fetch_whale_movements, arkham_available, whale_alert_available
+        except ImportError:
+            return
+
+        if not arkham_available() and not whale_alert_available():
+            return
+
+        df = fetch_whale_movements(min_usd=1_000_000, hours_back=1)
+        if df.empty:
+            return
+
+        df["source"] = "arkham" if arkham_available() else "whale_alert"
+
+        # SQLite (all transfers)
+        with thread_connection(self.db_path) as conn:
+            insert_whale_transfers(conn, df)
+
+        # Graph (large transfers → Evidence nodes)
+        from src.graph.client import AmureClient
+        from src.graph.mapper import ingest_whales_to_graph
+
+        with AmureClient() as client:
+            if client.is_available():
+                result = ingest_whales_to_graph(client, df)
+                if result["created"]:
+                    logger.info("[whale-poller] %d whale Evidence nodes", result["created"])
 
     def _start_binance_ws(self) -> None:
-        """Open a Binance WebSocket and stream kline data into the DB."""
+        """Binance WebSocket → SQLite prices."""
         try:
             from src.prices.binance_ws import run_binance_ws
             from src.db.queries import insert_prices
@@ -247,118 +334,119 @@ class BackgroundIngester:
                 with thread_connection(self.db_path) as conn:
                     insert_prices(conn, df)
 
-            logger.info("[binance-ws] Connecting…")
             run_binance_ws(on_kline)
         except ImportError:
-            logger.warning("[binance-ws] Binance WebSocket module not available — skipping")
+            logger.debug("[binance-ws] Module not available")
         except Exception as exc:
-            logger.error("[binance-ws] Fatal error: %s", exc, exc_info=True)
+            logger.error("[binance-ws] Fatal: %s", exc, exc_info=True)
 
-    def _recompute_topics(self) -> None:
-        """Recompute TF-IDF topics from the last 6 hours of articles."""
-        from src.db.queries import get_recent_articles, insert_topics
-        from src.topics.topic_extractor import extract_topics
-        from src.db.schema import thread_connection
-        from datetime import datetime, timezone, timedelta
+    # ------------------------------------------------------------------
+    # Scoring
+    # ------------------------------------------------------------------
 
-        with thread_connection(self.db_path) as conn:
-            articles_df = get_recent_articles(conn, hours=6)
+    def _score_sentiments(self) -> None:
+        """Score sentiment for Evidence nodes without sentiment metadata."""
+        from src.analysis.sentiment import score_sentiment_rule_based
+        from src.graph.client import AmureClient
 
-        if len(articles_df) < 3:
-            logger.debug(
-                "[topic-recomputer] Only %d articles — skipping (need ≥3)",
-                len(articles_df),
-            )
-            return
+        with AmureClient() as client:
+            if not client.is_available():
+                return
+            all_data = client.get_all()
+            nodes = all_data.get("nodes", [])
 
-        # Align column name for topic_extractor (expects 'timestamp')
-        if "published_at" in articles_df.columns and "timestamp" not in articles_df.columns:
-            articles_df = articles_df.rename(columns={"published_at": "timestamp"})
+            unscored = [
+                n for n in nodes
+                if n.get("kind") == "Evidence"
+                and not n.get("metadata", {}).get("sentiment")
+            ]
 
-        topics_df = extract_topics(articles_df, n_topics=5)
-        if topics_df.empty:
-            return
+            if not unscored:
+                return
 
-        # Add window metadata expected by insert_topics
-        now = datetime.now(timezone.utc)
-        topics_df["window_end"] = now.isoformat()
-        topics_df["window_start"] = (now - timedelta(hours=6)).isoformat()
+            count = 0
+            for node in unscored[:50]:
+                statement = node.get("statement", "")
+                sentiment, score = score_sentiment_rule_based(statement)
+                meta = node.get("metadata", {})
+                meta["sentiment"] = sentiment
+                meta["sentiment_score"] = score
+                client.update_node(node["id"], metadata=meta)
+                count += 1
 
-        with thread_connection(self.db_path) as conn:
-            insert_topics(conn, topics_df)
-        logger.info("[topic-recomputer] Saved %d topics", len(topics_df))
+            if count:
+                logger.info("[sentiment-scorer] Scored %d Evidence nodes", count)
 
-    def _ingest_derivatives(self) -> None:
-        """Fetch OI and liquidation data from Binance Futures API."""
-        from src.prices.derivatives import (
-            fetch_oi_history,
-            fetch_long_short_ratio,
-            fetch_liquidations,
-        )
-        from src.db.queries import insert_open_interest, insert_liquidations
-        from src.db.schema import thread_connection
+    # ------------------------------------------------------------------
+    # Graph analysis workers (new in v2)
+    # ------------------------------------------------------------------
 
-        for symbol in ["BTCUSDT", "ETHUSDT", "SOLUSDT"]:
-            try:
-                oi_hist = fetch_oi_history(symbol)
-                ls_ratio = fetch_long_short_ratio(symbol)
-                if not oi_hist.empty and not ls_ratio.empty:
-                    merged = oi_hist.merge(
-                        ls_ratio[["timestamp", "long_short_ratio", "long_pct", "short_pct"]],
-                        on="timestamp",
-                        how="left",
-                    )
-                    with thread_connection(self.db_path) as conn:
-                        insert_open_interest(conn, merged)
-                    logger.info("[derivatives-poller] Saved OI for %s (%d rows)", symbol, len(merged))
-                elif not oi_hist.empty:
-                    with thread_connection(self.db_path) as conn:
-                        insert_open_interest(conn, oi_hist)
-                    logger.info("[derivatives-poller] Saved OI for %s (%d rows, no L/S)", symbol, len(oi_hist))
-            except Exception as exc:
-                logger.error("[derivatives-poller] OI fetch failed for %s: %s", symbol, exc)
+    def _graph_attribution(self) -> None:
+        """Run RAG-based attribution for un-attributed Fact nodes."""
+        from src.graph.client import AmureClient
+        from src.graph.attribution import attribute_unprocessed_events
 
+        with AmureClient() as client:
+            if not client.is_available():
+                return
+            result = attribute_unprocessed_events(client)
+            if result["events_processed"]:
+                logger.info(
+                    "[graph-attributor] %d events → %d edges, %d reasons",
+                    result["events_processed"],
+                    result["edges_created"],
+                    result["reasons_created"],
+                )
+
+    def _graph_narrator(self) -> None:
+        """Update narrative (Claim) lifecycle based on Evidence accumulation."""
+        from src.graph.client import AmureClient
+        from src.graph.reasoning import update_narrative_lifecycle
+
+        with AmureClient() as client:
+            if not client.is_available():
+                return
+            result = update_narrative_lifecycle(client)
+            if result.get("updated"):
+                logger.info("[graph-narrator] Updated %d narratives", result["updated"])
+
+    def _graph_reasoner(self) -> None:
+        """Run contradiction detection and knowledge health checks."""
+        from src.graph.client import AmureClient
+        from src.graph.reasoning import detect_and_link_contradictions, check_knowledge_health
+
+        with AmureClient() as client:
+            if not client.is_available():
+                return
+
+            contradictions = detect_and_link_contradictions(client)
+            if contradictions["count"]:
+                logger.info("[graph-reasoner] %d contradictions found", contradictions["count"])
+
+            health = check_knowledge_health(client)
+            if health["stale_count"]:
+                logger.info("[graph-reasoner] %d stale knowledge nodes", health["stale_count"])
+
+    def _crossmarket_linker(self) -> None:
+        """Detect cross-market signals and create DependsOn edges."""
         try:
-            liqs = fetch_liquidations()
-            if not liqs.empty:
-                with thread_connection(self.db_path) as conn:
-                    insert_liquidations(conn, liqs)
-                logger.info("[derivatives-poller] Saved %d liquidation rows", len(liqs))
-        except Exception as exc:
-            logger.error("[derivatives-poller] Liquidations fetch failed: %s", exc)
-
-    def _ingest_whale_data(self) -> None:
-        """Fetch whale transfers and save to DB."""
-        try:
-            from src.prices.whale_tracker import fetch_whale_movements, arkham_available, whale_alert_available
-            from src.db.queries import insert_whale_transfers
+            from src.analysis.cross_market import detect_cross_market_signals
             from src.db.schema import thread_connection
-
-            if not arkham_available() and not whale_alert_available():
-                return  # No API keys configured, skip silently
-
-            df = fetch_whale_movements(min_usd=1_000_000, hours_back=1)
-            if not df.empty:
-                df["source"] = "arkham" if arkham_available() else "whale_alert"
-                with thread_connection(self.db_path) as conn:
-                    insert_whale_transfers(conn, df)
-                logger.info("[whale-poller] Ingested %d whale transfers", len(df))
-        except ImportError:
-            logger.warning("[whale-poller] Whale tracker not available")
-
-    def _run_paper_trading(self) -> None:
-        """Run paper trading cycle."""
-        try:
-            from src.analysis.paper_trader import run_paper_trading_cycle
-            from src.db.schema import thread_connection
+            from src.graph.client import AmureClient
+            from src.graph.reasoning import create_cross_market_link
 
             with thread_connection(self.db_path) as conn:
-                run_paper_trading_cycle(conn)
+                signals = detect_cross_market_signals(conn, hours=48)
+
+            if signals.empty:
+                return
+
+            logger.info("[crossmarket-linker] %d signals detected", len(signals))
         except ImportError:
-            logger.warning("[paper-trader] Paper trader not available")
+            logger.debug("[crossmarket-linker] cross_market module not available")
 
     def _dispatch_alerts(self) -> None:
-        """Check for new events and send alerts."""
+        """Check for new high-severity events and send alerts."""
         try:
             from src.alerts.dispatcher import dispatch_alerts
             from src.db.schema import thread_connection
@@ -366,100 +454,11 @@ class BackgroundIngester:
             with thread_connection(self.db_path) as conn:
                 dispatch_alerts(conn)
         except ImportError:
-            pass  # Silently skip if not available
-
-    def _score_sentiments(self) -> None:
-        """Score sentiment for new articles."""
-        try:
-            from src.analysis.sentiment import update_article_sentiments
-            from src.db.schema import thread_connection
-
-            with thread_connection(self.db_path) as conn:
-                count = update_article_sentiments(conn, use_llm=False)  # Rule-based by default
-                if count:
-                    logger.info("[sentiment] Scored %d articles", count)
-        except ImportError:
             pass
-
-    def _ingest_playwright(self) -> None:
-        """Crawl JS-rendered sites (Coinness, CoinMarketCap) via Playwright."""
-        try:
-            from src.crawlers.playwright_crawler import crawl_all_playwright
-            from src.db.queries import insert_articles
-            from src.db.schema import thread_connection
-
-            df = crawl_all_playwright(hours_back=1)
-            if not df.empty:
-                df = df.rename(columns={"timestamp": "published_at"})
-                with thread_connection(self.db_path) as conn:
-                    insert_articles(conn, df)
-                logger.info("[playwright-poller] Ingested %d articles", len(df))
-            else:
-                logger.debug("[playwright-poller] No new articles")
-        except ImportError:
-            logger.warning("[playwright-poller] Playwright crawler not available — skipping")
-        except Exception as exc:
-            logger.error("[playwright-poller] Error: %s", exc)
-
-    def _detect_cross_signals(self) -> None:
-        """Detect cross-market signals and log notable findings."""
-        try:
-            from src.analysis.cross_market import detect_cross_market_signals
-            from src.db.schema import thread_connection
-
-            with thread_connection(self.db_path) as conn:
-                signals = detect_cross_market_signals(conn, hours=48)
-            if not signals.empty:
-                logger.info(
-                    "[cross-market-detector] %d cross-market signals detected",
-                    len(signals),
-                )
-                # Log the top 3 most significant signals
-                for _, row in signals.head(3).iterrows():
-                    logger.info(
-                        "[cross-market-detector] %s (%s) -> %s (%s) | lag=%.0fh | src_ret=%.2f%% tgt_ret=%.2f%%",
-                        row["source_ticker"], row["source_event"],
-                        row["target_ticker"], row["target_event"],
-                        row["lag_hours"],
-                        row["source_return"] * 100,
-                        row["target_return"] * 100,
-                    )
-            else:
-                logger.debug("[cross-market-detector] No significant cross-market signals")
-        except ImportError:
-            logger.warning("[cross-market-detector] cross_market module not available — skipping")
-        except Exception as exc:
-            logger.error("[cross-market-detector] Error: %s", exc, exc_info=True)
-
-    # ------------------------------------------------------------------
-    # Attribution helper
-    # ------------------------------------------------------------------
-
-    def _run_attribution(self, events_df) -> None:
-        """Run attribution for freshly detected events and persist results."""
-        from src.db.queries import get_recent_articles, insert_attributions
-        from src.attribution.mapper import attribute_all_events
-        from src.db.schema import thread_connection
-
-        with thread_connection(self.db_path) as conn:
-            articles_df = get_recent_articles(conn, hours=6)
-
-        if articles_df.empty or events_df.empty:
-            return
-
-        # Align column names
-        if "published_at" in articles_df.columns and "timestamp" not in articles_df.columns:
-            articles_df = articles_df.rename(columns={"published_at": "timestamp"})
-
-        attr_df = attribute_all_events(events_df, articles_df)
-        if not attr_df.empty:
-            with thread_connection(self.db_path) as conn:
-                insert_attributions(conn, attr_df)
-            logger.info("[attribution] Saved %d attribution rows", len(attr_df))
 
 
 # ---------------------------------------------------------------------------
-# CLI smoke-test
+# CLI
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
@@ -470,9 +469,9 @@ if __name__ == "__main__":
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
 
-    ingester = BackgroundIngester(db_path="data/storyquant.db")
+    ingester = BackgroundIngester()
     ingester.start()
-    print("BackgroundIngester running. Press Ctrl-C to stop.")
+    print("BackgroundIngester v2 running. Press Ctrl-C to stop.")
     try:
         while True:
             time.sleep(1)

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StoryQuant v2</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>▲</text></svg>">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <span class="logo">▲ StoryQuant</span>
+      <span class="subtitle">Graph-Powered Market Intelligence</span>
+    </div>
+    <div class="header-right">
+      <span id="status-badge" class="status-badge offline">OFFLINE</span>
+      <span id="clock" class="clock"></span>
+    </div>
+  </header>
+
+  <!-- KPI Strip -->
+  <div class="kpi-strip">
+    <div class="kpi-card">
+      <div class="kpi-label">Narratives</div>
+      <div class="kpi-value" id="kpi-narratives">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Events</div>
+      <div class="kpi-value" id="kpi-events">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Evidence</div>
+      <div class="kpi-value" id="kpi-evidence">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Graph Nodes</div>
+      <div class="kpi-value" id="kpi-nodes">—</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Edges</div>
+      <div class="kpi-value" id="kpi-edges">—</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <nav class="tabs">
+    <button class="tab active" data-tab="narratives">Narratives</button>
+    <button class="tab" data-tab="signals">Signals & Events</button>
+    <button class="tab" data-tab="news">News Feed</button>
+    <button class="tab" data-tab="graph">Knowledge Graph</button>
+  </nav>
+
+  <!-- Tab Panels -->
+  <main class="panels">
+
+    <!-- NARRATIVES -->
+    <section id="panel-narratives" class="panel active">
+      <div class="section-header">Active Narratives</div>
+      <div id="narratives-grid" class="narratives-grid">
+        <div class="empty-state">Loading narratives...</div>
+      </div>
+    </section>
+
+    <!-- SIGNALS & EVENTS -->
+    <section id="panel-signals" class="panel">
+      <div class="section-header">Price Events</div>
+      <div class="filter-bar">
+        <select id="filter-severity" class="filter-select">
+          <option value="">All Severity</option>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+        <select id="filter-event-type" class="filter-select">
+          <option value="">All Types</option>
+          <option value="surge">Surge</option>
+          <option value="crash">Crash</option>
+          <option value="volume_spike">Volume Spike</option>
+          <option value="vol_shock">Vol Shock</option>
+        </select>
+        <select id="filter-market" class="filter-select">
+          <option value="">All Markets</option>
+          <option value="crypto">Crypto</option>
+          <option value="us">US</option>
+          <option value="kr">KR</option>
+        </select>
+      </div>
+      <div id="events-table-container">
+        <table class="data-table" id="events-table">
+          <thead>
+            <tr>
+              <th>Time</th><th>Ticker</th><th>Type</th><th>Return</th>
+              <th>Severity</th><th>Attributions</th>
+            </tr>
+          </thead>
+          <tbody id="events-tbody"></tbody>
+        </table>
+      </div>
+
+      <div class="section-header" style="margin-top:24px;">Causal Explanation</div>
+      <div class="causal-container">
+        <select id="event-select" class="filter-select" style="width:100%;margin-bottom:12px;">
+          <option value="">Select an event...</option>
+        </select>
+        <div id="causal-result" class="empty-state">Select an event to see its causal explanation</div>
+      </div>
+    </section>
+
+    <!-- NEWS FEED -->
+    <section id="panel-news" class="panel">
+      <div class="section-header">News Feed</div>
+      <div class="filter-bar">
+        <button class="market-btn active" data-market="">All</button>
+        <button class="market-btn" data-market="crypto">Crypto</button>
+        <button class="market-btn" data-market="us">US</button>
+        <button class="market-btn" data-market="kr">KR</button>
+      </div>
+      <div id="news-feed">
+        <div class="empty-state">Loading news...</div>
+      </div>
+    </section>
+
+    <!-- KNOWLEDGE GRAPH -->
+    <section id="panel-graph" class="panel">
+      <div class="section-header">RAG Search</div>
+      <div class="search-bar">
+        <input type="text" id="search-input" class="search-input"
+               placeholder="Search: BTC ETF inflow, 삼성전자 HBM, momentum crypto...">
+        <button id="search-btn" class="search-btn">Search</button>
+      </div>
+      <div id="search-results"></div>
+
+      <div class="section-header" style="margin-top:24px;">Graph Summary</div>
+      <div id="graph-summary-grid" class="graph-summary-grid"></div>
+
+      <div class="section-header" style="margin-top:24px;">Contradictions</div>
+      <div id="contradictions-list">
+        <div class="empty-state">No contradictions detected</div>
+      </div>
+
+      <div class="section-header" style="margin-top:24px;">Knowledge Health</div>
+      <div id="health-list">
+        <div class="empty-state">All knowledge nodes up to date</div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Settings Modal (API URL) -->
+  <div id="settings-overlay" class="settings-overlay hidden">
+    <div class="settings-modal">
+      <h3>API Settings</h3>
+      <label class="settings-label">amure-db API URL</label>
+      <input type="text" id="api-url-input" class="settings-input" value="http://localhost:8081">
+      <div class="settings-actions">
+        <button id="settings-save" class="btn-primary">Save</button>
+        <button id="settings-cancel" class="btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+  <button id="settings-toggle" class="settings-toggle" title="API Settings">⚙</button>
+
+  <script src="app.js"></script>
+</body>
+</html>
