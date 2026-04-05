@@ -102,6 +102,77 @@ def format_trade_alert(trade: dict, action: str = "open") -> str:
         )
 
 
+def format_hot_topic_alert(topic: dict, historical: dict = None) -> str:
+    """Format a hot topic emergence as a proactive Telegram alert."""
+    label = topic.get("topic_label", "?")
+    momentum = topic.get("momentum_score", 0)
+    novelty = topic.get("novelty_score", 0)
+    article_count = topic.get("article_count", 0)
+
+    # Determine urgency
+    if novelty > 0.8:
+        icon = "🆕"
+        tag = "NEW TOPIC"
+    elif momentum > 0.7:
+        icon = "🔥"
+        tag = "TRENDING"
+    else:
+        icon = "📊"
+        tag = "HOT TOPIC"
+
+    lines = [
+        f"{icon} <b>{tag}: {label}</b>",
+        f"모멘텀: {'█' * int(momentum * 10)}{'░' * (10 - int(momentum * 10))} {momentum:.0%}",
+        f"신규도: {'█' * int(novelty * 10)}{'░' * (10 - int(novelty * 10))} {novelty:.0%}",
+        f"관련 기사: {article_count}건",
+    ]
+
+    if historical:
+        avg_ret = historical.get("avg_return", 0)
+        hit = historical.get("hit_rate", 0)
+        n = historical.get("sample_count", 0)
+        direction = "📈" if avg_ret > 0 else "📉"
+        lines.append("")
+        lines.append(f"{direction} <b>과거 통계 (최근 30일):</b>")
+        lines.append(f"   이 토픽 등장 후 24h 평균: {avg_ret:+.2%}")
+        lines.append(f"   양의 수익률 비율: {hit:.0%} ({n}건)")
+
+    lines.append(f"\n🤖 StoryQuant Signal")
+    return "\n".join(lines)
+
+
+def format_whale_alert_msg(whale: dict) -> str:
+    """Format a whale transfer alert."""
+    token = whale.get("token", "?")
+    usd = whale.get("usd_value", 0)
+    from_entity = whale.get("from_entity", "unknown")
+    to_entity = whale.get("to_entity", "unknown")
+
+    # Determine if it's exchange inflow/outflow
+    exchanges = {"binance", "coinbase", "kraken", "bitfinex", "okx", "bybit"}
+    from_is_exchange = any(ex in from_entity.lower() for ex in exchanges) if from_entity else False
+    to_is_exchange = any(ex in to_entity.lower() for ex in exchanges) if to_entity else False
+
+    if from_is_exchange and not to_is_exchange:
+        icon = "📤"
+        flow = "거래소 출금 (매집 시그널)"
+    elif to_is_exchange and not from_is_exchange:
+        icon = "📥"
+        flow = "거래소 입금 (매도 시그널)"
+    else:
+        icon = "🐋"
+        flow = "대형 이체"
+
+    lines = [
+        f"{icon} <b>WHALE: {token} ${usd/1e6:,.1f}M</b>",
+        f"방향: {flow}",
+        f"From: {from_entity}",
+        f"To: {to_entity}",
+        f"\n🤖 StoryQuant Alert",
+    ]
+    return "\n".join(lines)
+
+
 def format_oi_alert(ticker: str, oi_change_pct: float, ls_ratio: float) -> str:
     """Format an OI alert."""
     direction = "⬆️" if oi_change_pct > 0 else "⬇️"
