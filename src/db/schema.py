@@ -114,6 +114,23 @@ def init_db(conn: sqlite3.Connection) -> None:
         );
         CREATE INDEX IF NOT EXISTS idx_whale_ts  ON whale_transfers(timestamp);
         CREATE INDEX IF NOT EXISTS idx_whale_usd ON whale_transfers(usd_value);
+
+        -- ── Paper Trades ──
+        CREATE TABLE IF NOT EXISTS trades (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            narrative_id    TEXT,
+            narrative       TEXT,
+            ticker          TEXT NOT NULL,
+            direction       TEXT NOT NULL,
+            entry_price     REAL NOT NULL,
+            entry_time      TIMESTAMP NOT NULL,
+            exit_price      REAL,
+            exit_time       TIMESTAMP,
+            pnl_pct         REAL,
+            status          TEXT DEFAULT 'open',
+            created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_trades_status ON trades(status);
     """)
 
     conn.commit()

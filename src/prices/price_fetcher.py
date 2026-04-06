@@ -45,34 +45,58 @@ def fetch_prices(
 
     frames = []
 
-    if len(tickers) == 1:
-        # Single ticker: raw has flat columns (Open, High, Low, Close, Volume)
-        df = raw.copy()
-        df.columns = [c.lower() for c in df.columns]
-        df = df.reset_index().rename(columns={"Datetime": "timestamp", "Date": "timestamp"})
-        df["ticker"] = tickers[0]
-        df = df[["ticker", "timestamp", "open", "high", "low", "close", "volume"]]
-        df = df.dropna(subset=["close"])
-        frames.append(df)
-    else:
+    # yfinance may return MultiIndex columns in two formats:
+    #   group_by='ticker': (Ticker, Price) — Level 0 = ticker, Level 1 = OHLCV
+    #   default:           (Price, Ticker) — Level 0 = OHLCV, Level 1 = ticker
+    if isinstance(raw.columns, pd.MultiIndex):
+        level0 = raw.columns.get_level_values(0).unique().tolist()
+        price_names = {"Open", "High", "Low", "Close", "Volume"}
+
+        if set(level0) & price_names:
+            # Format: (Price, Ticker) — pivot to (Ticker, Price)
+            raw = raw.swaplevel(axis=1)
+
+        available_tickers = raw.columns.get_level_values(0).unique()
         for ticker in tickers:
-            if ticker not in raw.columns.get_level_values(0):
+            if ticker not in available_tickers:
                 print(f"Warning: no data returned for {ticker}")
                 continue
             df = raw[ticker].copy()
             df.columns = [c.lower() for c in df.columns]
-            df = df.reset_index().rename(columns={"Datetime": "timestamp", "Date": "timestamp"})
+            # Preserve index as 'timestamp' before reset
+            df.index.name = "timestamp"
+            df = df.reset_index()
             df["ticker"] = ticker
-            df = df[["ticker", "timestamp", "open", "high", "low", "close", "volume"]]
-            df = df.dropna(subset=["close"])
+            target = [c for c in ["ticker", "timestamp", "open", "high", "low", "close", "volume"] if c in df.columns]
+            df = df[target]
+            if "close" in df.columns:
+                df = df.dropna(subset=["close"])
             frames.append(df)
+    else:
+        # Flat columns (older yfinance)
+        df = raw.copy()
+        df.columns = [c.lower() if isinstance(c, str) else str(c).lower() for c in df.columns]
+        df = df.reset_index()
+        # Normalize index column name
+        for col in df.columns:
+            if 'date' in str(col).lower() or 'datetime' in str(col).lower():
+                df = df.rename(columns={col: "timestamp"})
+                break
+        if len(tickers) == 1:
+            df["ticker"] = tickers[0]
+        target_cols = [c for c in ["ticker", "timestamp", "open", "high", "low", "close", "volume"] if c in df.columns]
+        df = df[target_cols]
+        if "close" in df.columns:
+            df = df.dropna(subset=["close"])
+        frames.append(df)
 
     if not frames:
         return pd.DataFrame(columns=["ticker", "timestamp", "open", "high", "low", "close", "volume"])
 
     result = pd.concat(frames, ignore_index=True)
-    result["timestamp"] = pd.to_datetime(result["timestamp"])
-    result = result.sort_values(["ticker", "timestamp"]).reset_index(drop=True)
+    if "timestamp" in result.columns:
+        result["timestamp"] = pd.to_datetime(result["timestamp"])
+        result = result.sort_values(["ticker", "timestamp"]).reset_index(drop=True)
     return result
 
 

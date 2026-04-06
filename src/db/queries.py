@@ -124,6 +124,61 @@ def insert_whale_transfers(conn: sqlite3.Connection, df: pd.DataFrame) -> None:
 # Internal utility
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Paper trading
+# ---------------------------------------------------------------------------
+
+def open_trade(conn: sqlite3.Connection, narrative_id: str, narrative: str,
+               ticker: str, direction: str, entry_price: float, entry_time: str) -> int:
+    cur = conn.execute(
+        "INSERT INTO trades (narrative_id, narrative, ticker, direction, entry_price, entry_time, status) "
+        "VALUES (?, ?, ?, ?, ?, ?, 'open')",
+        [narrative_id, narrative, ticker, direction, entry_price, entry_time],
+    )
+    conn.commit()
+    return cur.lastrowid
+
+
+def close_trade(conn: sqlite3.Connection, trade_id: int, exit_price: float, exit_time: str) -> float:
+    trade = conn.execute("SELECT entry_price, direction FROM trades WHERE id = ?", [trade_id]).fetchone()
+    if not trade:
+        return 0.0
+    entry_price, direction = trade
+    if direction == "long":
+        pnl = (exit_price - entry_price) / entry_price * 100
+    else:
+        pnl = (entry_price - exit_price) / entry_price * 100
+    conn.execute(
+        "UPDATE trades SET exit_price=?, exit_time=?, pnl_pct=?, status='closed' WHERE id=?",
+        [exit_price, exit_time, round(pnl, 4), trade_id],
+    )
+    conn.commit()
+    return pnl
+
+
+def get_open_trades(conn: sqlite3.Connection) -> pd.DataFrame:
+    return pd.read_sql_query("SELECT * FROM trades WHERE status='open' ORDER BY entry_time DESC", conn)
+
+
+def get_trade_history(conn: sqlite3.Connection, limit: int = 100) -> pd.DataFrame:
+    return pd.read_sql_query("SELECT * FROM trades ORDER BY created_at DESC LIMIT ?", conn, params=[limit])
+
+
+def get_trade_stats(conn: sqlite3.Connection) -> dict:
+    closed = pd.read_sql_query("SELECT * FROM trades WHERE status='closed'", conn)
+    if closed.empty:
+        return {"total": 0, "wins": 0, "losses": 0, "win_rate": 0, "avg_pnl": 0, "total_pnl": 0}
+    wins = len(closed[closed["pnl_pct"] > 0])
+    return {
+        "total": len(closed),
+        "wins": wins,
+        "losses": len(closed) - wins,
+        "win_rate": round(wins / len(closed) * 100, 1),
+        "avg_pnl": round(closed["pnl_pct"].mean(), 2),
+        "total_pnl": round(closed["pnl_pct"].sum(), 2),
+    }
+
+
 def _insert_df(
     conn: sqlite3.Connection,
     table: str,
