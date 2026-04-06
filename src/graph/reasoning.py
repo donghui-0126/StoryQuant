@@ -1,9 +1,10 @@
 """
 Graph-based reasoning engine.
 Handles narrative lifecycle, contradiction detection, causal analysis,
-and cross-market linking via amure-db graph.
+cross-market linking, and automatic narrative discovery via amure-db graph.
 """
 import logging
+from collections import Counter
 from datetime import datetime, timezone, timedelta
 
 from src.graph.client import AmureClient
@@ -13,41 +14,19 @@ logger = logging.getLogger(__name__)
 
 
 def update_narrative_lifecycle(client: AmureClient) -> dict:
-    """
-    Update lifecycle status of all Claim (narrative) nodes based on
-    connected Evidence count, recency, and verdict propagation.
-
-    Lifecycle mapping:
-      Draft     → EMERGING (few Evidence, recently created)
-      Active    → BUILDING (growing Evidence support)
-      Accepted  → PEAKING  (strong, confirmed narrative)
-      Weakened  → FADING   (stale or contradicted)
-    """
-    all_data = client.get_all()
-    nodes = all_data.get("nodes", [])
-    edges = all_data.get("edges", [])
-
-    claims = [n for n in nodes if n.get("kind") == "Claim"]
+    """Update lifecycle status of all Claim nodes based on evidence count/recency."""
+    claims = client.get_nodes_by_kind("Claim")
     if not claims:
         return {"updated": 0}
 
-    edge_index = {}
-    for e in edges:
-        target = e.get("target", "")
-        edge_index.setdefault(target, []).append(e)
-
+    support_index = client.get_support_index()
     now = datetime.now(timezone.utc)
     updated = 0
 
     for claim in claims:
         claim_id = claim.get("id", "")
         metadata = claim.get("metadata", {})
-
-        support_edges = [
-            e for e in edge_index.get(claim_id, [])
-            if e.get("kind") == "Support"
-        ]
-        evidence_count = len(support_edges)
+        evidence_count = len(support_index.get(claim_id, []))
 
         created_str = metadata.get("created_at", "")
         try:
@@ -85,6 +64,90 @@ def update_narrative_lifecycle(client: AmureClient) -> dict:
     return {"updated": updated, "total_claims": len(claims)}
 
 
+def discover_narratives(client: AmureClient, min_cluster_size: int = 3) -> dict:
+    """
+    Auto-discover narratives by clustering Evidence nodes by keyword co-occurrence.
+    Creates new Claim nodes for emerging clusters not yet covered by existing Claims.
+    """
+    evidence = client.get_nodes_by_kind("Evidence")
+    existing_claims = client.get_nodes_by_kind("Claim")
+
+    if len(evidence) < min_cluster_size:
+        return {"discovered": 0}
+
+    # Collect keyword frequency across all Evidence
+    keyword_pairs = Counter()
+    keyword_to_nodes = {}
+    for e in evidence:
+        kws = [k.lower() for k in e.get("keywords", []) if len(k) > 1]
+        for kw in kws:
+            keyword_to_nodes.setdefault(kw, []).append(e.get("id", ""))
+        # Count pairs for co-occurrence
+        for i, k1 in enumerate(kws):
+            for k2 in kws[i+1:]:
+                pair = tuple(sorted([k1, k2]))
+                keyword_pairs[pair] += 1
+
+    # Find clusters: keyword pairs that co-occur >= min_cluster_size times
+    existing_kw_sets = [set(c.get("keywords", [])) for c in existing_claims]
+
+    discovered = 0
+    seen_pairs = set()
+    for (k1, k2), count in keyword_pairs.most_common(50):
+        if count < min_cluster_size:
+            break
+
+        cluster_kws = {k1, k2}
+
+        # Skip if already covered by existing Claim
+        already_covered = False
+        for ek in existing_kw_sets:
+            if cluster_kws.issubset(ek):
+                already_covered = True
+                break
+        if already_covered:
+            continue
+
+        # Skip if we already created a similar cluster this round
+        pair_key = tuple(sorted(cluster_kws))
+        if pair_key in seen_pairs:
+            continue
+        seen_pairs.add(pair_key)
+
+        # Find all evidence nodes matching this cluster
+        matching_nodes = set(keyword_to_nodes.get(k1, [])) & set(keyword_to_nodes.get(k2, []))
+        if len(matching_nodes) < min_cluster_size:
+            continue
+
+        # Determine market from matching evidence
+        node_map = client.get_node_map()
+        markets = Counter()
+        for nid in matching_nodes:
+            n = node_map.get(nid, {})
+            m = n.get("metadata", {}).get("market", "")
+            if m:
+                markets[m] += 1
+        market = markets.most_common(1)[0][0] if markets else ""
+
+        # Create Claim
+        statement = f"Emerging narrative: {k1} + {k2} ({count} evidence, {len(matching_nodes)} nodes)"
+        keywords = list(cluster_kws)
+
+        from src.graph.mapper import narrative_to_claim
+        claim_id = narrative_to_claim(client, statement, keywords, market=market)
+
+        if claim_id:
+            # Link matching evidence
+            for nid in list(matching_nodes)[:20]:
+                client.create_edge(source=nid, target=claim_id, kind="Support",
+                                   weight=0.5, note="auto-discovered")
+            discovered += 1
+            logger.info("Discovered narrative: %s (%d evidence)", statement[:50], len(matching_nodes))
+
+    logger.info("Narrative discovery: %d new narratives", discovered)
+    return {"discovered": discovered}
+
+
 def detect_and_link_contradictions(client: AmureClient) -> dict:
     """Run contradiction detection and return results."""
     contradictions = client.detect_contradictions()
@@ -108,28 +171,18 @@ def create_cross_market_link(
     lag_hours: float = 0,
     note: str = "",
 ) -> str:
-    """Create a DependsOn edge between two Fact nodes for cross-market signals."""
     edge_note = f"correlation={correlation:.3f}, lag={lag_hours}h"
     if note:
         edge_note += f", {note}"
-
-    edge_id = client.create_edge(
-        source=target_fact_id,
-        target=source_fact_id,
-        kind="DependsOn",
-        weight=abs(correlation),
-        note=edge_note,
+    return client.create_edge(
+        source=target_fact_id, target=source_fact_id,
+        kind="DependsOn", weight=abs(correlation), note=edge_note,
     )
-    return edge_id
 
 
 def get_causal_explanation(client: AmureClient, fact_node_id: str) -> dict:
-    """
-    Get a full causal explanation for a price event by tracing
-    the graph backwards through Support/DependsOn chains.
-    """
+    """Get full causal explanation for a price event."""
     chains = client.causal_chains(fact_node_id)
-
     neighbors = client.walk(fact_node_id, hops=2)
 
     support_evidence = []
@@ -156,21 +209,9 @@ def get_causal_explanation(client: AmureClient, fact_node_id: str) -> dict:
 
 
 def get_active_narratives(client: AmureClient) -> list[dict]:
-    """
-    Get all active narratives (Claims) with their lifecycle status
-    and supporting evidence count.
-    """
-    all_data = client.get_all()
-    nodes = all_data.get("nodes", [])
-    edges = all_data.get("edges", [])
-
-    claims = [n for n in nodes if n.get("kind") == "Claim"]
-
-    support_count = {}
-    for e in edges:
-        if e.get("kind") == "Support":
-            target = e.get("target", "")
-            support_count[target] = support_count.get(target, 0) + 1
+    """Get all active narratives with evidence count."""
+    claims = client.get_nodes_by_kind("Claim")
+    support_index = client.get_support_index()
 
     narratives = []
     for c in claims:
@@ -183,7 +224,7 @@ def get_active_narratives(client: AmureClient) -> list[dict]:
             "lifecycle": meta.get("lifecycle", "emerging"),
             "market": meta.get("market", ""),
             "direction": meta.get("direction", ""),
-            "evidence_count": support_count.get(cid, 0),
+            "evidence_count": len(support_index.get(cid, [])),
             "keywords": c.get("keywords", []),
             "created_at": meta.get("created_at", ""),
         })
@@ -193,26 +234,18 @@ def get_active_narratives(client: AmureClient) -> list[dict]:
 
 
 def get_recent_events_from_graph(client: AmureClient, limit: int = 50) -> list[dict]:
-    """Get recent Fact (price event) nodes from the graph."""
-    all_data = client.get_all()
-    nodes = all_data.get("nodes", [])
-    edges = all_data.get("edges", [])
-
-    facts = [n for n in nodes if n.get("kind") == "Fact"]
+    """Get recent Fact (price event) nodes."""
+    facts = client.get_nodes_by_kind("Fact")
     facts.sort(key=lambda x: x.get("metadata", {}).get("timestamp", ""), reverse=True)
     facts = facts[:limit]
 
-    support_map = {}
-    for e in edges:
-        if e.get("kind") == "Support":
-            target = e.get("target", "")
-            support_map.setdefault(target, []).append(e)
+    support_index = client.get_support_index()
 
     result = []
     for f in facts:
         fid = f.get("id", "")
         meta = f.get("metadata", {})
-        supports = support_map.get(fid, [])
+        attr_count = len(support_index.get(fid, []))
         result.append({
             "id": fid,
             "statement": f.get("statement", ""),
@@ -223,19 +256,15 @@ def get_recent_events_from_graph(client: AmureClient, limit: int = 50) -> list[d
             "market": meta.get("market", ""),
             "timestamp": meta.get("timestamp", ""),
             "attributed": meta.get("attributed", False),
-            "attribution_count": len(supports),
-            "top_attribution": supports[0].get("note", "") if supports else "",
+            "attribution_count": attr_count,
         })
 
     return result
 
 
 def get_recent_evidence(client: AmureClient, market: str = None, limit: int = 50) -> list[dict]:
-    """Get recent Evidence (news) nodes from the graph."""
-    all_data = client.get_all()
-    nodes = all_data.get("nodes", [])
-
-    evidence = [n for n in nodes if n.get("kind") == "Evidence"]
+    """Get recent Evidence (news) nodes."""
+    evidence = client.get_nodes_by_kind("Evidence")
 
     if market:
         evidence = [e for e in evidence if e.get("metadata", {}).get("market") == market]

@@ -97,14 +97,7 @@ def attribute_unprocessed_events(client: AmureClient) -> dict:
     """
     Find all Fact nodes that haven't been attributed yet and run attribution.
     """
-    all_data = client.get_all()
-    nodes = all_data.get("nodes", [])
-
-    unattributed = [
-        n for n in nodes
-        if n.get("kind") == "Fact"
-        and not n.get("metadata", {}).get("attributed", False)
-    ]
+    unattributed = client.get_unattributed_facts()
 
     total_edges = 0
     total_reasons = 0
@@ -156,7 +149,11 @@ def _apply_time_decay(
     results: list[SearchResult],
     event_ts: str,
 ) -> list[tuple[SearchResult, float]]:
-    """Apply exponential time decay to RAG scores based on news freshness."""
+    """Apply exponential time decay to RAG scores based on news freshness.
+
+    Formula: final_score = rag_score * exp(-hours_diff / DECAY_HOURS)
+    News published closer to the event gets higher weight.
+    """
     try:
         event_time = datetime.fromisoformat(str(event_ts).replace("Z", "+00:00"))
         if event_time.tzinfo is None:
@@ -166,16 +163,23 @@ def _apply_time_decay(
 
     scored = []
     for r in results:
-        hours_diff = ATTRIBUTION_TIME_DECAY_HOURS
-        try:
-            pub_str = ""
-            for node_data in [r.__dict__]:
-                pass
-            scored.append((r, r.score))
-            continue
-        except Exception:
-            pass
-        scored.append((r, r.score))
+        # Get publication time from metadata
+        pub_str = r.metadata.get("published_at", "") or r.metadata.get("timestamp", "")
+        if pub_str:
+            try:
+                pub_time = datetime.fromisoformat(str(pub_str).replace("Z", "+00:00"))
+                if pub_time.tzinfo is None:
+                    pub_time = pub_time.replace(tzinfo=timezone.utc)
+                hours_diff = abs((event_time - pub_time).total_seconds()) / 3600
+            except (ValueError, TypeError):
+                hours_diff = ATTRIBUTION_TIME_DECAY_HOURS
+        else:
+            hours_diff = ATTRIBUTION_TIME_DECAY_HOURS
+
+        # Exponential decay: closer news = higher weight
+        decay = math.exp(-hours_diff / ATTRIBUTION_TIME_DECAY_HOURS)
+        final_score = r.score * decay
+        scored.append((r, final_score))
 
     return scored
 

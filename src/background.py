@@ -399,13 +399,20 @@ class BackgroundIngester:
                 )
 
     def _graph_narrator(self) -> None:
-        """Update narrative (Claim) lifecycle based on Evidence accumulation."""
+        """Discover new narratives + update lifecycle."""
         from src.graph.client import AmureClient
-        from src.graph.reasoning import update_narrative_lifecycle
+        from src.graph.reasoning import update_narrative_lifecycle, discover_narratives
 
         with AmureClient() as client:
             if not client.is_available():
                 return
+
+            # Auto-discover new narratives from Evidence clusters
+            discovery = discover_narratives(client, min_cluster_size=3)
+            if discovery.get("discovered"):
+                logger.info("[graph-narrator] Discovered %d new narratives", discovery["discovered"])
+
+            # Update lifecycle of all Claims
             result = update_narrative_lifecycle(client)
             if result.get("updated"):
                 logger.info("[graph-narrator] Updated %d narratives", result["updated"])

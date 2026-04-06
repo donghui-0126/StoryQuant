@@ -23,8 +23,32 @@ from src.config.settings import WHALE_TRANSFER_EVIDENCE_MIN_USD
 logger = logging.getLogger(__name__)
 
 
+def _find_existing_evidence_by_url(client: AmureClient, url: str) -> Optional[str]:
+    """Check if an Evidence node with this URL already exists."""
+    if not url:
+        return None
+    existing = client.get_nodes_by_kind("Evidence")
+    for n in existing:
+        if n.get("metadata", {}).get("url") == url:
+            return n.get("id")
+    return None
+
+
+def _find_existing_fact(client: AmureClient, ticker: str, timestamp: str, event_type: str) -> Optional[str]:
+    """Check if a Fact node for this ticker+timestamp+event already exists."""
+    if not ticker or not timestamp:
+        return None
+    existing = client.get_nodes_by_kind("Fact")
+    for n in existing:
+        m = n.get("metadata", {})
+        if m.get("ticker") == ticker and m.get("event_type") == event_type:
+            if str(m.get("timestamp", ""))[:16] == str(timestamp)[:16]:
+                return n.get("id")
+    return None
+
+
 def article_to_evidence(client: AmureClient, row: dict) -> Optional[str]:
-    """Convert a news article dict/row into an Evidence node."""
+    """Convert a news article dict/row into an Evidence node. Skips duplicates."""
     title = row.get("title", "")
     if not title:
         return None
@@ -34,6 +58,11 @@ def article_to_evidence(client: AmureClient, row: dict) -> Optional[str]:
     url = row.get("url", "")
     market = row.get("market", "")
     published_at = row.get("published_at", "")
+
+    # Dedup: skip if URL already exists in graph
+    existing = _find_existing_evidence_by_url(client, url)
+    if existing:
+        return existing
 
     keywords = _extract_keywords_from_text(f"{title} {summary}", market)
 
@@ -61,7 +90,7 @@ def article_to_evidence(client: AmureClient, row: dict) -> Optional[str]:
 
 
 def event_to_fact(client: AmureClient, row: dict) -> Optional[str]:
-    """Convert a price event dict/row into a Fact node."""
+    """Convert a price event dict/row into a Fact node. Skips duplicates."""
     ticker = row.get("ticker", "")
     event_type = row.get("event_type", "")
     return_1h = row.get("return_1h", 0.0)
@@ -69,6 +98,11 @@ def event_to_fact(client: AmureClient, row: dict) -> Optional[str]:
 
     if not ticker or not event_type:
         return None
+
+    # Dedup: skip if same ticker+timestamp+event_type already exists
+    existing = _find_existing_fact(client, ticker, str(timestamp), event_type)
+    if existing:
+        return existing
 
     ticker_cfg = TICKERS.get(ticker, {})
     name = ticker_cfg.get("name", ticker)

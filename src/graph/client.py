@@ -35,6 +35,7 @@ class SearchResult:
     hop_distance: int = 0
     failed_path: bool = False
     status: str = "Active"
+    metadata: dict = field(default_factory=dict)
 
 
 class AmureClient:
@@ -46,6 +47,8 @@ class AmureClient:
             base_url=self.base_url,
             timeout=timeout or AMURE_DB_TIMEOUT,
         )
+        self._cache = None
+        self._cache_time = 0
 
     def close(self):
         self._client.close()
@@ -187,6 +190,7 @@ class AmureClient:
                     hop_distance=r.get("hop_distance", 0),
                     failed_path=r.get("failed_path", False),
                     status=r.get("status", "Active"),
+                    metadata=r.get("metadata", {}),
                 )
                 for r in results
             ]
@@ -296,14 +300,54 @@ class AmureClient:
             logger.debug("Graph summary failed: %s", e)
             return {}
 
-    def get_all(self) -> dict:
+    def get_all(self, max_age: float = 15.0) -> dict:
+        """Get all nodes and edges, cached for max_age seconds."""
+        import time
+        now = time.time()
+        if self._cache and (now - self._cache_time) < max_age:
+            return self._cache
         try:
             resp = self._client.get("/api/graph/all")
             resp.raise_for_status()
-            return resp.json()
+            self._cache = resp.json()
+            self._cache_time = now
+            return self._cache
         except Exception as e:
             logger.debug("Get all failed: %s", e)
-            return {"nodes": [], "edges": []}
+            return self._cache or {"nodes": [], "edges": []}
+
+    def invalidate_cache(self):
+        self._cache = None
+        self._cache_time = 0
+
+    def get_nodes_by_kind(self, kind: str, max_age: float = 15.0) -> list[dict]:
+        """Get nodes filtered by kind, using cached get_all."""
+        data = self.get_all(max_age=max_age)
+        return [n for n in data.get("nodes", []) if n.get("kind") == kind]
+
+    def get_edges_by_kind(self, kind: str, max_age: float = 15.0) -> list[dict]:
+        """Get edges filtered by kind, using cached get_all."""
+        data = self.get_all(max_age=max_age)
+        return [e for e in data.get("edges", []) if e.get("kind") == kind]
+
+    def get_unattributed_facts(self, max_age: float = 15.0) -> list[dict]:
+        """Get Fact nodes that haven't been attributed yet."""
+        facts = self.get_nodes_by_kind("Fact", max_age=max_age)
+        return [f for f in facts if not f.get("metadata", {}).get("attributed", False)]
+
+    def get_node_map(self, max_age: float = 15.0) -> dict:
+        """Get a {node_id: node} lookup dict."""
+        data = self.get_all(max_age=max_age)
+        return {n.get("id", ""): n for n in data.get("nodes", [])}
+
+    def get_support_index(self, max_age: float = 15.0) -> dict:
+        """Get {target_id: [source_ids]} for Support edges."""
+        edges = self.get_edges_by_kind("Support", max_age=max_age)
+        index = {}
+        for e in edges:
+            t = e.get("target", "")
+            index.setdefault(t, []).append(e.get("source", ""))
+        return index
 
     def save(self) -> bool:
         try:
