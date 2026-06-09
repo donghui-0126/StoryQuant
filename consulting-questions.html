@@ -1,0 +1,181 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8"><style>@page{size:A4;margin:16mm}body{font-family:Pretendard,sans-serif;color:#111;font-size:10.5pt;line-height:1.55;word-break:keep-all}h1{font-size:18pt;color:#c0392b;margin:8mm 0 4mm;padding-bottom:2mm;border-bottom:1.5pt solid #c0392b;page-break-after:avoid}h2{font-size:13pt;color:#111;margin:6mm 0 3mm;page-break-after:avoid}h3{font-size:11.5pt;color:#c0392b;margin:4mm 0 2mm}table{width:100%;border-collapse:collapse;margin:3mm 0;font-size:9.5pt;page-break-inside:avoid}th,td{border:0.5pt solid #ccc;padding:1.5mm 2mm;vertical-align:top;text-align:left}th{background:#f4f4f4;font-weight:700}code{background:#f4f4f4;padding:0.5pt 1.5mm;border-radius:1mm;font-family:monospace;font-size:9.5pt;color:#b45309}blockquote{border-left:2pt solid #c0392b;padding:2mm 4mm;background:#faf6f5;margin:3mm 0}pre{background:#f8f8f8;border:0.5pt solid #ddd;border-left:2pt solid #c0392b;padding:3mm;font-family:monospace;font-size:9pt;line-height:1.5;white-space:pre-wrap;page-break-inside:avoid}ul{margin:2mm 0 2mm 5mm;padding-left:5mm}li{margin:1mm 0}</style></head><body><h1>StoryQuant UX 컨설팅 질문 자료</h1>
+
+<blockquote><b>목적</b>: 정보 밀도 높은 트레이딩 대시보드에서 개인 투자자에게 적합한 "서비스 최적점"을 찾기 위한 질문.</blockquote>
+
+---
+
+<h2>0. 한 줄 컨텍스트</h2>
+
+뉴스를 룰 기반 <b>5개 분류</b> (호악재·실질성·카테고리·구체성·매체 신뢰도)로 자동 라벨링하고, 가격·매크로 데이터와 결합해 <b>종합 점수</b>로 KR/US 종목을 랭킹. <b>walk-forward 백테스트</b>로 신호 적중률을 측정해 사용자가 직접 검증할 수 있게 한다.
+
+<b>현재 라이브</b>: https://likelihood-televisions-fcc-socks.trycloudflare.com/story_quant.html
+
+---
+
+<h2>1. 현재 명확히 결정한 것</h2>
+
+<table>
+<tr><th>항목</th><th>결정</th></tr>
+<tr><td>타겟 사용자</td><td><b>개인 투자자</b> (1인 데이트레이더, 매크로 호기심형) — 기관 X, B2B X</td></tr>
+<tr><td>방향</td><td><b>기능 확장 중단 → 서비스 최적점</b> 추구</td></tr>
+<tr><td>디자인 원칙</td><td>정보 과부하 회피, 핵심 신호 우선, "왜 움직였는지 1초"</td></tr>
+<tr><td>ML 접근</td><td>룰 기반 + 통계 검증 (블랙박스 X) — 사용자가 IC IR 직접 확인 가능</td></tr>
+<tr><td>검증</td><td>walk-forward IR=+0.115 · 위기 시기 KR +3.05%/US +2.23% (win 70%+)</td></tr>
+</table>
+
+---
+
+<h2>2. 핵심 고민 4가지 — 컨설팅에서 답을 받고 싶은 부분</h2>
+
+<h3>🔵 고민 1: 뉴스 "가공 수준"의 최적점</h3>
+
+뉴스를 사용자에게 보여줄 때 어느 정도까지 가공해야 사용자가 신뢰하고 활용할 수 있는가?
+
+<table>
+<tr><th>수준</th><th>예시</th><th>사용자 인지 부담</th><th>신뢰감</th><th>의사결정 도움</th></tr>
+<tr><td>① <b>Raw</b></td><td>"삼성전자, 3분기 영업이익 컨센 상회"</td><td>낮음 (그냥 헤드라인)</td><td>높음 (원본 그대로)</td><td>⚠ 낮음 (직접 판단해야)</td></tr>
+<tr><td>② <b>Labeled (현재)</b></td><td>위 + ◆호재·실질정보·실적·★★·연합1.00</td><td>중간 (라벨 5개 동시)</td><td>중간 (기준 보임)</td><td>중간</td></tr>
+<tr><td>③ <b>Scored</b></td><td>상위 5개 종목 카드 + 종합 점수 +8.3</td><td>낮음 (압축됨)</td><td>중간 (어떻게 계산?)</td><td>높음 (바로 매수 후보)</td></tr>
+<tr><td>④ <b>Narrative</b></td><td>"오늘 시장은 반도체 호재가 우세, 삼성 +3% 이끌어"</td><td><b>가장 낮음</b></td><td>⚠ 낮음 (LLM 환각?)</td><td>높음 (이해 쉬움)</td></tr>
+</table>
+
+<b>질문</b>: 개인 투자자 대상이라면 ②와 ③ 중 어디가 더 적합한가? 혹은 ②→③→④로 점진 노출(Progressive Disclosure)?
+
+---
+
+<h3>🔵 고민 2: 백테스트는 어디에 두어야 하나</h3>
+
+백테스트는 본인(개발자)의 <b>분석 타당성 증명</b> 도구로 만들었지만, 개인 투자자가 직접 walk-forward 모드를 토글하고 IC 행렬을 분석할까?
+
+<b>옵션 비교</b>:
+
+<table>
+<tr><th>옵션</th><th>위치</th><th>사용자 부담</th><th>신뢰감 전달</th><th>본질 가치</th></tr>
+<tr><td>(a) 메인 메뉴 (현재)</td><td>동등 위계</td><td><b>높음</b> (페이지 진입 부담)</td><td>직접 검증 가능</td><td>"전문가 도구" 느낌</td></tr>
+<tr><td>(b) "신뢰" 보조 메뉴</td><td>2단계 깊이</td><td>중간</td><td>진입 의향자만 봄</td><td>마케팅 도구</td></tr>
+<tr><td>(c) 작은 배지 노출</td><td>신호 옆 "검증된 적중률 +11.5%" 같은 1줄</td><td><b>낮음</b></td><td>즉시 인지</td><td>신뢰 배지 (요약 신호)</td></tr>
+<tr><td>(d) Admin 전용</td><td>사용자 화면 X</td><td>0</td><td>0</td><td>개발용</td></tr>
+</table>
+
+<b>질문</b>: 개인 투자자가 진짜 백테스트를 조작해서 의사결정에 사용할까? 혹은 (c) "이 신호 적중률 +0.115" 배지만으로 충분한가?
+
+---
+
+<h3>🔵 고민 3: KR + US 동시 노출 vs 단일 시장 집중</h3>
+
+<table>
+<tr><th>옵션</th><th>장점</th><th>단점</th></tr>
+<tr><td>(a) 1클릭 토글 (현재)</td><td>두 시장 비교 쉬움 · 멀티 추적 사용자 만족</td><td>의사결정 부담 ↑ · 둘 다 가벼운 분석에 그칠 위험</td></tr>
+<tr><td>(b) 시작 시 시장 선택</td><td>한 시장에 집중 가능</td><td>매번 선택 부담 · 멀티 추적 사용자 이탈</td></tr>
+<tr><td>(c) 두 시장을 합쳐 한 화면</td><td>글로벌 매크로 흐름 한눈에</td><td>시간대·통화·거래시간 모두 다른데 직접 비교 의미?</td></tr>
+<tr><td>(d) KR만 (US 제거)</td><td>scope 명확</td><td>미장 추적 사용자 포기</td></tr>
+</table>
+
+<b>질문</b>: 개인 투자자 중 KR과 US를 <b>동시</b>에 추적하는 비율이 얼마나 될까? 멀티시장이 차별화인가 분산인가?
+
+---
+
+<h3>🔵 고민 4: "처음 봐야 할 것"의 강제 hierarchy</h3>
+
+데이터가 많은 대시보드에서 사용자가 첫 5초에 무엇을 보는가에 따라 서비스 가치 결정.
+
+<b>현재 (Newsroom-first)</b>: 인덱스 스트립 + 매크로 + 종합 신호 sweep + 헤드라인 stream 동시 표시 → 사용자가 어디부터 봐야 할지 부담.
+
+<b>대안</b>:
+
+<ul><li>(a) 매크로 분위기 한 줄만 ("오늘 시장: 위기 시기, 방어주 우세")</li>
+<li>(b) Top-3 종목 카드 만 ("오늘 가장 강한 신호: 삼성/SK하이닉스/NVDA")</li>
+<li>(c) "지금 가장 중요한 1가지" 큰 카드 1개</li>
+<li>(d) 자유 탐색 (지금) — 사용자가 직접 선택</li>
+</ul>
+<b>질문</b>: 모바일 우선 디자인에서 첫 화면에 정보 hierarchy를 어떻게 강제해야 사용자가 이탈하지 않고 깊이 진입하는가?
+
+---
+
+<h2>3. 검토용 — Mock 대시보드 4종 비교</h2>
+
+<blockquote><b>별첨</b>: <code>ux-mocks.html</code> (라이브) / <code>ux-mocks.pdf</code></blockquote>
+
+각 mock은 같은 데이터(오늘 KR 시장)를 <b>다른 가공 수준 + 다른 layout</b>으로 표현. 컨설턴트가 각각의 장단점·적합성을 평가해줄 자료.
+
+<table>
+<tr><th>Mock</th><th>가공 수준</th><th>백테스트 위치</th><th>첫 화면 hierarchy</th><th>모바일 적합도</th></tr>
+<tr><td><b>A. Newsroom-first</b> (현재 구조)</td><td>② Labeled</td><td>메인 메뉴</td><td>헤드라인 stream</td><td>중간 (정보량 큼)</td></tr>
+<tr><td><b>B. Signal-first</b></td><td>③ Scored</td><td>"신뢰" 보조</td><td>Top-5 종목 카드</td><td>높음</td></tr>
+<tr><td><b>C. Narrative-first</b></td><td>④ Narrative</td><td>작은 배지</td><td>"오늘 시장은 X" 1줄</td><td><b>가장 높음</b></td></tr>
+<tr><td><b>D. Shorts/Reels</b> (모바일 풀스크린)</td><td>②+③ 혼합</td><td>배지</td><td>한 종목씩 세로 스와이프 자동재생</td><td>최적 (쇼츠·릴스 친숙)</td></tr>
+</table>
+
+---
+
+<h2>4. 컨설팅에서 받고 싶은 답변</h2>
+
+1. <b>위 4가지 고민 각각</b>에 대한 사용자 행동 패턴 가설 + 권고
+2. <b>유사 서비스 사례</b> — Toss증권 AI 시그널, Robinhood, eToro, Bloomberg Anywhere 등의 layout 철학
+3. <b>A/B 테스트 디자인</b> — Mock A vs Mock B를 어떻게 측정할지
+4. <b>개인 투자자 페르소나</b> — 진짜 어떤 사용자가 이 dashboard로 무엇을 할까?
+
+---
+
+<h2>5. 추가 고민 — 신뢰도(Trust)는 어떻게 보여줘야 하나</h2>
+
+분석 모델·결론의 신뢰도를 사용자에게 어떻게 전달할지가 가장 큰 고민. 너무 명시적이면 "AI 점쟁이" 인상, 너무 무딘 표현은 가치 X.
+
+<h3>5.1 신뢰도 표시 6가지 패턴 (mock 별첨)</h3>
+
+<table>
+<tr><th>#</th><th>패턴</th><th>예시</th><th>장점</th><th>단점</th></tr>
+<tr><td>A</td><td>절대 점수</td><td>"신뢰도 87%" · "IR=+0.115"</td><td>정확 · 비교 가능</td><td>"어떻게 계산?" · 학술 거부감</td></tr>
+<tr><td>B</td><td>별 등급</td><td>⭐⭐⭐ (3성)</td><td>친숙 · 모바일 친화</td><td>깊이 없음 · "왜 3성?" 모호</td></tr>
+<tr><td>C</td><td>자연어 라벨</td><td>"강한 신호" · "참고용"</td><td>즉시 이해</td><td>기준 모호</td></tr>
+<tr><td>D</td><td>적중률 막대</td><td>▓▓▓▓▓▓▓░░ 70%</td><td>시각적</td><td>시점·조건 의존</td></tr>
+<tr><td>E</td><td>구체 사례</td><td>"10번 중 7번 적중 (위기 시기)"</td><td>솔직 · 구체적</td><td>조건 명시 필요</td></tr>
+<tr><td>F</td><td>반례 노출</td><td>"✓ 7건 / ✗ 2건 (실패 사례 보기 →)"</td><td>신뢰 강화 (역설적)</td><td>위험감지 사용자 부담</td></tr>
+</table>
+
+<h3>5.2 추천 방향: Multi-level Trust (점진 공개)</h3>
+
+``<code>
+[Level 1 즉시]      신호 카드 작은 배지   →   "✓ 검증된 신호 · 70%"
+                    바쁜 사용자 · 1초 인지     (1줄)
+                    ↓ 클릭
+[Level 2 호기심]    작은 모달               →   "위기 시기 +3.05%, 평온기 0%,
+                    "왜 70%?" 알고 싶은 사람    최근 90일 적중 28/40"
+                    ↓ "직접 검증" 버튼
+[Level 3 전문가]    백테스트 페이지         →   IC · IR · regime · decile
+                    신호 자체 검증              자기 모드 토글
+</code>``
+
+<b>이유</b>: 사용자 수준에 따라 정보량 차등 노출. Level 1만으로 모바일 충족, Level 3로 전문가도 잡음.
+
+<h3>5.3 핵심 결정 필요한 3가지</h3>
+
+1. <b>위기/평온 구분 명시할까?</b> — 솔직하면 "평온기엔 alpha 없음" → 사용자 이탈 위험 vs 신뢰↑
+2. <b>반례를 보여줄까?</b> — 못 맞춘 사례 노출이 신뢰 강화 vs 자기파괴
+3. <b>숫자 vs 라벨?</b> — IR=0.115는 모르고 ⭐⭐⭐도 모호. <b>"70% 적중률 (위기 시기)"</b> 같이 자연어 + 숫자 + 조건 명시가 정답?
+
+<h3>5.4 컨설팅에서 받고 싶은 답변</h3>
+
+<ul><li>6가지 패턴 중 개인 투자자에게 어떤 게 가장 적합?</li>
+<li>Multi-level 점진 공개 방향이 맞나? 아니면 한 가지 패턴으로 통일?</li>
+<li>"위기 시기에만 alpha"라는 솔직한 디스클로저가 신뢰 자산인가, 이탈 트리거인가?</li>
+<li>반례(실패 사례) 노출은 fintech 일반 사용자에게 부담? 도움?</li>
+</ul>
+---
+
+<h2>6. 컨설턴트에게 미리 답할 수 있는 질문</h2>
+
+<table>
+<tr><th>질문</th><th>답변</th></tr>
+<tr><td>수익 모델?</td><td>미정 — V2에서 결정 (광고 X 가능성, 구독 가능성)</td></tr>
+<tr><td>정식 서비스 출시 일정?</td><td>학기 종료까지 베타 5명, 정식 출시 미정</td></tr>
+<tr><td>데이터 정확성 책임?</td><td>디스클레이머 명시 + raw RSS 원본 제공</td></tr>
+<tr><td>LLM 한 줄 평 도입 계획?</td><td>V2 옵션 — 비용·환각 검증 후</td></tr>
+<tr><td>모바일 vs 데스크탑 비중?</td><td>모바일 우선 (1인 트레이더는 폰으로 봄)</td></tr>
+<tr><td>결제 통합?</td><td>없음 — 분석·연구 도구. 거래는 증권사 앱에서</td></tr>
+</table>
+
+---
+
+<blockquote><b>이 자료의 목표</b>: 컨설턴트가 "당신의 서비스가 뭔지" 30초에 파악하고, 4가지 핵심 고민에 직접 답할 수 있도록 정리.</blockquote>
+</body></html>

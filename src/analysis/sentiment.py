@@ -11,17 +11,42 @@ logger = logging.getLogger(__name__)
 
 # Rule-based sentiment keywords
 BULLISH_KEYWORDS = [
+    # English
     "surge", "rally", "soar", "jump", "spike", "bull", "breakout", "all-time high",
     "record", "beat", "exceed", "outperform", "upgrade", "buy", "inflow",
-    "급등", "상승", "돌파", "신고가", "호재", "매수", "상향", "서프라이즈",
     "listing", "new listing", "approval", "etf approved", "adoption",
+    "rebound", "gain", "advance", "bullish", "strong", "robust", "earnings beat",
+    # Korean - 가격 움직임
+    "급등", "상승", "돌파", "신고가", "강세", "반등", "상한가", "최고가",
+    # Korean - 실적/펀더멘털
+    "호재", "어닝서프라이즈", "서프라이즈", "흑자전환", "흑자", "수주", "수출 증가",
+    "실적개선", "실적 개선", "최대실적", "사상최대", "사상 최대", "역대 최대",
+    "성장", "확대", "증가", "급증", "신기록",
+    # Korean - 분석/액션
+    "매수", "상향", "목표가 상향", "투자의견 상향", "비중확대", "추천",
+    "수혜", "기대감", "낙관", "긍정적",
+    # Korean - 정책/이벤트
+    "승인", "통과", "체결", "신규상장", "재상장", "편입",
 ]
 
 BEARISH_KEYWORDS = [
+    # English
     "crash", "plunge", "dump", "drop", "fall", "bear", "breakdown", "selloff",
     "decline", "downgrade", "sell", "outflow", "hack", "exploit", "ban",
-    "급락", "하락", "폭락", "악재", "매도", "하향", "규제", "금지",
     "delist", "delisting", "liquidation", "bankrupt", "fraud",
+    "miss", "shortfall", "warning", "weak", "concern", "loss", "earnings miss",
+    # Korean - 가격 움직임
+    "급락", "하락", "폭락", "약세", "조정", "하한가", "최저가", "신저가",
+    # Korean - 실적/펀더멘털
+    "악재", "어닝쇼크", "쇼크", "적자", "적자전환", "감익", "역성장",
+    "실적부진", "실적 부진", "어닝미스", "가이던스 하향", "수주 감소",
+    "감소", "축소", "둔화", "위축",
+    # Korean - 분석/액션
+    "매도", "하향", "목표가 하향", "투자의견 하향", "비중축소", "비관",
+    "리스크", "우려", "부정적", "경계",
+    # Korean - 정책/이벤트
+    "규제", "금지", "제재", "벌금", "기소", "조사", "수사", "압수수색",
+    "상장폐지", "거래정지", "감자", "워크아웃", "법정관리",
 ]
 
 

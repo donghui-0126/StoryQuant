@@ -1,0 +1,1660 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>StoryQuant · 중간발표</title>
+<style>
+  :root {
+    --bg: #0c0b0a;
+    --bg-soft: #15130f;
+    --fg: #f6f2ea;
+    --fg-dim: #aaa39a;
+    --fg-mute: #6f6a62;
+    --accent: #ff4836;
+    --accent-soft: #f4c869;
+    --line: #2a2724;
+    --line-soft: #1c1a17;
+    --green: #4ade80;
+    --red: #ef4444;
+    --blue: #60a5fa;
+    --yellow: #fbbf24;
+    --purple: #a78bfa;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, 'Pretendard', 'Apple SD Gothic Neo', system-ui, sans-serif;
+    font-feature-settings: 'tnum' 1, 'kern' 1;
+    height: 100%;
+    overflow: hidden;
+    line-height: 1.55;
+  }
+  /* ─── slide stage ─── */
+  .stage {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  .deck { position: relative; width: 100vw; height: 100vh; }
+  .slide {
+    position: absolute; inset: 0;
+    padding: 5vh 6vw;
+    display: none;
+    flex-direction: column;
+    overflow: auto;
+  }
+  .slide.active { display: flex; }
+  .slide h1 {
+    font-size: clamp(28px, 4.5vw, 56px);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    margin-bottom: 2vh;
+  }
+  .slide h2 {
+    font-size: clamp(22px, 2.6vw, 34px);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin-bottom: 1.6vh;
+    color: var(--fg);
+  }
+  .slide h3 {
+    font-size: clamp(15px, 1.3vw, 18px);
+    font-weight: 600;
+    color: var(--accent-soft);
+    margin: 1.6vh 0 0.7vh;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .slide p, .slide li { font-size: clamp(13px, 1.05vw, 17px); }
+  .slide ul, .slide ol { padding-left: 1.4em; margin: 0.6vh 0; }
+  .slide li { margin: 0.35vh 0; }
+  .slide .meta {
+    font-size: clamp(11px, 0.85vw, 13px);
+    color: var(--fg-mute);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .slide .lede {
+    font-size: clamp(17px, 1.6vw, 24px);
+    color: var(--fg-dim);
+    margin-bottom: 3vh;
+    max-width: 70ch;
+  }
+  /* ─── chrome ─── */
+  .chrome {
+    position: fixed; top: 14px; right: 18px;
+    z-index: 10;
+    display: flex; align-items: center; gap: 14px;
+    font-size: 12px; color: var(--fg-mute);
+  }
+  .counter {
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    padding: 5px 10px; border-radius: 999px;
+    font-variant-numeric: tabular-nums;
+  }
+  .counter b { color: var(--fg); }
+  .progress {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    height: 3px; background: var(--line-soft); z-index: 10;
+  }
+  .progress .fill {
+    height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-soft));
+    width: 0%; transition: width 0.3s ease;
+  }
+  .corner-brand {
+    position: fixed; top: 14px; left: 18px; z-index: 10;
+    font-size: 12px; color: var(--fg-mute); letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .corner-brand b { color: var(--accent); }
+  /* ─── notes drawer ─── */
+  .notes {
+    position: fixed; bottom: 3px; left: 0; right: 0;
+    max-height: 38vh; overflow: auto;
+    background: rgba(20, 18, 15, 0.96);
+    border-top: 1px solid var(--line);
+    padding: 16px 6vw 18px;
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+    z-index: 20;
+    backdrop-filter: blur(8px);
+  }
+  .notes.open { transform: translateY(0); }
+  .notes h4 {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--accent-soft); margin-bottom: 8px;
+  }
+  .notes p { font-size: 14px; color: var(--fg-dim); line-height: 1.6; }
+  /* ─── grids / cards ─── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 4vw; flex: 1; min-height: 0; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 2vw; }
+  .card {
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 2vh 1.6vw;
+  }
+  .card.bordered { border-color: var(--accent); }
+  .card .num {
+    font-size: clamp(20px, 2.4vw, 32px);
+    font-weight: 700;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  .card .label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--fg-mute); margin-bottom: 4px;
+  }
+  /* ─── status pills ─── */
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    line-height: 1.6;
+  }
+  .pill.real { background: rgba(74, 222, 128, 0.15); color: var(--green); border: 1px solid rgba(74, 222, 128, 0.3); }
+  .pill.partial { background: rgba(251, 191, 36, 0.15); color: var(--yellow); border: 1px solid rgba(251, 191, 36, 0.3); }
+  .pill.mock { background: rgba(167, 139, 250, 0.15); color: var(--purple); border: 1px solid rgba(167, 139, 250, 0.3); }
+  .pill.hard { background: rgba(96, 165, 250, 0.15); color: var(--blue); border: 1px solid rgba(96, 165, 250, 0.3); }
+  .pill.todo { background: rgba(239, 68, 68, 0.15); color: var(--red); border: 1px solid rgba(239, 68, 68, 0.3); }
+  /* ─── tables ─── */
+  table { width: 100%; border-collapse: collapse; font-size: clamp(11px, 0.95vw, 14px); }
+  th, td {
+    text-align: left;
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--line-soft);
+    vertical-align: top;
+  }
+  th { color: var(--fg-mute); font-weight: 500; text-transform: uppercase; font-size: 10px; letter-spacing: 0.08em; }
+  td { color: var(--fg-dim); }
+  td code, p code, li code {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+    font-size: 0.88em;
+    color: var(--accent-soft);
+  }
+  /* ─── diagram blocks ─── */
+  .flow {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 12px;
+    margin: 2vh 0;
+    align-items: center;
+  }
+  .flow .node {
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px 10px;
+    text-align: center;
+    font-size: clamp(11px, 0.95vw, 14px);
+    position: relative;
+  }
+  .flow .node.ml { border-color: var(--accent); background: rgba(255, 72, 54, 0.06); }
+  .flow .node .icon { font-size: 24px; display: block; margin-bottom: 4px; }
+  .flow .node .sub { font-size: 10px; color: var(--fg-mute); margin-top: 4px; }
+  /* ─── demo iframe ─── */
+  .demo-frame {
+    flex: 1;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--bg-soft);
+    margin-top: 1vh;
+    overflow: hidden;
+  }
+  .demo-frame iframe {
+    width: 100%; height: 100%; border: 0;
+    background: var(--bg);
+  }
+  /* ─── feature split layout (screenshot left + spec right) ─── */
+  .feature-split {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 2vw;
+    flex: 1;
+    min-height: 0;
+    margin-top: 1vh;
+  }
+  .feature-split .live {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fafafa;
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .feature-split .live .live-bar {
+    background: #0a0908;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--line);
+    font-size: 11px;
+    color: var(--fg-mute);
+    font-family: 'JetBrains Mono', monospace;
+    display: flex; justify-content: space-between; align-items: center;
+    flex-shrink: 0;
+  }
+  .feature-split .live .live-bar a { color: var(--accent-soft); text-decoration: none; }
+  .feature-split .live .shot-wrap {
+    flex: 1; overflow: auto; min-height: 0;
+    display: flex; flex-direction: column; gap: 8px;
+    padding: 4px;
+  }
+  .feature-split .live img.shot {
+    width: 100%; height: auto;
+    display: block;
+    background: #fafafa;
+    border-radius: 4px;
+    image-rendering: -webkit-optimize-contrast;
+  }
+  .feature-split .live .shot-cap {
+    font-size: 10px;
+    color: var(--fg-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 2px 4px 0;
+  }
+  .feature-split .spec { display: flex; flex-direction: column; gap: 1.2vh; overflow: auto; }
+  .feature-split .spec section {
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 10px 14px;
+  }
+  .feature-split .spec h4 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+  .feature-split .spec p, .feature-split .spec li { font-size: 13px; color: var(--fg-dim); line-height: 1.5; }
+  .feature-split .spec ol, .feature-split .spec ul { padding-left: 1.2em; }
+  .feature-split .spec li { margin: 2px 0; }
+  .feature-split .spec .strong { color: var(--fg); }
+  /* ─── code block ─── */
+  pre {
+    background: #0a0908;
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-family: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+    font-size: clamp(11px, 0.88vw, 13px);
+    color: var(--fg-dim);
+    overflow-x: auto;
+    line-height: 1.7;
+  }
+  pre .k { color: var(--accent); }
+  pre .v { color: var(--accent-soft); }
+  pre .c { color: var(--fg-mute); }
+  /* ─── badges in heading ─── */
+  .h-badges {
+    display: flex; gap: 8px; margin-top: 0.4vh;
+    flex-wrap: wrap;
+  }
+  .h-badges .pill { font-size: 10px; }
+  /* ─── slide 1 cover ─── */
+  .cover {
+    display: flex; flex-direction: column;
+    align-items: flex-start; justify-content: center;
+    height: 100%;
+  }
+  .cover .logo {
+    font-size: clamp(60px, 8vw, 130px);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 0.95;
+    background: linear-gradient(120deg, var(--accent) 30%, var(--accent-soft) 80%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    margin-bottom: 1vh;
+  }
+  .cover .tagline {
+    font-size: clamp(18px, 2vw, 28px);
+    color: var(--fg-dim);
+    max-width: 60ch;
+    margin-bottom: 4vh;
+  }
+  .cover .team {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 6px 24px;
+    font-size: clamp(13px, 1.1vw, 16px);
+  }
+  .cover .team dt { color: var(--fg-mute); }
+  .cover .team dd { color: var(--fg); }
+  .cover .date {
+    margin-top: 4vh;
+    font-size: 12px;
+    color: var(--fg-mute);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  /* ─── helpers ─── */
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .col { display: flex; flex-direction: column; gap: 0.8vh; }
+  .accent { color: var(--accent); }
+  .accent-soft { color: var(--accent-soft); }
+  .dim { color: var(--fg-dim); }
+  .mute { color: var(--fg-mute); }
+  .strong { color: var(--fg); font-weight: 600; }
+  hr.sep { border: 0; border-top: 1px solid var(--line); margin: 2vh 0; }
+  .quote {
+    border-left: 3px solid var(--accent);
+    padding: 8px 16px;
+    color: var(--fg-dim);
+    font-size: clamp(14px, 1.2vw, 18px);
+    font-style: italic;
+    margin: 1.4vh 0;
+  }
+  .kbd {
+    display: inline-block;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 0.85em;
+    color: var(--fg-dim);
+  }
+  /* ─── print (PDF export) ─── */
+  @media print {
+    @page { size: 297mm 210mm; margin: 0; }
+    html, body { overflow: visible !important; height: auto !important; }
+    /* 라이트 PDF 원할 때 body에 .print-light 추가하면 라이트 변수 override */
+    body.print-light {
+      --bg: #ffffff !important;
+      --bg-soft: #fafafa !important;
+      --fg: #111111 !important;
+      --fg-dim: #333333 !important;
+      --fg-mute: #777777 !important;
+      --accent: #c0392b !important;
+      --accent-soft: #b45309 !important;
+      --line: #dddddd !important;
+      --line-soft: #eeeeee !important;
+    }
+    body.print-light, body.print-light .slide { background: white !important; color: #111 !important; }
+    body.print-light .pill.real { color: #166534 !important; background: #dcfce7 !important; border-color: #86efac !important; }
+    body.print-light .pill.partial { color: #92400e !important; background: #fef3c7 !important; border-color: #fde68a !important; }
+    body.print-light .pill.mock { color: #5b21b6 !important; background: #ede9fe !important; border-color: #c4b5fd !important; }
+    body.print-light .pill.hard { color: #1e40af !important; background: #dbeafe !important; border-color: #93c5fd !important; }
+    body.print-light .pill.todo { color: #991b1b !important; background: #fee2e2 !important; border-color: #fca5a5 !important; }
+    /* 공통 — 다크/라이트 둘 다 적용 */
+    .chrome, .corner-brand, .progress, .notes, .hint, #audioPanel { display: none !important; }
+    body.print-main-only .slide.backup { display: none !important; }
+    .stage { position: static !important; overflow: visible !important; height: auto !important; display: block !important; }
+    .deck { position: static !important; width: auto !important; height: auto !important; display: block !important; }
+    .slide {
+      display: flex !important;
+      position: relative !important;
+      page-break-after: always;
+      height: 210mm !important;
+      width: 297mm !important;
+      padding: 14mm 18mm;
+      overflow: hidden !important;
+    }
+    /* 라이브 데모 안내 (다크/라이트 공통) */
+    .demo-frame iframe { display: none !important; }
+    /* 로고 gradient text 인쇄 시 깨지는 fallback — 다크/라이트 모두 단색으로 */
+    .cover .logo {
+      background: none !important;
+      -webkit-background-clip: initial !important;
+      background-clip: initial !important;
+      color: #ff4836 !important;
+      -webkit-text-fill-color: #ff4836 !important;
+    }
+    body.print-light .cover .logo { color: #c0392b !important; -webkit-text-fill-color: #c0392b !important; }
+    .demo-frame, .demo-frame iframe { display: none !important; }
+    .demo-frame::after {
+      content: 'LIVE DEMO — http://127.0.0.1:8765/story_quant.html (발표 시 실시간 시연)';
+      display: block; padding: 40px; text-align: center;
+      background: #fafafa; border: 2px dashed #c0392b; color: #c0392b;
+      font-weight: 600; letter-spacing: 0.05em;
+    }
+  }
+  /* ─── hint banner ─── */
+  .hint {
+    position: fixed; bottom: 16px; right: 18px;
+    z-index: 10; font-size: 11px; color: var(--fg-mute);
+    background: rgba(20, 18, 15, 0.7);
+    border: 1px solid var(--line);
+    padding: 6px 12px; border-radius: 999px;
+    backdrop-filter: blur(6px);
+  }
+  .hint .kbd { background: transparent; border-color: var(--line); }
+</style>
+</head>
+<body>
+
+<div class="corner-brand">📊 <b>StoryQuant</b> · 서비스데이터사이언스 중간발표</div>
+<div class="chrome">
+  <span class="counter"><b id="cur">1</b> / <span id="total">10</span></span>
+</div>
+<div class="progress"><div class="fill" id="fill"></div></div>
+<div class="hint">
+  <span class="kbd">←</span> <span class="kbd">→</span> 이동 ·
+  <span class="kbd">N</span> 노트 ·
+  <span class="kbd">T</span> 음성 on/off ·
+  <span class="kbd">B</span> Q&A 백업 ·
+  <span class="kbd">P</span> PDF 인쇄
+</div>
+<div id="audioPanel" style="position:fixed;bottom:18px;left:18px;z-index:11;display:none;align-items:center;gap:8px;background:rgba(20,18,15,0.85);border:1px solid var(--line);padding:6px 10px;border-radius:999px;font-size:11px;color:var(--fg-dim);backdrop-filter:blur(6px);">
+  <span id="audioState">🔊 음성 ON</span>
+  <button id="audioReplay" style="background:transparent;border:1px solid var(--line);color:var(--fg-dim);padding:2px 8px;border-radius:4px;font-size:11px;cursor:pointer;">↻ 다시 재생</button>
+</div>
+
+<div class="stage"><div class="deck">
+
+<!-- ═══════════════════════════ SLIDE 1 — COVER ═══════════════════════════ -->
+<section class="slide active" data-notes="
+안녕하세요. 저희 팀의 프로젝트 StoryQuant를 소개드리겠습니다. 매일 쏟아지는 수천 건의 시장 뉴스 속에서, 가격이 왜 움직였는지를 1초 안에 보여주는 한국과 미국 멀티시장 트레이딩 대시보드입니다.">
+  <div class="cover">
+    <div class="meta">서비스데이터사이언스 · 중간발표 · 2026.05.26</div>
+    <div class="logo">StoryQuant</div>
+    <div class="tagline">
+      뉴스가 만든 <span class="accent">시장 흐름</span>을 자동으로 분류·집계·랭킹해<br>
+      <span class="strong">"왜 움직였는가"</span>를 1초 안에 보여주는 KR/US 멀티시장 트레이딩 대시보드.
+    </div>
+    <dl class="team">
+      <dt>팀명</dt><dd>StoryQuant<span class="mute"> · ✏️ 발표 전 팀명 확정</span></dd>
+      <dt>팀원 / 역할</dt><dd>✏️ <span class="mute">발표 전 채우기 — 본인 + 팀원 이름 / 데이터 / 모델 / UI / 배포</span></dd>
+      <dt>한 줄 서비스</dt><dd>실시간 뉴스 → 흐름 분류 → 종목·테마·시장 신호 → 과거 데이터 검증까지 한 화면에서.</dd>
+      <dt>현재 단계</dt><dd><span class="pill real">실제 구동</span> KR 394 / US 165 종목 · 32+ 매체 RSS · 과거 백테스트 검증 · <code>http://127.0.0.1:8765</code> 라이브</dd>
+    </dl>
+    <div class="date">2026 / 05 / 26 — Mid-term Review</div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ SLIDE 2 — 문제와 대상 사용자 ═══════════════════════════ -->
+<section class="slide" data-notes="
+저희가 해결하려는 문제는 명확합니다. 타겟 사용자는 한국과 미국 시장을 동시에 추적하는 개인 데이트레이더입니다. 매일 한국 32개 매체, 미국 22개 매체에서 수천 건의 헤드라인이 쏟아지지만 다 읽을 수 없습니다. 같은 종목에 호재와 악재가 섞여 있을 때 방향성 판단에 30초 이상 걸리고, 이미 가격에 다 반영된 뉴스인지 새 기회인지 분간이 어렵습니다. 블룸버그 터미널은 월 2천 달러로 비현실적이고, 네이버 금융이나 증권사 HTS는 단순 시간순 나열이라 자동 분류나 랭킹이 없습니다.">
+  <div class="meta">Slide 2 / 10</div>
+  <h1>문제와 대상 사용자</h1>
+
+  <div class="two-col" style="margin-top: 2vh;">
+    <div class="col">
+      <h3>Target user</h3>
+      <p><span class="strong">개인 데이트레이더 / 1인 매크로 투자자.</span></p>
+      <ul class="dim">
+        <li>매일 KR · US 시장을 동시에 추적해야 하는 사용자</li>
+        <li>"가격이 왜 움직였는지" 빠르게 파악해 후속 판단해야 하는 사용자</li>
+        <li>Bloomberg / Refinitiv 같은 유료 터미널은 부담스러운 사용자</li>
+        <li>증권사 HTS의 chronological 뉴스 나열로는 답이 안 나오는 사용자</li>
+      </ul>
+
+      <h3>Customer pain point</h3>
+      <ul class="dim">
+        <li>KR 32+ 매체 · US 22+ 매체 = 매일 <span class="strong">수천 건</span>. 다 못 읽음</li>
+        <li>같은 종목에 호재/악재 섞여 있을 때 <span class="strong">방향성 판단 시간</span> 30초+</li>
+        <li>"이미 다 반영된 뉴스" vs "신선한 catalyst" 분간 어려움</li>
+        <li>가격은 보이는데 <span class="strong">뉴스 ↔ 가격 인과</span>가 안 보임</li>
+        <li>섹터 뉴스가 개별 종목 추천으로 연결 안 됨 (예: "2차전지株 약세" → 어느 종목?)</li>
+      </ul>
+    </div>
+
+    <div class="col">
+      <h3>기존 방식의 한계 · 경쟁 환경</h3>
+      <table>
+        <tr><th>대안</th><th>한계 / 차별점</th></tr>
+        <tr><td><span class="strong accent">토스증권 AI 시그널</span> (2025-11)<br><span class="mute">+ 실시간 이슈 (2026-03)</span></td><td><span class="strong">가장 가까운 경쟁자.</span> KR-only, 블랙박스 요약, 시그널 ranking·백테스트 부재 → <a href="#11" style="color:var(--accent-soft)">백업 A1 비교 ↗</a></td></tr>
+        <tr><td>Bloomberg Terminal</td><td>월 $2,000+, 개인엔 비현실적</td></tr>
+        <tr><td>Naver 금융</td><td>단순 chronological. 분류·랭킹 없음</td></tr>
+        <tr><td>증권사 HTS 뉴스</td><td>종목별 시각화 없음, US 시장 부재</td></tr>
+        <tr><td>ChatGPT 뉴스 요약</td><td>지연 + 환각, 검증 불가</td></tr>
+        <tr><td>X / Discord 단톡방</td><td>노이즈, 신뢰도 prior 없음</td></tr>
+      </table>
+
+      <h3>우리 서비스의 필요성</h3>
+      <div class="quote">
+        매일 수천 건 헤드라인을 <span class="accent">호악재 · 실질성 · 카테고리 · 매체 신뢰도</span>로 자동 분류하고,
+        가격 데이터와 결합한 <span class="accent">종합 점수</span>로 KR · US 시장을 가로질러 랭킹.
+        <span class="accent">신호 적중률 · 위험 대비 수익 · 분위기별 초과 수익</span>을 과거 데이터로 검증까지.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ SLIDE 3 — Product Goal ═══════════════════════════ -->
+<section class="slide" data-notes="
+저희가 제공하는 가치는 한 문장으로 요약됩니다. 한국과 미국 시장의 뉴스 흐름을 자동으로 분류하고 집계해서, 사용자가 1초 안에 가격이 왜 움직였는지 파악하고, 30일에서 120일까지 과거 데이터로 검증된 신호로 의사결정할 수 있게 돕는 것입니다. 사용자는 세 가지 시나리오를 한 화면에서 수행할 수 있습니다. 아침 장 시작 전 시장 분위기 진단, 장중 종목 클릭으로 깊게 보기, 주말 신호 백테스트 검증입니다.">
+  <div class="meta">Slide 3 / 10</div>
+  <h1>Product Goal</h1>
+
+  <div class="quote" style="font-size: clamp(18px, 1.7vw, 24px); font-style: normal; margin: 2vh 0 3vh;">
+    KR · US 시장의 단일 종목 또는 시장 전체 가격 움직임 뒤에 있는 <span class="accent">뉴스 흐름</span>을
+    자동으로 분류·집계·랭킹하여,<br>
+    개인 투자자가 <span class="accent">1초 안에 "왜 움직였는지"</span>를 파악하고<br>
+    <span class="accent">30~120일 과거 데이터로 검증된 신호</span>로 의사결정할 수 있게 한다.
+  </div>
+
+  <div class="two-col" style="margin-top: 2vh;">
+    <div class="col">
+      <h3>사용자가 얻는 가치</h3>
+      <ul class="dim">
+        <li><span class="strong">시간 절감</span>: 수천 건 헤드라인 스크롤 → 1 화면 흐름 요약</li>
+        <li><span class="strong">의사결정 지원</span>: 종합 점수 상위 = 매수 후보</li>
+        <li><span class="strong">신뢰</span>: 룰 기반 + 적중률 검증 (블랙박스 X)</li>
+        <li><span class="strong">시장 확장</span>: KR ↔ US 한 클릭 (어댑터 분리)</li>
+        <li><span class="strong">검증 가능성</span>: 과거 백테스트로 초과 수익 사전 측정</li>
+      </ul>
+    </div>
+
+    <div class="col">
+      <h3>핵심 사용 시나리오 (3가지)</h3>
+      <ol class="dim">
+        <li>
+          <span class="strong">아침 브리핑 (장 시작 전)</span><br>
+          → 헤드라인 모니터에서 32개 매체 신선 뉴스 + 호악재/카테고리 자동 분류 확인.
+          시장 분위기 (위기 / 평온) 진단.
+        </li>
+        <li>
+          <span class="strong">"왜 움직였지?" (장중)</span><br>
+          → 종목 클릭 → 종목별 뉴스 ("이미 반영" 플래그 포함) + 차트 + 종합 신호.
+          섹터 뉴스 → 테마 회전 모니터로 관련 종목 확장.
+        </li>
+        <li>
+          <span class="strong">신호 검증 (주말)</span><br>
+          → 과거 백테스트 (8 모드) → 적중률·위험 대비 수익·분위기별 초과 수익·상위/하위 그룹 수익 차 확인 후
+          다음 주 전략 결정.
+        </li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ SLIDE 4 — ML/AI Framing ═══════════════════════════ -->
+<section class="slide" data-notes="
+제품 목표를 머신러닝 문제로 정의했습니다. 핵심은 하나의 랭킹 문제입니다. 가격과 뉴스, 그리고 시장 분위기를 입력받아 종목별 점수를 산출하고 상위 K개 매수 후보를 출력합니다. 뉴스 신호는 다섯 가지 분류 작업의 결과를 모아 만듭니다. 호악재, 실질성, 카테고리, 구체성, 매체 신뢰도입니다. LLM 전용, 파인튜닝 BERT, 임베딩 매칭 등 여러 접근법을 비교했지만, 현재 단계에서 룰 기반과 통계 검증을 선택했습니다. 이유는 사용자가 백테스트로 신호의 적중률을 직접 측정할 수 있기 때문입니다. 실제 백테스트 결과, 호악재 신호 적중률 0.115를 측정했고, 시장 위기 시기에는 한국 3.05퍼센트, 미국 2.23퍼센트의 초과 수익이 검증됐습니다.">
+  <div class="meta">Slide 4 / 10</div>
+  <h1>제품 목표 → ML / AI 문제 정의</h1>
+  <p class="lede">제품 목표를 <span class="accent">하나의 랭킹 문제</span>로 정의. 5개 분류 작업이 입력 신호를 만든다.</p>
+
+  <div class="card bordered" style="margin: 2vh 0;">
+    <div class="label">핵심 ML 작업 — 종합 점수 랭킹</div>
+    <p style="font-size: clamp(15px, 1.4vw, 20px); margin-top: 6px;">
+      <code style="font-size: 1em;">f( 가격 · 뉴스 · 시장 분위기 )</code> &nbsp;→&nbsp; 종목별 점수 &nbsp;→&nbsp; <span class="accent strong">상위 K개 매수 후보</span>
+    </p>
+    <p class="dim" style="font-size: 13px; margin-top: 8px;">
+      뉴스 신호는 5개 분류 작업 (<span class="strong">호악재 · 실질성 · 카테고리 · 구체성 · 매체 신뢰도</span>) 의 결과를 종목·기간 단위로 집계해서 만든다.
+      → <span class="mute">전체 6개 작업 표는 백업 A3 ↗</span>
+    </p>
+  </div>
+
+  <h3>대안 비교 — 왜 룰 기반 + 통계 검증인가?</h3>
+  <table>
+    <tr><th>접근법</th><th>한계</th><th>선택</th></tr>
+    <tr><td>LLM 전용 (Claude / GPT)</td><td>비용 · 지연 · 검증 어려움</td><td><span class="pill todo">후순위</span></td></tr>
+    <tr><td>Fine-tuned KR-FinBERT</td><td>학습 데이터 라벨링 부담</td><td><span class="pill partial">V2</span></td></tr>
+    <tr><td><span class="strong">룰 기반 + 통계 검증</span> (현재)</td><td><span class="accent">과거 백테스트로 적중률 직접 측정 가능</span></td><td><span class="pill real">초기 MVP</span></td></tr>
+  </table>
+
+  <div class="quote" style="margin-top: 2vh;">
+    "AI 활용"이 목적이 아니라 <span class="strong">사용자가 검증할 수 있는 신호</span>가 목적.<br>
+    백테스트 결과 — 호악재 신호 적중률 <span class="accent strong">+0.115</span>
+    <span class="mute">(0=무작위, 0.3+=강함)</span> · <span class="accent strong">위기 시기에 KR +3.05% / US +2.23%</span>
+    시장 초과 수익 (10번 중 7번+ 적중) — 수치로 검증된 신호.
+  </div>
+</section>
+
+<!-- ═══════════════════════════ SLIDE 5 — IA / User Flow ═══════════════════════════ -->
+<section class="slide" data-notes="
+사용자 흐름은 네 단계입니다. 진입 후 인덱스 스트립으로 시장을 한눈에 확인하고, 헤드라인 모니터에서 32개 매체 RSS를 5개 분류로 자동 라벨링한 뒤, 종목 클릭으로 차트와 종목별 뉴스를 깊게 보고, 마지막으로 백테스트로 신호를 검증합니다. 머신러닝이 개입하는 지점은 두 곳입니다. 모든 헤드라인이 enrich 함수 한 번에 다섯 분류를 동시 적용받고, 백테스트가 14개 신호 각각의 적중률과 신호 간 독립성을 자동으로 측정합니다.">
+  <div class="meta">Slide 5 / 10</div>
+  <h1>IA · User Flow · ML 개입 지점</h1>
+
+  <h3>사용자 task flow (KR 시나리오 예시)</h3>
+  <div class="flow">
+    <div class="node">
+      <span class="icon">🌐</span>
+      <div class="strong">진입</div>
+      <div class="sub">/story_quant.html<br>?market=kr|us</div>
+    </div>
+    <div class="node">
+      <span class="icon">📈</span>
+      <div class="strong">인덱스 스트립</div>
+      <div class="sub">KOSPI · KOSDAQ<br>USDKRW · VIX</div>
+    </div>
+    <div class="node ml">
+      <span class="icon">🤖</span>
+      <div class="strong">헤드라인 모니터</div>
+      <div class="sub">f₁ + f₂ + f₃ + f₅<br>32 RSS · 자동 라벨</div>
+    </div>
+    <div class="node">
+      <span class="icon">🎯</span>
+      <div class="strong">종목 클릭</div>
+      <div class="sub">차트 + 종목별 뉴스<br>priced_in 플래그</div>
+    </div>
+    <div class="node ml">
+      <span class="icon">📊</span>
+      <div class="strong">백테스트</div>
+      <div class="sub">종합 랭킹<br>8 모드 · 적중률 · 위험 대비</div>
+    </div>
+  </div>
+
+  <div class="two-col" style="margin-top: 2.5vh;">
+    <div class="col">
+      <h3>IA <span class="mute" style="font-weight:400;font-size:0.7em;text-transform:none;letter-spacing:0;">(Information Architecture · 정보 구조) — 화면 계층 · 라벨링 · 네비게이션</span></h3>
+      <ul class="dim">
+        <li><span class="strong">시장 토글</span> · 헤더 (🇰🇷 ↔ 🇺🇸)</li>
+        <li><span class="strong">§278 헤드라인 모니터</span> · 32+ RSS + 룰 분류</li>
+        <li><span class="strong">시총 treemap</span> · 30종목 PER/외인%/호악재 균형</li>
+        <li><span class="strong">§282 테마 회전 모니터</span> · 테마별 바스켓</li>
+        <li><span class="strong">§백테스트</span> · 8 모드 · 신호 간 중복도 행렬 · 분위기별 초과 수익</li>
+        <li><span class="strong">종목 상세</span> · 차트 (LINE/CANDLE/VOL + MA20/60/RSI)</li>
+        <li>설정 · 알림 룰 · 가상 포트폴리오</li>
+      </ul>
+    </div>
+    <div class="col">
+      <h3>🤖 ML / AI 개입 지점 (빨간 박스)</h3>
+      <ul class="dim">
+        <li>모든 헤드라인 → <code>enrich_article()</code> = 5개 분류 동시 호출 (5ms / 건)</li>
+        <li>중복 제거 → <code>simple_dedup()</code> 토큰 유사도 0.55 + 48시간 윈도우</li>
+        <li>"이미 반영" 판별 → 뉴스 직전 5일 가격 변동이 호악재와 일치하는지</li>
+        <li>시장 분위기 → VIX ≥22(위기) / ≤15(평온) 자동 분류</li>
+        <li>종합 점수 = <code>0.30·5일 모멘텀 + 0.20·20일 모멘텀 + 0.25·호악재 균형 + 0.15·뉴스 밀도 + 0.10·거래량 편차 + 분위기 보정 − 이미 반영 페널티</code></li>
+        <li>백테스트 → 14개 신호 각각의 적중률 + 신호 간 독립성 측정</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ SLIDE 6 — 현재 구현 상태 ═══════════════════════════ -->
+<section class="slide" data-notes="
+구현 수준을 다섯 단계로 정직하게 구분했습니다. 총 28개 기능 중 실제 구동이 22개, 부분 구현 3개, 하드코딩 1개, 스텁 1개, 미구현 1개입니다. 하드코딩은 매체 신뢰도 사전확률 50개, 스텁은 미국 시총 데이터, 미구현은 README에서 약속했던 LLM 한 줄 평입니다. 데이터 수집, 다섯 가지 ML 분류, 종합 랭킹, UI까지 모든 레이어가 실제로 동작합니다. 다음 슬라이드에서 직접 보여드리겠습니다.">
+  <div class="meta">Slide 6 / 10</div>
+  <h1>구현 수준 — 정직하게</h1>
+  <p class="lede">총 <span class="strong accent">28개 추적 기능</span>. 과장 없이 5단계로 구분.</p>
+
+  <div style="display:grid; grid-template-columns: repeat(5, 1fr); gap: 1.2vw; margin: 3vh 0 4vh;">
+    <div class="card bordered" style="text-align:center; padding: 2.4vh 1vw;">
+      <div class="num" style="color: var(--green); font-size: clamp(36px, 5vw, 64px);">22</div>
+      <div class="label" style="margin-top: 6px;">실제 구현</div>
+      <p class="dim" style="font-size: 11px; margin-top: 4px;">데이터·로직·화면 연결</p>
+    </div>
+    <div class="card" style="text-align:center; padding: 2.4vh 1vw;">
+      <div class="num" style="color: var(--yellow); font-size: clamp(36px, 5vw, 64px);">3</div>
+      <div class="label" style="margin-top: 6px;">부분 구현</div>
+      <p class="dim" style="font-size: 11px; margin-top: 4px;">US universe · paper trade · topic</p>
+    </div>
+    <div class="card" style="text-align:center; padding: 2.4vh 1vw;">
+      <div class="num" style="color: var(--blue); font-size: clamp(36px, 5vw, 64px);">1</div>
+      <div class="label" style="margin-top: 6px;">Hardcoded</div>
+      <p class="dim" style="font-size: 11px; margin-top: 4px;">매체 신뢰도 prior 50+</p>
+    </div>
+    <div class="card" style="text-align:center; padding: 2.4vh 1vw;">
+      <div class="num" style="color: var(--purple); font-size: clamp(36px, 5vw, 64px);">1</div>
+      <div class="label" style="margin-top: 6px;">Stub</div>
+      <p class="dim" style="font-size: 11px; margin-top: 4px;">US 시총 fetch (TODO 명시)</p>
+    </div>
+    <div class="card" style="text-align:center; padding: 2.4vh 1vw;">
+      <div class="num" style="color: var(--red); font-size: clamp(36px, 5vw, 64px);">1</div>
+      <div class="label" style="margin-top: 6px;">미구현</div>
+      <p class="dim" style="font-size: 11px; margin-top: 4px;">LLM 한줄평 (README 약속)</p>
+    </div>
+  </div>
+
+  <h3>핵심 stack — 모든 layer 실제 동작</h3>
+  <div class="flow" style="grid-template-columns: repeat(4, 1fr);">
+    <div class="node">
+      <span class="icon">🌐</span>
+      <div class="strong">Data</div>
+      <div class="sub">KR 32 RSS + Naver<br>US 22 RSS + Yahoo<br>394 + 165 종목</div>
+    </div>
+    <div class="node ml">
+      <span class="icon">🤖</span>
+      <div class="strong">ML/AI (5개 분류)</div>
+      <div class="sub">호악재 · 실질성<br>카테고리 · 구체성<br>매체 신뢰도 · 룰 기반</div>
+    </div>
+    <div class="node ml">
+      <span class="icon">📊</span>
+      <div class="strong">랭킹</div>
+      <div class="sub">종합 점수<br>+ 시장 분위기<br>− "이미 반영" 페널티</div>
+    </div>
+    <div class="node">
+      <span class="icon">📱</span>
+      <div class="strong">UI</div>
+      <div class="sub">3.7MB SPA · PWA<br>KR↔US 토글<br>과거 데이터 백테스트</div>
+    </div>
+  </div>
+
+  <p class="dim" style="margin-top: 2vh; font-size: 13px;">
+    → 28개 기능 전체 매트릭스는 <a href="#13" style="color:var(--accent-soft);"><span class="kbd">B</span> 백업 A3</a>. 다음 슬라이드에서 라이브 시연.
+  </p>
+</section>
+
+<!-- ═══════════════════════════ SLIDE 7 — 라이브 데모 ═══════════════════════════ -->
+<section class="slide" data-notes="
+핵심 기능 네 가지를 사용자 흐름 순서로 보여드립니다. 첫째 헤드라인 모니터입니다. 한국 32개 매체 RSS를 5분마다 수집해서 호악재, 실질성, 카테고리가 한 줄에 다 표시됩니다. 둘째 종목 상세입니다. 헤드라인의 종목 태그를 클릭하면 같은 화면에 차트와 종목별 뉴스, 그리고 이미 반영 플래그가 뜹니다. 셋째 14개 테마 회전 모니터입니다. 시장 자금이 어느 테마에 몰렸는지 한눈에 보입니다. 넷째 8개 모드 백테스트입니다. 사용자가 직접 신호 적중률과 위험 대비 수익, 분위기별 초과 수익을 측정할 수 있습니다. 각 화면의 자세한 사용법은 백업 슬라이드 A5부터 A8까지 준비되어 있습니다.">
+  <div class="meta">Slide 7 / 10 — 기능 투어</div>
+  <h1>4가지 핵심 기능 — 사용자 흐름 순서</h1>
+  <p class="lede">
+    헤드라인으로 시장 분위기 진단 → 종목 클릭으로 깊게 → 시각화로 종합 → 백테스트로 검증.
+    각 카드 ↗로 라이브, 자세한 사용법은 백업.
+  </p>
+
+  <div style="display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 2vh 2vw; flex: 1; min-height: 0; margin-top: 1vh;">
+
+    <!-- 카드 1: 헤드라인 모니터 -->
+    <div class="card bordered" style="display:flex; flex-direction:column; padding: 2vh 1.6vw;">
+      <div class="row" style="justify-content: space-between; align-items: flex-start;">
+        <div>
+          <div class="label">①  Lobby</div>
+          <h2 style="margin: 4px 0 6px; font-size: clamp(18px, 1.7vw, 24px);">📰 §278 헤드라인 모니터</h2>
+        </div>
+        <span class="pill real">실제 구동</span>
+      </div>
+      <p class="dim" style="font-size: 14px; margin: 6px 0 10px;">
+        KR 32+ 매체 RSS를 5분마다 수집해서 한 줄씩 stream.
+        <span class="strong">호악재 · 실질성 · 카테고리 · 구체성 · 매체 신뢰도</span>가 한 줄에 다 표시.
+      </p>
+      <p class="mute" style="font-size: 12px; margin-bottom: auto;">→ "오늘 시장 분위기 어때?" 한 화면에서 답.</p>
+      <div class="row" style="margin-top: 12px; gap: 8px;">
+        <a href="./story_quant.html#kr-news-monitor" target="_blank" class="pill real" style="text-decoration: none;">↗ 라이브</a>
+        <a href="#15" class="pill hard" style="text-decoration: none;">↗ 자세히 A5</a>
+      </div>
+    </div>
+
+    <!-- 카드 2: 종목 상세 -->
+    <div class="card bordered" style="display:flex; flex-direction:column; padding: 2vh 1.6vw;">
+      <div class="row" style="justify-content: space-between; align-items: flex-start;">
+        <div>
+          <div class="label">②  Drill-down</div>
+          <h2 style="margin: 4px 0 6px; font-size: clamp(18px, 1.7vw, 24px);">🎯 종목 상세 + 종목별 뉴스</h2>
+        </div>
+        <span class="pill real">실제 구동</span>
+      </div>
+      <p class="dim" style="font-size: 14px; margin: 6px 0 10px;">
+        헤드라인의 종목 태그 클릭 → 같은 화면에 sticky panel로 등장.
+        <span class="strong">차트(LINE/CANDLE/VOL + MA20/60/RSI)</span> +
+        <span class="strong">종목별 뉴스</span> + <span class="strong">"이미 반영" 플래그</span>.
+      </p>
+      <p class="mute" style="font-size: 12px; margin-bottom: auto;">→ "왜 움직였는지" 1초 진단.</p>
+      <div class="row" style="margin-top: 12px; gap: 8px;">
+        <a href="./story_quant.html#kr-news-monitor" target="_blank" class="pill real" style="text-decoration: none;">↗ 라이브 (종목 클릭)</a>
+        <a href="#18" class="pill hard" style="text-decoration: none;">↗ 자세히 A8</a>
+      </div>
+    </div>
+
+    <!-- 카드 3: 테마 회전 -->
+    <div class="card bordered" style="display:flex; flex-direction:column; padding: 2vh 1.6vw;">
+      <div class="row" style="justify-content: space-between; align-items: flex-start;">
+        <div>
+          <div class="label">③  시각화 종합</div>
+          <h2 style="margin: 4px 0 6px; font-size: clamp(18px, 1.7vw, 24px);">🟥 §282 테마 회전 모니터</h2>
+        </div>
+        <span class="pill real">실제 구동</span>
+      </div>
+      <p class="dim" style="font-size: 14px; margin: 6px 0 10px;">
+        KR 시장을 <span class="strong">14개 테마 바스켓</span> (바이오·조선·방산·AI반도체·2차전지 …) 으로 묶어
+        각 테마의 5일 수익률 · sparkline · 호악재 균형을 카드로.
+      </p>
+      <p class="mute" style="font-size: 12px; margin-bottom: auto;">→ "어느 테마에 자금 몰렸나" 한 눈에.</p>
+      <div class="row" style="margin-top: 12px; gap: 8px;">
+        <a href="./story_quant.html#theme-rotation" target="_blank" class="pill real" style="text-decoration: none;">↗ 라이브</a>
+        <a href="#16" class="pill hard" style="text-decoration: none;">↗ 자세히 A6</a>
+      </div>
+    </div>
+
+    <!-- 카드 4: 백테스트 -->
+    <div class="card bordered" style="display:flex; flex-direction:column; padding: 2vh 1.6vw;">
+      <div class="row" style="justify-content: space-between; align-items: flex-start;">
+        <div>
+          <div class="label">④  검증</div>
+          <h2 style="margin: 4px 0 6px; font-size: clamp(18px, 1.7vw, 24px);">📊 §백테스트 — 신호 검증 도구</h2>
+        </div>
+        <span class="pill real">실제 구동</span>
+      </div>
+      <p class="dim" style="font-size: 14px; margin: 6px 0 10px;">
+        <span class="strong">8개 모드</span> 신호 시뮬레이션 + <span class="strong">5개 결과 패널</span>
+        (누적 곡선 · 적중률 행렬 · 신호 중복도 · 분위기별 분해 · 카테고리별 반감기).
+      </p>
+      <p class="mute" style="font-size: 12px; margin-bottom: auto;">→ "이 신호가 진짜 작동하나?" 사용자가 직접 검증.</p>
+      <div class="row" style="margin-top: 12px; gap: 8px;">
+        <a href="./story_quant.html#walkforward" target="_blank" class="pill real" style="text-decoration: none;">↗ 라이브</a>
+        <a href="#17" class="pill hard" style="text-decoration: none;">↗ 자세히 A7</a>
+      </div>
+    </div>
+
+  </div>
+
+  <p class="mute" style="font-size: 11px; margin-top: 1vh; text-align: center;">
+    🇰🇷 기본 KR 시장 · <a href="./story_quant.html?market=us" target="_blank" style="color:var(--accent-soft);">🇺🇸 US 시장</a> 한 클릭 토글 · <span class="kbd">D</span> 새창 / <span class="kbd">B</span> 백업
+  </p>
+</section>
+
+<!-- ═══════════════════════════ SLIDE 8 — 수업 내용 반영 매핑 ═══════════════════════════ -->
+<section class="slide" data-notes="
+수업에서 배운 내용이 산출물로 어떻게 연결됐는지 세 가지로 정리했습니다. 첫째, 고객의 정보 과부하 니즈가 자동 라벨링 스트림 설계로 이어졌습니다. 둘째, 라벨링된 학습 데이터가 없는 한계 때문에 LLM 대신 룰 기반 초기 버전을 선택했고, 그 결과 백테스트로 신호의 가치를 직접 측정할 수 있게 됐습니다. 셋째, 사업 지표인 사용자 신뢰 때문에 모델 지표 노출이 화면 구조의 핵심이 됐고, 백테스트 페이지가 곧 모델 지표 대시보드 역할을 합니다.">
+  <div class="meta">Slide 8 / 10</div>
+  <h1>수업 내용 → 설계 → 구현 (연결)</h1>
+  <p class="lede">'나열'이 아닌 <span class="accent">'연결'</span>. 한 흐름으로.</p>
+
+  <div class="flow" style="grid-template-columns: repeat(5, 1fr); margin: 3vh 0;">
+    <div class="node">
+      <span class="icon">👤</span>
+      <div class="strong">고객 니즈</div>
+      <div class="sub">정보 과부하 + 가격↔뉴스 연결 부재</div>
+    </div>
+    <div class="node">
+      <span class="icon">🎯</span>
+      <div class="strong">Product Goal</div>
+      <div class="sub">"1초 안에 왜 움직였는지"</div>
+    </div>
+    <div class="node ml">
+      <span class="icon">🤖</span>
+      <div class="strong">ML Framing</div>
+      <div class="sub">5 분류 task → 1 ranking</div>
+    </div>
+    <div class="node">
+      <span class="icon">📊</span>
+      <div class="strong">Metric</div>
+      <div class="sub">모델: 적중률 · 사업: 클릭률</div>
+    </div>
+    <div class="node">
+      <span class="icon">⚒</span>
+      <div class="strong">Vibe Coding</div>
+      <div class="sub">monolith → 어댑터 분리</div>
+    </div>
+  </div>
+
+  <h3>3가지 핵심 "연결" — 막연한 매핑이 아닌 실제 구현 결정</h3>
+  <div class="three-col" style="margin-top: 1.4vh;">
+    <div class="card">
+      <div class="label">고객 니즈 → ML framing</div>
+      <p class="dim" style="font-size: 13px; margin-top: 6px;">
+        "정보 과부하"가 진짜 problem이면 헤드라인을 <span class="accent">단순 list가 아닌 자동 라벨링 stream</span>으로 설계.
+        → <code>enrich_article()</code> 한 함수에서 5개 분류 task 동시 적용.
+      </p>
+    </div>
+    <div class="card">
+      <div class="label">데이터 한계 → 접근법 선택</div>
+      <p class="dim" style="font-size: 13px; margin-top: 6px;">
+        라벨링된 학습 데이터 없음 → LLM/FinBERT 대신 <span class="accent">약한 라벨 룰 기반</span>으로 빠른 초기 버전.
+        → 백테스트로 신호 적중률·초과 수익 직접 측정 → 데이터 라벨링 투자 의사결정 근거 확보.
+      </p>
+    </div>
+    <div class="card">
+      <div class="label">평가 지표 → 화면 구조 결정</div>
+      <p class="dim" style="font-size: 13px; margin-top: 6px;">
+        사업 지표 = "사용자가 신호 신뢰" → 모델 지표 노출이 화면의 핵심.
+        → 백테스트 페이지가 곧 <span class="accent">모델 지표 대시보드</span>. 사용자가 직접 적중률 확인.
+      </p>
+    </div>
+  </div>
+
+  <p class="dim" style="margin-top: 1.6vh; font-size: 12px;">
+    → 9단계 매핑 전체 표는 <a href="#14" style="color:var(--accent-soft);"><span class="kbd">B</span> 백업 A4</a>.
+  </p>
+</section>
+
+<!-- ═══════════════════════════ SLIDE 9 — 애로사항 ═══════════════════════════ -->
+<section class="slide" data-notes="
+현재 가장 큰 애로사항 세 가지를 전문가 도움 요청과 함께 정리했습니다. 첫째 모델 측면에서, 호악재 신호 적중률이 0.115에서 정체되어 있습니다. 목표는 0.3 이상이고, 핀버트 의사 라벨로 실질성 분류 정밀도를 검증할 방법이 필요합니다. 둘째 데이터 측면에서, 4년치 historical 뉴스 첫 콜이 30분 걸립니다. 합법적 라이선스 옵션과 캐시 워밍 자동화 조언이 필요합니다. 셋째 사용자 경험 측면에서, 3.7메가바이트 단일 SPA가 모바일 4G에서 3에서 5초 걸립니다. 점진 분해 전략 조언이 필요합니다.">
+  <div class="meta">Slide 9 / 10</div>
+  <h1>현재 가장 큰 3개 애로사항</h1>
+  <p class="lede">전문가 trouble-shooting을 받고 싶은 <span class="accent">우선순위 3개</span>. 전체 6개 표는 백업 A4.</p>
+
+  <div class="three-col" style="margin-top: 2vh; align-items: stretch;">
+    <div class="card bordered" style="display:flex; flex-direction:column;">
+      <div class="row" style="margin-bottom: 8px;"><span class="pill todo">모델</span> <span class="mute">#1</span></div>
+      <h3 style="margin-top: 0; color: var(--accent);">신호 적중률 정체</h3>
+      <p style="font-size: 14px; margin-bottom: 8px;">현재 호악재 신호 적중률 <span class="accent strong">+0.115</span> <span class="mute">(0=무작위, 0.3+=강함)</span>. 목표 0.3 이상.</p>
+      <p class="dim" style="font-size: 13px;">
+        <span class="strong">가설</span>: 룰 기반 실질성 분류가 "매수 상향" 같은 애널리스트 의견을 실질 정보로 오분류.
+      </p>
+      <p class="dim" style="font-size: 13px; margin-top: 8px;">
+        <span class="strong">시도</span>: 키워드 사전 확장 + 시간대 가중 — 효과 미미.
+      </p>
+      <p style="font-size: 13px; margin-top: auto; padding-top: 10px; border-top: 1px solid var(--line);">
+        <span class="strong accent-soft">필요한 도움</span> — FinBERT 의사 라벨로 실질성 분류 정밀도 검증 방법. active learning(능동 학습) 활용 가능?
+      </p>
+    </div>
+
+    <div class="card bordered" style="display:flex; flex-direction:column;">
+      <div class="row" style="margin-bottom: 8px;"><span class="pill todo">Data</span> <span class="mute">#2</span></div>
+      <h3 style="margin-top: 0; color: var(--accent);">Historical 뉴스 콜드런</h3>
+      <p style="font-size: 14px; margin-bottom: 8px;">4년치 종목별 fetch 첫 콜 <span class="accent strong">~30분</span>.</p>
+      <p class="dim" style="font-size: 13px;">
+        Naver scraping · Google News rate limit (TOS 회색). 백테스트 첫 클릭이 timeout.
+      </p>
+      <p class="dim" style="font-size: 13px; margin-top: 8px;">
+        <span class="strong">시도</span>: 24h memory + 7d disk 캐시. ThreadPool 14 worker.
+      </p>
+      <p style="font-size: 13px; margin-top: auto; padding-top: 10px; border-top: 1px solid var(--line);">
+        <span class="strong accent-soft">필요한 도움</span> — 합법적 historical 라이선스 옵션 (DART · Refinitiv 대안), 캐시 워밍 자동화.
+      </p>
+    </div>
+
+    <div class="card bordered" style="display:flex; flex-direction:column;">
+      <div class="row" style="margin-bottom: 8px;"><span class="pill todo">UX</span> <span class="mute">#3</span></div>
+      <h3 style="margin-top: 0; color: var(--accent);">3.7MB SPA 분해</h3>
+      <p style="font-size: 14px; margin-bottom: 8px;">초기 로드 <span class="accent strong">3~5초</span> (모바일 4G).</p>
+      <p class="dim" style="font-size: 13px;">
+        public/{css,js}로 분리 시작했으나 main HTML 아직 monolith.
+      </p>
+      <p class="dim" style="font-size: 13px; margin-top: 8px;">
+        <span class="strong">시도</span>: lazy-render CSS · INSTANT-HIDE · PWA cache.
+      </p>
+      <p style="font-size: 13px; margin-top: auto; padding-top: 10px; border-top: 1px solid var(--line);">
+        <span class="strong accent-soft">필요한 도움</span> — import-map · streaming HTML 전략. 모바일 4G LCP &lt; 2.5s 가능?
+      </p>
+    </div>
+  </div>
+
+  <p class="dim" style="margin-top: 2vh; font-size: 12px;">
+    → 검증·성능·기획 등 나머지 3개 항목은 <a href="#14" style="color:var(--accent-soft);"><span class="kbd">B</span> 백업 A4</a>.
+  </p>
+</section>
+
+<!-- ═══════════════════════════ SLIDE 10 — 향후 계획 ═══════════════════════════ -->
+<section class="slide" data-notes="
+마지막으로 최종 발표까지의 우선순위 세 가지입니다. 5월 31일까지 실질성 신호 적중률 0.3 이상 확보, 6월 7일까지 미국 시총 데이터 스텁 제거와 SPA 분해, 6월 15일까지 베타 사용자 5명 온보딩과 모의 매매 시그널 누적입니다. 22개 실제 구현과 검증된 호악재 신호를 가진 중간 결과물에서, 6월 15일까지 정확도와 사용성을 동시에 끌어올리겠습니다. 이상 발표를 마치겠습니다. 질문 받겠습니다. 감사합니다.">
+  <div class="meta">Slide 10 / 10</div>
+  <h1>최종 발표까지 — Top 3 우선순위</h1>
+  <p class="lede">"열심히 한다"가 아닌 <span class="accent">측정 가능한 3개 목표</span>.</p>
+
+  <div class="three-col" style="margin: 2.5vh 0;">
+    <div class="card bordered">
+      <div class="label">1순위 · 05/31</div>
+      <h3 style="margin: 6px 0 8px; color: var(--accent);">실질 신호 적중률 0.3+</h3>
+      <p class="dim" style="font-size: 13px;">FinBERT 의사 라벨로 실질 정보 분류 정밀도 검증. <span class="accent">초과 수익의 핵심.</span></p>
+    </div>
+    <div class="card">
+      <div class="label">2순위 · 06/07</div>
+      <h3 style="margin: 6px 0 8px;">US 시총 + SPA 분해</h3>
+      <p class="dim" style="font-size: 13px;">stub 제거 (US treemap 완성) + 모바일 LCP &lt; 2.5s.</p>
+    </div>
+    <div class="card">
+      <div class="label">3순위 · 06/15</div>
+      <h3 style="margin: 6px 0 8px;">베타 5명 + Paper trade</h3>
+      <p class="dim" style="font-size: 13px;">매일 Top-3 누적 + 친구 5명 onboarding → Business metric 측정.</p>
+    </div>
+  </div>
+
+  <p class="dim" style="font-size: 13px;">
+    <span class="strong">축소</span>: Topic clustering · Telegram · 온체인 — 주식 focus로 cut.&nbsp;&nbsp;
+    <span class="strong">역할</span>: ✏️ 팀 / 단독 결정 후 채우기.
+  </p>
+
+  <hr class="sep">
+  <div class="quote" style="font-size: clamp(15px, 1.3vw, 19px);">
+    <span class="strong">개인 KR · US 데이트레이더</span>의 <span class="accent">"왜 움직였는지 모르는 문제"</span>를 해결하기 위해 —
+    <span class="accent">고객 니즈 → ML 문제 정의 → 데이터 → 평가 지표 → 화면 흐름 → Vibe Coding</span> 의 학습 과정을 거쳐
+    <span class="accent strong">22개 실제 구현 + 검증된 호악재 신호 (적중률 +0.115)</span> 의 중간 결과물에 도달.
+    남은 문제는 <span class="accent">실질성 분류 정밀도 · US 시총 stub · SPA 분해</span> — <span class="strong">6월 15일까지 해결.</span>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ BACKUP A1 — 토스증권 비교 ═══════════════════════════ -->
+<section class="slide backup" data-notes="
+토스증권에 대한 질문에 답변드립니다. 인지하고 있습니다. 토스증권은 작년 11월에 AI 시그널을, 올해 3월에 실시간 이슈를 출시했고, 정확히 저희와 같은 영역입니다. 그러나 토스는 한국 시장만 다루고, 분석 결과가 블랙박스 요약이라 사용자가 신호의 초과 수익을 직접 측정할 수 없습니다. 저희는 한국과 미국 두 시장을 한 인터페이스로 다루고, 룰 기반에 통계 검증을 결합해서 사용자가 모드를 바꿔가며 신호 적중률, 위험 대비 수익, 분위기별 초과 수익을 직접 측정할 수 있습니다. 학생 프로젝트의 본질은 토스를 이기는 것이 아니라 수업에서 배운 ML 문제 정의가 산출물로 어떻게 연결됐는지 보여주는 것이라고 생각합니다.">
+  <div class="meta"><span class="pill accent" style="background:rgba(255,72,54,0.15);color:var(--accent);border:1px solid var(--accent);">Q&A 백업 A1</span> · 토스증권 AI 서비스와의 비교</div>
+  <h1>"토스가 이미 만드는데 왜?" — 차별화 정리</h1>
+  <p class="lede">
+    경쟁자 인정. <span class="strong">토스증권 AI 시그널(2025-11)</span> · <span class="strong">실시간 이슈(2026-03)</span>는 정확히 같은 영역.
+    그러나 4가지 축에서 우리가 다르다.
+  </p>
+
+  <table style="font-size: clamp(11px, 0.95vw, 14px);">
+    <tr><th>축</th><th>토스증권</th><th>StoryQuant</th><th>의미</th></tr>
+
+    <tr>
+      <td><span class="strong">시장 범위</span></td>
+      <td>KR-only (US 미지원)</td>
+      <td><span class="accent strong">KR + US</span> 동일 인터페이스. v21.0 시장 어댑터 분리</td>
+      <td>한·미 동시 추적이 필수인 macro·테마 트레이더 cover</td>
+    </tr>
+
+    <tr>
+      <td><span class="strong">검증 가능성</span></td>
+      <td>"AI가 분석했어요" 블랙박스 요약. 사용자가 초과 수익 측정 불가. <span class="mute">(2026-01 토스 AI 오류 보도 — 신뢰성 이슈)</span></td>
+      <td>룰 기반 + 통계 검증. 사용자가 직접 모드 바꿔가며 <span class="accent strong">신호 적중률 · 위험 대비 수익 · 분위기별 초과 수익 · 상위/하위 수익 차</span> 측정</td>
+      <td>"왜 이 종목인지" 사용자가 검증 가능 → 신뢰</td>
+    </tr>
+
+    <tr>
+      <td><span class="strong">신호 깊이</span></td>
+      <td>"이유 요약" — 자연어 텍스트</td>
+      <td>요약 위에 <span class="accent strong">종합 랭킹 + "이미 반영" 판별 + 시장 분위기 + 백테스트</span></td>
+      <td>"무엇을 살까"까지 한 화면</td>
+    </tr>
+
+    <tr>
+      <td><span class="strong">포지셔닝</span></td>
+      <td>증권사 통합 (즉시 매수 버튼). 거래 가속화 도구</td>
+      <td>분석·연구 도구. 초과 수익 발굴 → 향후 증권사 연동 가능</td>
+      <td>서로 다른 용도 — 직접 경쟁 아니라 보완</td>
+    </tr>
+
+    <tr>
+      <td><span class="strong">데이터</span></td>
+      <td>정식 라이선스 (KIS/한국거래소 등)</td>
+      <td>Naver 스크래핑 + Google News (회색지대). <span class="mute">v2에서 정식 라이선스 검토</span></td>
+      <td>합법 라이선스가 v2 진입 장벽 (애로사항 9번)</td>
+    </tr>
+
+    <tr>
+      <td><span class="strong">정보 처리 깊이</span></td>
+      <td>온톨로지 + 뉴스 분류 모델 (자체)</td>
+      <td>32 매체 신뢰도 사전확률 + 실질/반응 분리 + 신호 간 중복도 행렬</td>
+      <td>각 매체·각 토픽의 초과 수익 기여 분해 가능</td>
+    </tr>
+  </table>
+
+  <h3 style="margin-top: 2.5vh;">결론 — 직접 경쟁이 아닌 보완재 + 학생 프로젝트 가치</h3>
+  <div class="quote">
+    토스는 <span class="accent">"수억 사용자 모바일 증권사"</span> 포지션의 거래 도구.
+    우리는 <span class="accent">"개인 퀀트 워크벤치"</span> — 1인 트레이더가 자기 신호를
+    과거 데이터로 직접 검증하고 KR/US 시장 흐름을 시각화하는 도구.
+    토스가 블랙박스로 가는 동안, 우리는 <span class="strong">설명 가능 · 검증 가능 · 다중 시장</span>으로 갭을 메운다.
+    그리고 학생 프로젝트의 본질은 <span class="strong">"수업에서 배운 ML 문제 정의가 실제 산출물로 어떻게 연결되었는지"</span>를
+    보여주는 것이지, 토스를 이기는 것이 아니다.
+  </div>
+</section>
+
+<!-- ═══════════════════════════ BACKUP A2 — EMH 반박 ═══════════════════════════ -->
+<section class="slide backup" data-notes="
+효율적 시장 가설에 대한 질문, 정당한 지적입니다. 시장이 완벽히 효율적이라면 저희 신호의 적중률은 0이어야 합니다. 그러나 학술 연구는 부분적 비효율을 일관되게 보여줍니다. Bernard와 Thomas의 실적 후 가격 드리프트, Tetlock의 뉴스 톤 예측력, Hirshleifer의 한정된 주의력 이론이 대표적입니다. 저희 코드의 답은 네 가지입니다. 첫째 이미 반영 자동 감지로 priced_in 신호를 종합 점수에서 제외하고, 둘째 실질 정보와 결과 보도를 분리하고, 셋째 백테스트로 적중률을 0.115로 측정했고, 넷째 시장 분위기에 따라 초과 수익을 분해합니다. 평온기에는 초과 수익이 거의 0이지만 위기 시기에는 한국 3.05퍼센트, 미국 2.23퍼센트가 검증됐습니다.">
+  <div class="meta"><span class="pill accent" style="background:rgba(255,72,54,0.15);color:var(--accent);border:1px solid var(--accent);">Q&A 백업 A2</span> · "이미 반영된 거 아냐?" 반박</div>
+  <h1>"뉴스는 이미 가격에 반영" — 시장은 정말 효율적인가?</h1>
+  <p class="lede">
+    질문은 정당. <span class="strong">효율적 시장 가설</span>(공개 정보는 즉시 가격에 반영된다는 이론) 이 강하게 성립하면 우리 신호 적중률은 0이어야 한다.
+    그러나 <span class="accent">학술 · 실측 증거</span>는 일관되게 부분적 비효율을 가리킨다.
+  </p>
+
+  <div class="two-col">
+    <div class="col">
+      <h3>학술적 근거 — 효율적 시장 가설 반례 4가지</h3>
+      <table>
+        <tr><th>연구</th><th>발견</th></tr>
+        <tr>
+          <td><span class="strong">Bernard-Thomas 1989</span><br><span class="mute">실적 후 가격 드리프트</span></td>
+          <td>실적 발표 후 <span class="accent">60~90일간 가격이 계속 같은 방향으로 흐름</span>. 어닝 서프라이즈 클수록 크다. 35년 후 재현됨</td>
+        </tr>
+        <tr>
+          <td><span class="strong">Tetlock 2007</span><br><span class="mute">뉴스 톤 예측력</span></td>
+          <td>WSJ 칼럼의 <span class="accent">부정적 어조</span> → 다음날 다우지수 하락 예측력</td>
+        </tr>
+        <tr>
+          <td><span class="strong">Da-Engelberg-Gao 2011</span><br><span class="mute">검색량 주의력</span></td>
+          <td>Google 검색량 = <span class="accent">개인 투자자 주의력 지표</span>. 검색 ↑ → 2주 내 상승, 1년 후 되돌림</td>
+        </tr>
+        <tr>
+          <td><span class="strong">Hirshleifer-Teoh 2003</span><br><span class="mute">한정된 주의력</span></td>
+          <td>투자자의 <span class="accent">한정된 주의력</span> → 정보 즉시 반영 안 됨. 정보 처리 비용 자체가 초과 수익의 원천</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="col">
+      <h3>우리 코드의 4가지 답</h3>
+      <div class="card" style="padding:1.2vh 1.4vw;margin-bottom:1vh;">
+        <div class="label">① "이미 반영" 자동 감지</div>
+        <p class="dim" style="font-size:13px;">
+          <code>serve/core/classify.py:199-244</code>. 뉴스 직전 5일 가격 변동 측정 →
+          호재 뉴스 + 5일간 ≥+5%면 <code>priced_in=True</code> → 종합 점수에서 <span class="accent">페널티 -2.0×비율</span>.
+          <span class="strong">"이미 반영된" 신호를 명시적으로 식별·제외하는 코드.</span>
+        </p>
+      </div>
+      <div class="card" style="padding:1.2vh 1.4vw;margin-bottom:1vh;">
+        <div class="label">② 실질 정보 vs 결과 보도 분리</div>
+        <p class="dim" style="font-size:13px;">
+          "급등·강세·신고가" (결과 보도) = 가격 결과 묘사, 이미 반영. "실적·M&A·FDA·수주" (실질 정보) = 신선 정보.
+          백테스트에서 <span class="strong">실질 정보 전용 모드</span> 별도 제공.
+        </p>
+      </div>
+      <div class="card" style="padding:1.2vh 1.4vw;margin-bottom:1vh;">
+        <div class="label">③ 백테스트 적중률 +0.115 (호악재 신호)</div>
+        <p class="dim" style="font-size:13px;">
+          완전 효율적이면 적중률 0. 실측 <span class="accent strong">+0.115 (KR), +0.094 (US)</span> = 약하지만 측정 가능한 초과 수익.
+          미래 참조 없는 과거 시점별 검증.
+        </p>
+      </div>
+      <div class="card" style="padding:1.2vh 1.4vw;">
+        <div class="label">④ 시장 분위기별 초과 수익</div>
+        <p class="dim" style="font-size:13px;">
+          평온기 (VIX≤15) 초과 수익 ≈ 0 — <span class="strong">효율적 시장 가설 성립</span>.
+          위기 시기 (VIX≥22) 초과 수익 <span class="accent">+3.05% KR / +2.23% US (10번 중 7번+ 적중)</span> — <span class="strong">깨짐</span>.
+          우리는 깨지는 시기·종목을 식별.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <hr class="sep">
+  <div class="quote">
+    효율적 시장 가설은 <span class="accent">평균적으로</span>는 성립하지만, 정보 처리 능력의 한계(한정된 주의력)와
+    행동편향(과소 반응)이 누적되는 <span class="accent">특정 시기·특정 종목</span>에서 깨진다.
+    StoryQuant의 가치는 "모든 뉴스에서 초과 수익을 찾자"가 아니라
+    <span class="strong">"초과 수익이 존재하는 좁은 영역(실질 정보 × 위기 시기 × '이미 반영'되지 않은)을 식별하고 그곳에 집중하자"</span>는 것이다.
+    우리 코드는 그 식별을 자동화한다.
+  </div>
+</section>
+
+<!-- ═══════════════════════════ BACKUP A3 — 구현 매트릭스 전체 ═══════════════════════════ -->
+<section class="slide backup" data-notes="
+구체적인 구현 상태에 대한 질문 답변드립니다. 전체 28개 기능 매트릭스를 보여드립니다. 데이터 수집, 5개 ML 분류, 종합 랭킹, 백테스트, UI, 배포까지 모든 레이어에 걸쳐 실제 구현이 22개입니다. 부분 구현은 미국 universe, 모의 매매, 토픽 클러스터링 세 가지입니다. 정직하게 하드코딩, 스텁, 미구현도 구분 표시했습니다. 과장 없이 그대로 보여드립니다.">
+  <div class="meta"><span class="pill accent" style="background:rgba(255,72,54,0.15);color:var(--accent);border:1px solid var(--accent);">Q&A 백업 A3</span> · 28개 기능 전체 매트릭스</div>
+  <h1>구현 매트릭스 — 전체 28개 추적 기능</h1>
+  <p class="lede" style="font-size: 14px;">
+    <span class="pill real">실제</span>
+    <span class="pill partial">부분</span>
+    <span class="pill hard">Hardcoded</span>
+    <span class="pill mock">Stub</span>
+    <span class="pill todo">미구현</span>
+  </p>
+
+  <table style="font-size: clamp(10px, 0.82vw, 12px);">
+    <tr><th>레이어</th><th>기능</th><th>수준</th><th>비고</th></tr>
+    <tr><td>Server</td><td>HTTP routing (12 endpoints)</td><td><span class="pill real">실제</span></td><td>Python stdlib only</td></tr>
+    <tr><td>Markets</td><td>KR / US 어댑터 분리 (v21.0)</td><td><span class="pill real">실제</span></td><td>base.MarketProvider + 2 구현</td></tr>
+    <tr><td>Data — KR</td><td>Universe (Naver scraping)</td><td><span class="pill real">실제</span></td><td>394 종목 KOSPI + KOSDAQ</td></tr>
+    <tr><td>Data — KR</td><td>시총 / PER / 외인% scraping</td><td><span class="pill real">실제</span></td><td>10 worker thread</td></tr>
+    <tr><td>Data — KR</td><td>32 RSS feeds (12 direct + 20 GNews)</td><td><span class="pill real">실제</span></td><td>매경·파이낸셜·뉴시스·연합인포맥스·한겨레·시사 + GNews 20</td></tr>
+    <tr><td>Data — KR</td><td>종목별 뉴스 (Naver mobile API)</td><td><span class="pill real">실제</span></td><td>m.stock.naver.com</td></tr>
+    <tr><td>Data — US</td><td>Universe (S&P 500 + TOP_BY_MCAP)</td><td><span class="pill partial">부분</span></td><td>Wiki scraping + hardcoded 100</td></tr>
+    <tr><td>Data — US</td><td>22 Google News RSS</td><td><span class="pill real">실제</span></td><td>Reuters · Bloomberg · WSJ · FT · CNBC ...</td></tr>
+    <tr><td>Data — US</td><td>fetch_marketcap (Yahoo)</td><td><span class="pill mock">Stub</span></td><td>TODO 명시, 빈 quotes 반환</td></tr>
+    <tr><td>Pricing</td><td>Yahoo v8 chart (KR/US 공통)</td><td><span class="pill real">실제</span></td><td>OHLCV, range 1d~10y</td></tr>
+    <tr><td>ML — 1</td><td>호악재 분류</td><td><span class="pill real">실제</span></td><td>KR 50+ · US 60+ 키워드</td></tr>
+    <tr><td>ML — 2</td><td>실질성 (실질 정보 / 결과 보도)</td><td><span class="pill real">실제</span></td><td>실적·M&A·FDA vs 급등·강세</td></tr>
+    <tr><td>ML — 3</td><td>카테고리 분류 (7 카테고리)</td><td><span class="pill real">실제</span></td><td>실적 · M&A · 임상규제 · 거시지정학 ...</td></tr>
+    <tr><td>ML — 4</td><td>구체성 점수 (0~3)</td><td><span class="pill real">실제</span></td><td>정규식 숫자·금액·% · 분기 패턴</td></tr>
+    <tr><td>ML — 5</td><td>매체 신뢰도 사전확률</td><td><span class="pill hard">Hardcoded</span></td><td>Reuters 1.00 · 연합 1.00 ... (50+ 매체)</td></tr>
+    <tr><td>ML — 6</td><td>종합 랭킹 (상위 K개)</td><td><span class="pill real">실제</span></td><td>가중 합산, 14 worker</td></tr>
+    <tr><td>중복 제거</td><td>토큰 유사도 ≥0.55 + 48시간 윈도우</td><td><span class="pill real">실제</span></td><td>접두사 + 링크 + 토큰</td></tr>
+    <tr><td>"이미 반영"</td><td>5일 가격 vs 호악재 일치</td><td><span class="pill real">실제</span></td><td>호재 + 5일 ≥+5% → 플래그 + 페널티</td></tr>
+    <tr><td>시장 분위기</td><td>VIX/유가/금리 → 위기/평온/유가급등/금리상승</td><td><span class="pill real">실제</span></td><td>거시 스트레스 + 섹터 영향 매핑</td></tr>
+    <tr><td>시장 민감도</td><td>종목별 VIX/유가/금리/달러 민감도</td><td><span class="pill real">실제</span></td><td>60일 회귀</td></tr>
+    <tr><td>백테스트</td><td>8 모드, 적중률, 중복도, 분위기, 상위/하위 차</td><td><span class="pill real">실제</span></td><td>가격만 · 뉴스만 · 혼합 · 실질 · 주의력 · 주의력 혼합 · 정보 · 분위기별 호악재</td></tr>
+    <tr><td>Cache</td><td>뉴스 24h memory + 7d disk</td><td><span class="pill real">실제</span></td><td>/tmp/sq_news_cache JSON, MD5 key</td></tr>
+    <tr><td>UI</td><td>3.7MB 단일 SPA + PWA</td><td><span class="pill real">실제</span></td><td>iOS PWA · vanilla JS · 0 dep</td></tr>
+    <tr><td>UI</td><td>모바일 반응형 + 다크/라이트</td><td><span class="pill real">실제</span></td><td>viewport · safe-area-inset</td></tr>
+    <tr><td>UI</td><td>시장 토글 🇰🇷↔🇺🇸</td><td><span class="pill real">실제</span></td><td>localStorage + URL ?market</td></tr>
+    <tr><td>Deploy</td><td>Cloudflare Worker (CORS proxy)</td><td><span class="pill real">실제</span></td><td>worker/index.js</td></tr>
+    <tr><td>LLM</td><td>Claude 한줄평 (README 약속)</td><td><span class="pill todo">미구현</span></td><td>claude_hook.py stub만</td></tr>
+    <tr><td>Topic</td><td>TF-IDF + KMeans (legacy)</td><td><span class="pill partial">분리</span></td><td>src/topics/ 존재, serve/ 미통합</td></tr>
+    <tr><td>Paper trading</td><td>Top-K 매일 저장 + forward</td><td><span class="pill partial">recent_picks만</span></td><td>자동 누적 X</td></tr>
+  </table>
+</section>
+
+<!-- ═══════════════════════════ BACKUP A4 — 수업 매핑 + 애로사항 전체 ═══════════════════════════ -->
+<section class="slide backup" data-notes="
+수업 내용 매핑과 애로사항을 더 자세히 보여드립니다. 왼쪽 표는 9단계 수업 내용이 산출물의 어디에 반영됐는지, 오른쪽은 메인 슬라이드에서 다 못 다룬 애로사항 세 가지입니다. 성능 측면 백테스트 타임아웃, 검증 측면 모의 매매 자동 누적 미구현, 기획 측면 타겟 사용자 범위 재정의 필요, 그리고 종목별 뉴스의 한국과 미국 데이터 소스 비대칭 문제입니다. 최종 산출물 목표는 두 시장 동등 동작, 모바일 초기 렌더 2.5초 이내, 실질 신호 적중률 0.3 이상 확보입니다.">
+  <div class="meta"><span class="pill accent" style="background:rgba(255,72,54,0.15);color:var(--accent);border:1px solid var(--accent);">Q&A 백업 A4</span> · 수업 매핑 9행 + 애로사항 6개</div>
+  <h1>수업 매핑 (전체) · 애로사항 (전체)</h1>
+
+  <div class="two-col" style="margin-top: 1.6vh;">
+    <div class="col">
+      <h3>수업 내용 → 설계 → 구현 (9행)</h3>
+      <table style="font-size: clamp(10px, 0.78vw, 12px);">
+        <tr><th>수업</th><th>설계 · 구현</th></tr>
+        <tr><td>고객 니즈</td><td>"정보 과부하 + 가격↔뉴스 단절" → 자동 라벨링 stream</td></tr>
+        <tr><td>Product Goal</td><td>"1초 안에 왜 움직였는지" → 3-step flow</td></tr>
+        <tr><td>ML 문제 정의</td><td>5 분류 + 1 랭킹, enrich_article() 한 함수</td></tr>
+        <tr><td>데이터 검토</td><td>약한 라벨링 · Naver+Google News+Yahoo · 7일 캐시</td></tr>
+        <tr><td>접근법</td><td>LLM / FinBERT / 임베딩 / 룰+통계 비교 → 룰+통계 MVP</td></tr>
+        <tr><td>평가 지표</td><td>모델: 신호 적중률 · 사업: 클릭률 · 백테스트 페이지 자체가 지표 대시보드</td></tr>
+        <tr><td>화면 흐름</td><td>토글 → 모니터 → 종목 → 백테스트, ML 개입 2지점</td></tr>
+        <tr><td>Vibe Coding</td><td>v18 → v21.0, monolith 1872줄 → 모듈화</td></tr>
+        <tr><td>반복 개선</td><td>320 섹션 → 3 섹션으로 축소, 화면 군더더기 최소화</td></tr>
+      </table>
+    </div>
+
+    <div class="col">
+      <h3>애로사항 나머지 3개 (메인 슬라이드 외)</h3>
+      <table style="font-size: clamp(10px, 0.82vw, 12px);">
+        <tr><th>유형</th><th>문제 · 필요한 도움</th></tr>
+        <tr>
+          <td><span class="pill todo">성능</span></td>
+          <td>
+            백테스트 200종목×120일×8 모드 = 5분+, timeout 잦음.<br>
+            <span class="accent-soft">→ 도움</span>: 점진적 결과 스트리밍(SSE) · 증분 캐시 · Numpy/Polars 도입 가성비.
+          </td>
+        </tr>
+        <tr>
+          <td><span class="pill todo">검증</span></td>
+          <td>
+            모의 매매 자동 누적 미구현. 시간 흐름에 따른 초과 수익 누적 추적 X.<br>
+            <span class="accent-soft">→ 도움</span>: 시뮬레이션 vs 실거래의 갭, 신호 성능 저하 추적 방법.
+          </td>
+        </tr>
+        <tr>
+          <td><span class="pill todo">기획</span></td>
+          <td>
+            타겟 "개인 데이트레이더"가 너무 좁은지/넓은지. 백테스트 페이지 인지 부하.<br>
+            <span class="accent-soft">→ 도움</span>: 제품 범위 피드백 · KR-only vs KR+US 동시 노출의 의사결정 부하.
+          </td>
+        </tr>
+        <tr>
+          <td><span class="pill todo">종목 뉴스</span></td>
+          <td>
+            <span class="strong">데이터 소스 비대칭</span> (KR=Naver native / US=Google News 검색) · <span class="strong">본문 부재</span> (title+summary만) · <span class="strong">섹터 뉴스 누락</span> (종목명 없는 헤드라인) · <span class="strong">동음이의 노이즈</span> (US만) · <span class="strong">historical 100건 한정</span> (Naver mobile API).<br>
+            <span class="accent-soft">→ 도움</span>: 본문 fetch 합법 라이선스, KR/US 데이터 분류 일관성 확보, 종목명 미명시 섹터 뉴스를 universe 매칭으로 잡는 방법.
+          </td>
+        </tr>
+      </table>
+
+      <h3>최종 산출물 목표</h3>
+      <ul class="dim" style="font-size: 13px;">
+        <li>KR · US 두 시장 100% 동등 동작</li>
+        <li>모바일 초기 렌더 &lt; 2.5초</li>
+        <li>실질 정보 신호 적중률 &gt; 0.3 확보</li>
+        <li>5명 사용자 주간 재방문률 측정 가능</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ BACKUP A5 — 헤드라인 모니터 §278 ═══════════════════════════ -->
+<section class="slide backup" data-notes="
+헤드라인 모니터를 자세히 보여드립니다. 한국 32개 매체 RSS를 5분마다 수집해서 한 줄에 다섯 가지 분류가 다 표시됩니다. 호악재는 빨강과 파랑 막대로, 실질 정보는 다이아몬드, 결과 보도는 원으로, 카테고리는 태그로, 구체성은 별 0개에서 3개로, 매체 신뢰도는 매체명 진하기로 표현됩니다. 같은 사건은 토큰 유사도 0.55 이상으로 묶어서 가장 신뢰 높은 매체 헤드라인 하나로 대표 표시합니다. 사용 시나리오는 장 시작 전 위험 진단, 종목 태그 클릭으로 점프, 카테고리 필터로 거시 흐름만 추출하는 것입니다.">
+  <div class="meta"><span class="pill accent" style="background:rgba(255,72,54,0.15);color:var(--accent);border:1px solid var(--accent);">Q&A 백업 A5</span> · §278 헤드라인 모니터 — 가장 ML이 visible한 화면</div>
+  <h1 style="font-size: clamp(24px, 3vw, 38px); margin-bottom: 1vh;">§278 헤드라인 모니터 — KR 32+ 매체 stream</h1>
+
+  <div class="feature-split">
+    <div class="live">
+      <div class="live-bar">
+        <span>📸 캡처 · #kr-news-monitor (sweep + stream)</span>
+        <a href="./story_quant.html#kr-news-monitor" target="_blank">↗ 라이브 새창</a>
+      </div>
+      <div class="shot-wrap">
+        <div class="shot-cap">① 종합 시그널 sweep — Top5 Bull / Top5 Bear + Forward Test</div>
+        <img class="shot" src="./screenshots/a5-headline.png" alt="헤드라인 모니터 sweep">
+        <div class="shot-cap">② 헤드라인 stream — 매체별 호악재 라벨</div>
+        <img class="shot" src="./screenshots/a5-feed.png" alt="헤드라인 stream">
+      </div>
+    </div>
+
+    <div class="spec">
+      <section>
+        <h4>무엇</h4>
+        <p>한국 신문사 <span class="strong">32개 매체 RSS</span>를 5분마다 수집해서 한 줄씩 stream으로 보여주는 핵심 화면. 5개 분류 결과(호악재 · 실질성 · 카테고리 · 구체성 · 매체 신뢰도)가 한 줄에 다 표시됨.</p>
+      </section>
+
+      <section>
+        <h4>어떻게 작동</h4>
+        <ul>
+          <li><span class="strong">5분 주기</span> RSS 폴링 → JSON 변환 → <code>enrich_article()</code> 1회 호출에 분류 5개 동시 적용</li>
+          <li><span class="strong">시각화 규칙</span> — 호악재(빨/파/회 좌측 막대) · 실질성(◆ 실질정보 / ○ 결과보도) · 카테고리(태그 칩) · 구체성(★0~3) · 매체 신뢰도(매체명 진하기)</li>
+          <li><span class="strong">중복 제거</span> — 토큰 유사도 ≥0.55 + 48시간 윈도우. 같은 사건은 가장 신뢰 높은 매체 헤드라인 1개로 대표 표시</li>
+          <li><span class="strong">"이미 반영" 플래그</span> — 호재인데 직전 5일 ≥+5% 오른 종목이면 ⚡ 표시 (다음 슬라이드 A6 종목 상세에서도)</li>
+        </ul>
+      </section>
+
+      <section>
+        <h4>어떻게 사용 (시나리오)</h4>
+        <ol>
+          <li><span class="strong">장 시작 전</span> — 빨간 막대 다수 헤드라인 = 위험. 파란 ◆ 클러스터 = 실질 호재</li>
+          <li><span class="strong">종목 태그 클릭</span> → 해당 종목 상세 (차트 + 종목 뉴스)로 점프</li>
+          <li><span class="strong">카테고리 필터</span> "거시·지정학" → 매크로 흐름만 추출 → 시장 분위기 진단</li>
+          <li><span class="strong">★0 + ○ 결과보도</span> 클러스터는 무시 → 노이즈 cut</li>
+        </ol>
+      </section>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ BACKUP A6 — 테마 회전 ═══════════════════════════ -->
+<section class="slide backup" data-notes="
+테마 회전 모니터입니다. 한국 시장을 14개 테마 바스켓으로 묶었습니다. 바이오 신약, 조선 해양, 방산 우주, 미용 케이뷰티, AI 반도체, 2차전지 등입니다. 각 테마 카드에는 5일 수익률, 추세 그래프, 호악재 균형이 표시됩니다. 사용 시나리오는 두 가지입니다. 어느 테마에 자금이 몰렸는지 한눈에 보는 것, 그리고 헤드라인에서 섹터 뉴스가 보일 때 어느 종목이 가장 빠졌는지 매핑하는 것입니다. 단, 30종목 외에는 라이브 가격이 없다는 점은 정직하게 명시했습니다.">
+  <div class="meta"><span class="pill accent" style="background:rgba(255,72,54,0.15);color:var(--accent);border:1px solid var(--accent);">Q&A 백업 A6</span> · §282 테마 회전 — 14 테마 바스켓 시각화</div>
+  <h1 style="font-size: clamp(24px, 3vw, 38px); margin-bottom: 1vh;">§282 테마 회전 모니터 — KR 14 테마 바스켓</h1>
+
+  <div class="feature-split">
+    <div class="live">
+      <div class="live-bar">
+        <span>📸 캡처 · #theme-rotation (14 테마 바스켓)</span>
+        <a href="./story_quant.html#theme-rotation" target="_blank">↗ 라이브 새창</a>
+      </div>
+      <div class="shot-wrap"><img class="shot" src="./screenshots/a6-theme.png" alt="테마 회전 모니터"></div>
+    </div>
+
+    <div class="spec">
+      <section>
+        <h4>무엇</h4>
+        <p>KR 시장을 <span class="strong">14개 테마 바스켓</span>으로 묶어 각 테마의 momentum · 호악재 균형 · 뉴스 빈도를 한 화면에 — "어느 테마에 자금 몰렸나"를 1초에.</p>
+        <p style="margin-top:6px;" class="mute">바이오·신약 · 조선해양 · 방산우주 · 미용 K-뷰티 · 엔터콘텐츠 · 전력기기 송변전 · 지방은행금융 · AI반도체 · 플랫폼게임 · 리오프닝 여행 · 항만 SMR · 리튬희토류 · 2차전지 …</p>
+      </section>
+
+      <section>
+        <h4>각 테마 카드 구성</h4>
+        <ul>
+          <li><span class="strong">5일 수익률</span> (큰 글씨, 빨/파 색)</li>
+          <li><span class="strong">sparkline</span> — 시각적 추세</li>
+          <li><span class="strong">평균 뉴스량 / 호악재 균형</span> — 호악재 빨/파 막대</li>
+          <li><span class="strong">대표 종목 칩</span> — 클릭 시 종목 상세</li>
+        </ul>
+      </section>
+
+      <section>
+        <h4>어떻게 사용 (시나리오 2가지)</h4>
+        <ol>
+          <li><span class="strong">테마 회전 감지</span> — 어느 테마가 momentum +이면서 호악재 균형 +이면 추세 시작점. 둘 다 -이면 추세 끝</li>
+          <li><span class="strong">섹터 뉴스 → 종목 매핑</span> — 헤드라인에서 "2차전지株 약세" 보이면 → 2차전지 테마 카드 → 어느 종목이 가장 빠졌는지 확인</li>
+        </ol>
+      </section>
+
+      <section>
+        <h4>현재 한계 (정직)</h4>
+        <p>30종목 외 라이브 가격 없음. 테마 바스켓 중 30종목과 안 겹치는 종목은 mock drift — 발표 시 명시.</p>
+      </section>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ BACKUP A7 — 워크포워드 백테스트 ═══════════════════════════ -->
+<section class="slide backup" data-notes="
+백테스트는 사용자가 직접 신호를 검증하는 곳입니다. 이 페이지가 곧 모델 지표 대시보드라는 점이 화면 구조 결정의 핵심이었습니다. 8개 모드를 제공합니다. 가격만, 뉴스만, 혼합, 실질 정보, 주의력, 정보, 분위기별 호악재 등입니다. 결과 패널은 다섯 가지입니다. 누적 수익 곡선과 벤치마크 비교, 14개 신호 각각의 적중률 행렬, 신호 간 중복도 매트릭스, 위기와 평온 분위기별 초과 수익 분해, 카테고리별 반감기입니다. 가장 강조하고 싶은 결과는 위기 시기에 초과 수익이 집중된다는 점, 그리고 10번 중 7번 이상 적중한다는 점입니다.">
+  <div class="meta"><span class="pill accent" style="background:rgba(255,72,54,0.15);color:var(--accent);border:1px solid var(--accent);">Q&A 백업 A7</span> · 백테스트 — 사용자가 직접 신호 검증하는 곳</div>
+  <h1 style="font-size: clamp(24px, 3vw, 38px); margin-bottom: 1vh;">§백테스트 — 8 모드 신호 검증 도구</h1>
+
+  <div class="feature-split">
+    <div class="live">
+      <div class="live-bar">
+        <span>📸 캡처 · #walkforward</span>
+        <a href="./story_quant.html#walkforward" target="_blank">↗ 라이브 새창</a>
+      </div>
+      <div class="shot-wrap"><img class="shot" src="./screenshots/a7-backtest.png" alt="워크포워드 백테스트"></div>
+    </div>
+
+    <div class="spec">
+      <section>
+        <h4>무엇</h4>
+        <p>사용자가 8개 신호 모드 중 하나 선택 → 과거 N일 시점별로 <span class="strong">미래 참조 없이</span> 시뮬레이션 → 신호 적중률 · 위험 대비 수익 · 시장 분위기별 초과 수익을 한 페이지에서 확인.</p>
+        <p style="margin-top: 6px;"><span class="strong accent">이 페이지가 곧 "모델 지표 대시보드"</span> — 사업 지표(신뢰)를 위해 모델 지표 노출이 화면의 핵심이라는 IA 결정의 결과물.</p>
+      </section>
+
+      <section>
+        <h4>8 모드 — 각각 다른 신호 조합</h4>
+        <ul>
+          <li><span class="strong">가격만</span> — 5일/20일 모멘텀만 (뉴스 X). 베이스라인</li>
+          <li><span class="strong">뉴스만</span> — 호악재 균형 + 뉴스 빈도만</li>
+          <li><span class="strong">혼합</span> (디폴트) — 가격·뉴스·거래량 가중 합산</li>
+          <li><span class="strong">실질 정보</span> — substantive 헤드라인만 사용</li>
+          <li><span class="strong">주의력</span> — 최근 3일 집중된 뉴스 비율</li>
+          <li><span class="strong">정보</span> — 신뢰 + 구체성 + 호악재 곱</li>
+          <li><span class="strong">분위기별 호악재</span> — VIX ≥22면 호악재 가중↑, ≤15면 cash</li>
+        </ul>
+      </section>
+
+      <section>
+        <h4>결과 패널 5가지</h4>
+        <ol>
+          <li><span class="strong">누적 수익 곡선</span> vs 벤치마크 (KOSPI/S&P) — 가장 큰 정보</li>
+          <li><span class="strong">신호 적중률 행렬</span> — 14개 신호 각각의 적중률·hit rate. "어느 신호가 진짜 작동하나?"</li>
+          <li><span class="strong">신호 간 중복도</span> — 어느 신호가 서로 같은 정보 담고 있나 (직교성 확인)</li>
+          <li><span class="strong">분위기별 분해</span> — 위기 / 평온 / 중립 각각의 초과 수익</li>
+          <li><span class="strong">카테고리별 반감기</span> — 실적·M&A·임상 등 카테고리별 forward return + std</li>
+        </ol>
+      </section>
+
+      <section>
+        <h4>어떻게 사용 (Decision flow)</h4>
+        <ol>
+          <li>모드 "혼합" 선택 → "Apply" → 5분 대기 (캐시 hit면 즉시)</li>
+          <li>누적 수익 곡선이 벤치마크 위면 통과. 아래면 모드 변경</li>
+          <li>분위기별 분해 확인 → 평온기 초과 수익 ≈ 0이면 risk_off 시기에만 운용</li>
+          <li>적중률 행렬에서 양수 신호 골라서 다음 모드 만들 때 weight 조정</li>
+        </ol>
+      </section>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ BACKUP A8 — 종목 상세 + 종목별 뉴스 ═══════════════════════════ -->
+<section class="slide backup" data-notes="
+종목 상세 화면입니다. 헤드라인의 종목 태그나 테마 카드의 대표 종목 칩을 클릭하면 같은 화면에 종목 상세가 열립니다. 세 가지 패널로 구성됩니다. 첫째 야후 파이낸스 기반 차트, 둘째 한국은 네이버 모바일 API, 미국은 구글 뉴스 검색 기반의 종목별 뉴스, 셋째 시세와 메타 정보입니다. 핵심 차별점은 이미 반영 플래그입니다. 호재 뉴스에 직전 5일 5퍼센트 이상 오른 종목이면 자동으로 priced in으로 분류하고 종합 점수에서 페널티를 적용합니다. 한계로는 한국과 미국 데이터 소스 비대칭, 본문 부재, 섹터 뉴스 누락, 동음이의 노이즈, 그리고 미국 시총 스텁이 있습니다. 모두 정직하게 명시했습니다.">
+  <div class="meta"><span class="pill accent" style="background:rgba(255,72,54,0.15);color:var(--accent);border:1px solid var(--accent);">Q&A 백업 A8</span> · 종목 상세 — 차트 + 종목별 뉴스 + "이미 반영" 플래그</div>
+  <h1 style="font-size: clamp(24px, 3vw, 38px); margin-bottom: 1vh;">종목 상세 — 헤드라인 클릭 → 같은 화면 sticky panel</h1>
+
+  <div class="feature-split">
+    <div class="live">
+      <div class="live-bar">
+        <span>📸 캡처 · 종목 클릭 후 sticky panel (예: 006260)</span>
+        <a href="./story_quant.html#kr-news-monitor" target="_blank">↗ 라이브 (헤드라인 클릭)</a>
+      </div>
+      <div class="shot-wrap"><img class="shot" src="./screenshots/a8-stock-detail.png" alt="종목 상세 패널"></div>
+    </div>
+
+    <div class="spec">
+      <section>
+        <h4>무엇 · 진입 경로</h4>
+        <p>헤드라인 모니터의 <span class="strong">종목 태그</span>나 테마 회전 카드의 <span class="strong">대표 종목 칩</span>을 클릭하면 같은 화면에 sticky panel로 종목 상세가 열림. ESC 또는 닫기 버튼으로 닫힘.</p>
+      </section>
+
+      <section>
+        <h4>구성 요소 (3개 패널)</h4>
+        <ol>
+          <li>
+            <span class="strong">차트</span> — Yahoo Finance v8 chart API. 모드 토글:
+            <span class="mute">LINE / CANDLE / VOL + MA20/60/RSI 오버레이</span>. range 1d ~ 10y.
+            <span class="pill real">실제</span>
+          </li>
+          <li>
+            <span class="strong">종목별 뉴스</span> — 종목 전용 API.
+            <code>m.stock.naver.com/api/news/stock/{code}</code> (KR) /
+            <code>news.google.com/rss/search?q={ticker}+stock</code> (US).
+            한 페이지당 20건, 5분류 자동 라벨.
+            <span class="pill real">실제</span>
+          </li>
+          <li>
+            <span class="strong">시세 + 메타</span> — 실시간 가격, 시총, PER, 외인 지분율 (KR=Naver scraping).
+            <span class="pill real">실제 KR</span> · <span class="pill mock">Stub US 시총</span>
+          </li>
+        </ol>
+      </section>
+
+      <section>
+        <h4>핵심 차별점 — "이미 반영" 플래그 ⚡</h4>
+        <p><code>serve/core/classify.py:199-244</code> · 종목 뉴스 각각에 priced_in 자동 판별:</p>
+        <ul>
+          <li><span class="strong">호재 뉴스</span> + 직전 5일 ≥+5% 오른 종목 → ⚡ priced_in</li>
+          <li><span class="strong">악재 뉴스</span> + 직전 5일 ≤-5% 내린 종목 → ⚡ priced_in</li>
+          <li>종합 점수에서 페널티 적용 (-2.0 × ratio)</li>
+        </ul>
+        <p style="margin-top: 6px;">→ "이미 다 오른 거 뒷북 매수" 방지 기능.</p>
+      </section>
+
+      <section>
+        <h4>어떻게 사용 (Decision flow)</h4>
+        <ol>
+          <li>헤드라인에서 ◆ 실질 정보 + 종목 태그 발견 → 클릭</li>
+          <li>차트로 직전 5일 추세 확인 (이미 +5% 이상이면 ⚡ 플래그 떠 있을 것)</li>
+          <li>종목 뉴스 리스트에서 ⚡ 비율 확인 — 50% 이상이면 "이미 다 반영"</li>
+          <li>실질 정보(◆) 중 ⚡ 없는 뉴스만 새 catalyst — 매수 후보</li>
+        </ol>
+      </section>
+
+      <section style="border-left-color: var(--red);">
+        <h4 style="color: var(--red);">⚠ 현재 한계 (정직)</h4>
+        <ul>
+          <li><span class="strong">데이터 소스 비대칭</span> — KR=Naver mobile API (한국 매체 통합) / US=Google News 검색. 같은 종목이라도 양 시장 결과 quality·분류가 다름</li>
+          <li><span class="strong">본문 부재</span> — RSS title + summary만. 본문 분석 불가 → 분류 정밀도 제한 (애로사항 #1 모델 IR 정체의 일부 원인)</li>
+          <li><span class="strong">섹터 뉴스 누락</span> — "2차전지株 약세" 같이 종목명 없는 뉴스는 종목별 API에 안 잡힘 (테마 회전에서만 잡힘)</li>
+          <li><span class="strong">동음이의 노이즈 (US)</span> — Google 검색이라 "Apple" → 회사 vs 과일, "Tesla" → 회사 vs 발명가 노이즈</li>
+          <li><span class="strong">Historical 깊이</span> — Naver mobile API는 최근 100건만. 4년치 fetch는 Google News date-range로 별도 (느림 · 첫 콜 30분 — 애로사항 #2)</li>
+          <li><span class="strong">법적 회색지대</span> — Naver scraping은 robots.txt 모호 · Google News는 TOS 회색. v2에서 정식 라이선스 검토 필요</li>
+          <li><span class="strong">US 시총 stub</span> — sticky panel의 시총·PER·외인% 메타가 KR만 실측, US는 빈 값</li>
+        </ul>
+      </section>
+    </div>
+  </div>
+</section>
+
+</div></div>
+
+<!-- ═══════════════════════════ NOTES DRAWER ═══════════════════════════ -->
+<div class="notes" id="notes">
+  <h4>📝 발표자 노트 — 현재 슬라이드</h4>
+  <p id="notesBody">노트가 여기에 표시됩니다.</p>
+</div>
+
+<script>
+(function() {
+  var slides = document.querySelectorAll('.slide');
+  var mainCount = document.querySelectorAll('.slide:not(.backup)').length;
+  var total = slides.length;
+  document.getElementById('total').textContent = mainCount;
+  var idx = 0;
+  var notes = document.getElementById('notes');
+  var notesBody = document.getElementById('notesBody');
+
+  // ─── Audio narration (OpenAI TTS) ───
+  var audioEnabled = localStorage.getItem('sq_audio') === '1';
+  var audioPanel = document.getElementById('audioPanel');
+  var audioState = document.getElementById('audioState');
+  var audioReplay = document.getElementById('audioReplay');
+  var currentAudio = null;
+
+  function audioFileFor(i) {
+    var isBackup = slides[i].classList.contains('backup');
+    var label = isBackup ? ('A' + (i - mainCount + 1)) : String(i + 1);
+    return './audio/slide-' + label + '.mp3';
+  }
+  function stopAudio() {
+    if (currentAudio) { currentAudio.pause(); currentAudio.currentTime = 0; currentAudio = null; }
+  }
+  function playAudio(i) {
+    stopAudio();
+    if (!audioEnabled) return;
+    var src = audioFileFor(i);
+    var a = new Audio(src);
+    a.addEventListener('error', function() {
+      audioState.textContent = '⚠ ' + src.split('/').pop() + ' 없음';
+    });
+    a.addEventListener('playing', function() {
+      audioState.textContent = '🔊 재생중 · slide ' + (i + 1);
+    });
+    a.addEventListener('ended', function() {
+      audioState.textContent = '🔊 음성 ON';
+    });
+    currentAudio = a;
+    a.play().catch(function(e) {
+      audioState.textContent = '⚠ autoplay 차단 — 화면 클릭 후 재시도';
+    });
+  }
+  function setAudioEnabled(on) {
+    audioEnabled = on;
+    localStorage.setItem('sq_audio', on ? '1' : '0');
+    audioPanel.style.display = on ? 'flex' : 'none';
+    if (on) playAudio(idx); else stopAudio();
+  }
+  audioReplay.addEventListener('click', function() { playAudio(idx); });
+  audioPanel.style.display = audioEnabled ? 'flex' : 'none';
+
+  function show(i) {
+    if (i < 0) i = 0;
+    if (i >= total) i = total - 1;
+    slides[idx].classList.remove('active');
+    slides[i].classList.add('active');
+    idx = i;
+    var isBackup = slides[i].classList.contains('backup');
+    if (isBackup) {
+      var backupIdx = i - mainCount + 1;
+      document.getElementById('cur').textContent = 'A' + backupIdx;
+      document.getElementById('fill').style.width = '100%';
+    } else {
+      document.getElementById('cur').textContent = (i + 1);
+      document.getElementById('fill').style.width = ((i + 1) / mainCount * 100) + '%';
+    }
+    var note = slides[i].getAttribute('data-notes') || '(노트 없음)';
+    notesBody.textContent = note.trim();
+    playAudio(i);
+    // Generic lazy-load: 진입한 슬라이드 안의 모든 iframe[data-src] 로드
+    slides[i].querySelectorAll('iframe[data-src]').forEach(function(f) {
+      if (!f.src || f.src === 'about:blank' || f.src === window.location.href) {
+        f.src = f.dataset.src;
+      }
+    });
+    if (location.hash !== '#' + (i + 1)) {
+      history.replaceState(null, '', '#' + (i + 1));
+    }
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.target.matches('input, textarea')) return;
+    switch (e.key) {
+      case 'ArrowRight':
+      case 'PageDown':
+      case ' ':
+        e.preventDefault(); show(idx + 1); break;
+      case 'ArrowLeft':
+      case 'PageUp':
+        e.preventDefault(); show(idx - 1); break;
+      case 'Home': show(0); break;
+      case 'End': show(total - 1); break;
+      case 'n': case 'N':
+        notes.classList.toggle('open'); break;
+      case 'p': case 'P':
+        window.print(); break;
+      case 'd': case 'D':
+        window.open('./story_quant.html', '_blank'); break;
+      case 'b': case 'B':
+        // Toggle to first backup slide (or back to last main slide)
+        if (slides[idx].classList.contains('backup')) {
+          show(mainCount - 1);
+        } else {
+          show(mainCount);
+        }
+        break;
+      case 't': case 'T':
+        setAudioEnabled(!audioEnabled); break;
+      case 'Escape':
+        notes.classList.remove('open'); break;
+      default:
+        // 1~9, 0 for slide jump (0 = slide 10)
+        if (/^[0-9]$/.test(e.key)) {
+          var n = parseInt(e.key, 10);
+          if (n === 0) show(9);
+          else show(n - 1);
+        }
+    }
+  });
+
+  // Click to advance (right half of screen)
+  document.addEventListener('click', function(e) {
+    if (e.target.closest('a, button, iframe, .notes, .chrome, .hint')) return;
+    var x = e.clientX;
+    var w = window.innerWidth;
+    if (x > w * 0.6) show(idx + 1);
+    else if (x < w * 0.2) show(idx - 1);
+  });
+
+  // Touch swipe (mobile)
+  var tx = 0, ty = 0;
+  document.addEventListener('touchstart', function(e) {
+    tx = e.touches[0].clientX; ty = e.touches[0].clientY;
+  });
+  document.addEventListener('touchend', function(e) {
+    var dx = e.changedTouches[0].clientX - tx;
+    var dy = e.changedTouches[0].clientY - ty;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
+      if (dx < 0) show(idx + 1); else show(idx - 1);
+    }
+  });
+
+  // Hash navigation
+  if (location.hash) {
+    var h = parseInt(location.hash.replace('#', ''), 10);
+    if (!isNaN(h) && h >= 1 && h <= total) idx = -1, show(h - 1);
+    else show(0);
+  } else {
+    show(0);
+  }
+})();
+</script>
+</body>
+</html>

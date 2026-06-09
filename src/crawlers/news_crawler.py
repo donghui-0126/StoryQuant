@@ -41,21 +41,82 @@ FEEDS = [
         "market": "us",
         "url": "https://www.cnbc.com/id/100003114/device/rss/rss.html",
     },
+    # Reuters legacy feed died → swap in fresher US-market RSS sources
     {
-        "source": "Reuters Business",
+        "source": "MarketWatch Top",
         "market": "us",
-        "url": "https://feeds.reuters.com/reuters/businessNews",
-    },
-    # --- Korean Stocks ---
-    {
-        "source": "Naver Finance",
-        "market": "kr",
-        "url": "https://finance.naver.com/news/news_list.naver?mode=LSS2D&section_id=101&section_id2=258",
+        "url": "https://feeds.content.dowjones.io/public/rss/mw_topstories",
     },
     {
-        "source": "MK Economy",
+        "source": "Bloomberg Markets",
+        "market": "us",
+        "url": "https://feeds.bloomberg.com/markets/news.rss",
+    },
+    {
+        "source": "SeekingAlpha Market",
+        "market": "us",
+        "url": "https://seekingalpha.com/market_currents.xml",
+    },
+    {
+        "source": "Yahoo Finance",
+        "market": "us",
+        "url": "https://finance.yahoo.com/news/rssindex",
+    },
+    # --- Korean Domestic Stocks (KOSPI/KOSDAQ) ---
+    # 한국경제 - 전체/증권/경제
+    {
+        "source": "한국경제",
         "market": "kr",
-        "url": "https://rss.mk.co.kr/rss/40300001.xml",
+        "url": "https://www.hankyung.com/feed/all-news",
+    },
+    {
+        "source": "한국경제 증권",
+        "market": "kr",
+        "url": "https://www.hankyung.com/feed/finance",
+    },
+    {
+        "source": "한국경제 경제",
+        "market": "kr",
+        "url": "https://www.hankyung.com/feed/economy",
+    },
+    # 매일경제 - 증권/경제/기업/증시
+    {
+        "source": "매일경제 증권",
+        "market": "kr",
+        "url": "https://www.mk.co.kr/rss/50200011/",
+    },
+    {
+        "source": "매일경제 경제",
+        "market": "kr",
+        "url": "https://www.mk.co.kr/rss/30100041/",
+    },
+    {
+        "source": "매일경제 기업",
+        "market": "kr",
+        "url": "https://www.mk.co.kr/rss/50100032/",
+    },
+    {
+        "source": "매일경제 증시",
+        "market": "kr",
+        "url": "https://www.mk.co.kr/rss/50300009/",
+    },
+    # 이데일리 - SSL 깨짐 → http 사용
+    {
+        "source": "이데일리 증권",
+        "market": "kr",
+        "url": "http://rss.edaily.co.kr/stock_news.xml",
+    },
+    # 연합뉴스 경제
+    {
+        "source": "연합뉴스 경제",
+        "market": "kr",
+        "url": "https://www.yna.co.kr/rss/economy.xml",
+    },
+    # 데일리안 경제
+    {
+        "source": "데일리안 경제",
+        "market": "kr",
+        "url": "https://www.dailian.co.kr/rss/economy",
     },
 ]
 

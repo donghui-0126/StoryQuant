@@ -34,6 +34,28 @@ KOREAN_STOP_WORDS = {
     "부터는", "까지는", "에서의", "에서가", "이후", "이전", "현재", "최근",
     "지난", "올해", "이번", "다음", "계속", "이미", "아직", "매우", "더욱",
     "가장", "함께", "모두", "각", "각각", "수", "것", "등", "및", "또",
+    # --- KR newsroom boilerplate (bylines, datelines, formatting tags) ---
+    "기자", "특파원", "취재기자", "논설위원", "전문기자",
+    "포토", "사진", "영상", "그래픽", "인포그래픽", "표제",
+    "단독", "속보", "종합", "전문", "특징주", "뉴스", "보도",
+    "전했다", "밝혔다", "전한다", "밝혔습니다", "보도했다", "보도",
+    "오전", "오후", "어제", "오늘", "내일", "이날", "당일",
+    "월요일", "화요일", "수요일", "목요일", "금요일", "토요일", "일요일",
+    "1일", "2일", "3일", "4일", "5일", "6일", "7일", "8일", "9일", "10일",
+    "11일", "12일", "13일", "14일", "15일", "16일", "17일", "18일", "19일", "20일",
+    "21일", "22일", "23일", "24일", "25일", "26일", "27일", "28일", "29일", "30일", "31일",
+    "1월", "2월", "3월", "4월", "5월", "6월", "7월", "8월", "9월", "10월", "11월", "12월",
+    # Quarter / period markers (dominate topic clusters when not filtered)
+    "1분기", "2분기", "3분기", "4분기", "분기", "상반기", "하반기", "연간",
+    # News-agency datelines
+    "서울=연합뉴스", "서울", "연합뉴스", "인포맥스",
+    # Generic finance verbs / fillers
+    "발표", "공시", "예정", "계획", "전망", "예상", "추진", "검토", "결정",
+    "확정", "체결", "추가", "출시", "공개", "진행", "진출", "운영",
+    # Common quote markers
+    "라며", "이라며", "면서", "이면서", "는데", "한다고", "있다고", "라고",
+    # Generic stock/finance noise
+    "주가", "종목", "코스피", "코스닥", "투자자", "시장", "기업", "회사",
 }
 
 
@@ -137,14 +159,22 @@ def extract_topics(news_df: pd.DataFrame, n_topics: int = 5) -> pd.DataFrame:
     # Preprocess Korean text before vectorization
     texts = raw_texts.apply(_preprocess_korean)
 
+    # Auto-scale cluster count when corpus is large (≥40 articles → up to 12 topics).
+    if len(df) >= 80:
+        n_topics = max(n_topics, 12)
+    elif len(df) >= 40:
+        n_topics = max(n_topics, 8)
     n_clusters = _safe_n_clusters(len(df), n_topics)
 
     # --- 2. TF-IDF vectorization (Korean/English mixed) ---
     vectorizer = TfidfVectorizer(
-        max_features=1000,
+        max_features=2000,
         tokenizer=_korean_tokenizer,
         token_pattern=None,
-        min_df=1,
+        ngram_range=(1, 2),
+        min_df=2 if len(df) >= 20 else 1,
+        max_df=0.6,
+        sublinear_tf=True,
     )
     try:
         tfidf_matrix = vectorizer.fit_transform(texts)
@@ -260,10 +290,13 @@ def assign_topics_to_articles(news_df: pd.DataFrame, n_topics: int = 5) -> pd.Da
     texts = (title_col + " " + summary_col).str.strip().apply(_preprocess_korean)
 
     vectorizer = TfidfVectorizer(
-        max_features=1000,
+        max_features=2000,
         tokenizer=_korean_tokenizer,
         token_pattern=None,
-        min_df=1,
+        ngram_range=(1, 2),
+        min_df=2 if len(df) >= 20 else 1,
+        max_df=0.6,
+        sublinear_tf=True,
     )
     try:
         tfidf_matrix = vectorizer.fit_transform(texts)

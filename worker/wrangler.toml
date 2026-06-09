@@ -1,0 +1,7 @@
+name = "storyquant-api"
+main = "index.js"
+compatibility_date = "2024-09-23"
+
+# 무료 tier: 일 100,000 요청. dashboard는 5분 캐시 + 사용자당 분당 1-2 호출 → 여유.
+[observability]
+enabled = true

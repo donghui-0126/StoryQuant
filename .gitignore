@@ -4,3 +4,17 @@ data/
 __pycache__/
 *.pyc
 .env
+
+# 빌드/생성 산출물
+.claude/
+dist/
+audio/
+screenshots/
+video-frames/
+video-segs/
+narration.json
+
+# 큰 미디어 (LFS 없이 commit 비추천)
+presentation*.mp4
+presentation.pptx
+presentation-full*.pdf

@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>StoryQuant · UX Mock 비교</title>
+<style>
+  :root {
+    --bg: #0c0b0a; --bg-soft: #15130f; --fg: #f6f2ea;
+    --fg-dim: #aaa39a; --fg-mute: #6f6a62;
+    --accent: #ff4836; --accent-soft: #f4c869;
+    --line: #2a2724; --line-soft: #1c1a17;
+    --green: #4ade80; --red: #ef4444; --yellow: #fbbf24;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, 'Pretendard', 'Apple SD Gothic Neo', system-ui, sans-serif;
+    line-height: 1.5; padding: 24px;
+  }
+  h1.page-title {
+    font-size: 26px; margin-bottom: 4px;
+    background: linear-gradient(120deg, var(--accent), var(--accent-soft));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .page-sub { color: var(--fg-mute); font-size: 13px; margin-bottom: 24px; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  @media (max-width: 1200px) { .grid { grid-template-columns: 1fr; } }
+
+  .mock {
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
+    background: var(--bg-soft);
+  }
+  .mock-head {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--line);
+    display: flex; justify-content: space-between; align-items: center;
+    background: #0a0908;
+  }
+  .mock-head h2 {
+    font-size: 15px;
+    color: var(--fg);
+  }
+  .mock-head .label {
+    font-size: 10px; color: var(--accent-soft);
+    text-transform: uppercase; letter-spacing: 0.1em;
+    margin-bottom: 3px;
+  }
+  .mock-head .pros-cons {
+    font-size: 11px; color: var(--fg-mute);
+  }
+  .mock-head .pros-cons b { color: var(--green); }
+  .mock-head .pros-cons i { color: var(--red); font-style: normal; }
+
+  .mock-body {
+    height: 600px;
+    overflow: hidden;
+    position: relative;
+    background: #0c0b0a;
+  }
+
+  /* ─────────────── Mock A: Newsroom-first ─────────────── */
+  .mock-a .strip {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 6px; padding: 10px 14px;
+    border-bottom: 1px solid var(--line-soft);
+    font-size: 10px;
+  }
+  .mock-a .strip .it { background: rgba(255,255,255,0.03); padding: 6px 8px; border-radius: 4px; }
+  .mock-a .strip .nm { color: var(--fg-mute); }
+  .mock-a .strip .vl { color: var(--fg); font-weight: 600; }
+  .mock-a .strip .ch.up { color: var(--green); }
+  .mock-a .strip .ch.dn { color: var(--red); }
+
+  .mock-a .feed { padding: 10px 14px; overflow: auto; height: calc(100% - 56px); }
+  .mock-a .feed h3 {
+    font-size: 11px; color: var(--accent-soft);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    margin-bottom: 8px;
+  }
+  .mock-a .feed .row {
+    display: grid; grid-template-columns: 50px 1fr auto;
+    gap: 8px; align-items: center;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--line-soft);
+    font-size: 12px;
+  }
+  .mock-a .feed .src { color: var(--accent-soft); font-weight: 600; font-size: 10px; }
+  .mock-a .feed .ttl { color: var(--fg-dim); line-height: 1.4; }
+  .mock-a .feed .chips { display: flex; gap: 3px; }
+  .mock-a .feed .chip {
+    font-size: 9px; padding: 1px 5px; border-radius: 3px;
+    border: 1px solid; font-weight: 600;
+  }
+  .mock-a .chip.bull { color: var(--green); border-color: var(--green); }
+  .mock-a .chip.bear { color: var(--red); border-color: var(--red); }
+  .mock-a .chip.cat { color: var(--accent-soft); border-color: var(--accent-soft); }
+  .mock-a .chip.sub { color: var(--yellow); border-color: var(--yellow); }
+  .mock-a .chip.star { color: var(--fg-mute); border-color: var(--fg-mute); }
+
+  /* ─────────────── Mock B: Signal-first ─────────────── */
+  .mock-b .hero {
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--line-soft);
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .mock-b .hero .title { font-size: 14px; color: var(--fg); font-weight: 600; }
+  .mock-b .hero .badge {
+    font-size: 11px; color: var(--green);
+    background: rgba(74,222,128,0.1);
+    border: 1px solid rgba(74,222,128,0.3);
+    padding: 3px 8px; border-radius: 999px;
+  }
+  .mock-b .cards { padding: 14px; display: grid; gap: 10px; }
+  .mock-b .card {
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: grid; grid-template-columns: 50px 1fr auto auto;
+    gap: 12px; align-items: center;
+  }
+  .mock-b .card .rank {
+    font-size: 24px; font-weight: 800; color: var(--accent);
+  }
+  .mock-b .card .nm { font-size: 14px; color: var(--fg); font-weight: 600; }
+  .mock-b .card .why { font-size: 11px; color: var(--fg-mute); margin-top: 2px; }
+  .mock-b .card .score {
+    font-size: 18px; color: var(--green); font-weight: 700;
+  }
+  .mock-b .card .arr {
+    color: var(--fg-mute); font-size: 18px;
+  }
+  .mock-b .nav {
+    border-top: 1px solid var(--line-soft); padding: 10px 14px;
+    display: flex; gap: 14px; font-size: 11px; color: var(--fg-mute);
+  }
+  .mock-b .nav a { color: var(--fg-mute); text-decoration: none; }
+  .mock-b .nav a:hover { color: var(--accent-soft); }
+
+  /* ─────────────── Mock C: Narrative-first ─────────────── */
+  .mock-c .head-narr {
+    padding: 20px 18px;
+    background: linear-gradient(135deg, rgba(255,72,54,0.08), transparent);
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .mock-c .head-narr .tag {
+    display: inline-block;
+    font-size: 10px; color: var(--accent); font-weight: 600;
+    background: rgba(255,72,54,0.1);
+    padding: 2px 8px; border-radius: 4px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    margin-bottom: 8px;
+  }
+  .mock-c .head-narr .narr {
+    font-size: 18px; color: var(--fg);
+    line-height: 1.5;
+  }
+  .mock-c .head-narr .narr b { color: var(--accent); }
+  .mock-c .stories {
+    padding: 14px; display: grid; gap: 10px;
+  }
+  .mock-c .story {
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 10px 14px;
+  }
+  .mock-c .story .h {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 4px;
+  }
+  .mock-c .story .nm { font-size: 13px; font-weight: 700; color: var(--fg); }
+  .mock-c .story .chg { font-size: 13px; font-weight: 600; }
+  .mock-c .story .chg.up { color: var(--green); }
+  .mock-c .story .chg.dn { color: var(--red); }
+  .mock-c .story p { font-size: 11px; color: var(--fg-dim); line-height: 1.4; }
+  .mock-c .story .badge {
+    display: inline-block; margin-top: 6px;
+    font-size: 9px; color: var(--accent-soft);
+    background: rgba(244,200,105,0.1);
+    padding: 1px 6px; border-radius: 3px;
+  }
+
+  /* ─────────────── Mock D: 쇼츠/릴스 스타일 (모바일 풀스크린) ─────────────── */
+  .mock-d .mock-body {
+    background: #000;
+    display: flex; align-items: center; justify-content: center;
+    padding: 12px 0;
+  }
+  .mock-d .phone {
+    width: 280px; height: 560px;
+    background: #000;
+    border: 6px solid #1a1a1a;
+    border-radius: 32px;
+    overflow: hidden;
+    position: relative;
+    display: flex; flex-direction: column;
+  }
+  /* progress bar 상단 — 쇼츠 스타일 */
+  .mock-d .progress-bar {
+    position: absolute; top: 8px; left: 10px; right: 10px;
+    display: flex; gap: 3px;
+    z-index: 10;
+  }
+  .mock-d .progress-bar .seg {
+    flex: 1; height: 2.5px;
+    background: rgba(255,255,255,0.25);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .mock-d .progress-bar .seg .fill { height: 100%; background: white; }
+  .mock-d .progress-bar .seg.done .fill { width: 100%; }
+  .mock-d .progress-bar .seg.now .fill { width: 60%; }
+  .mock-d .progress-bar .seg .fill { width: 0%; }
+  /* top meta */
+  .mock-d .top-meta {
+    position: absolute; top: 20px; left: 14px; right: 14px;
+    z-index: 9;
+    display: flex; justify-content: space-between; align-items: center;
+    color: white; font-size: 10px;
+  }
+  .mock-d .top-meta .cat-chip {
+    background: rgba(255,255,255,0.18);
+    padding: 3px 8px; border-radius: 999px;
+    backdrop-filter: blur(8px);
+    font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .mock-d .top-meta .time { opacity: 0.7; }
+
+  /* full-screen feed card — gradient 배경 종목별 */
+  .mock-d .reel {
+    flex: 1;
+    position: relative;
+    background: linear-gradient(180deg, rgba(74,222,128,0.18), transparent 40%, rgba(0,0,0,0.6)),
+                radial-gradient(circle at 70% 30%, rgba(74,222,128,0.15), transparent 50%);
+    background-color: #0a0908;
+    display: flex; flex-direction: column;
+    padding: 60px 60px 50px 18px;  /* 우측 60px = 액션 rail 자리 확보, 하단 50px = bot-nav 자리 */
+    color: white;
+    overflow: hidden;
+  }
+  .mock-d .reel .ticker-row {
+    font-size: 11px; opacity: 0.7;
+    margin-bottom: 6px;
+  }
+  .mock-d .reel h3 {
+    font-size: 22px;
+    margin-bottom: 14px;
+    font-weight: 700;
+  }
+  .mock-d .reel .change-hero {
+    font-size: 56px; font-weight: 800;
+    line-height: 1; margin-bottom: 4px;
+    color: #4ade80;
+    text-shadow: 0 0 30px rgba(74,222,128,0.4);
+  }
+  .mock-d .reel .change-sub {
+    font-size: 11px; opacity: 0.6; margin-bottom: 18px;
+  }
+  .mock-d .reel .sparkline {
+    height: 60px; margin-bottom: 18px;
+    display: flex; align-items: flex-end; gap: 2px;
+  }
+  .mock-d .reel .sparkline div {
+    flex: 1; border-radius: 2px;
+    background: linear-gradient(180deg, #4ade80, rgba(74,222,128,0.3));
+  }
+  .mock-d .reel .why-card {
+    background: rgba(255,255,255,0.1);
+    backdrop-filter: blur(12px);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+  }
+  .mock-d .reel .why-label {
+    font-size: 9px; opacity: 0.7;
+    text-transform: uppercase; letter-spacing: 0.12em;
+    margin-bottom: 5px;
+  }
+  .mock-d .reel .why-txt {
+    font-size: 13px;
+    line-height: 1.45;
+    font-weight: 500;
+  }
+  .mock-d .reel .why-txt b { color: #4ade80; font-weight: 700; }
+  .mock-d .reel .trust-badge {
+    font-size: 9px;
+    background: rgba(74,222,128,0.2);
+    color: #4ade80;
+    padding: 4px 10px; border-radius: 999px;
+    align-self: flex-start;
+    margin-bottom: auto;
+    border: 1px solid rgba(74,222,128,0.3);
+  }
+  /* right side action rail — 쇼츠 스타일 */
+  .mock-d .actions-rail {
+    position: absolute; right: 8px; top: 50%;
+    transform: translateY(-50%);
+    display: flex; flex-direction: column; gap: 10px;
+    align-items: center;
+    z-index: 8;
+  }
+  .mock-d .actions-rail .item {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 2px;
+  }
+  .mock-d .actions-rail .ico {
+    width: 34px; height: 34px;
+    background: rgba(255,255,255,0.18);
+    backdrop-filter: blur(8px);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    color: white;
+  }
+  .mock-d .actions-rail .ico.saved { background: rgba(255,72,54,0.7); }
+  .mock-d .actions-rail .lab {
+    font-size: 8px; color: white; opacity: 0.9;
+    font-weight: 600;
+  }
+  /* swipe hint */
+  .mock-d .swipe-hint {
+    position: absolute; bottom: 38px; left: 0; right: 60px;
+    text-align: center;
+    color: rgba(255,255,255,0.55);
+    font-size: 9px;
+    display: flex; flex-direction: column; align-items: center; gap: 1px;
+    pointer-events: none;
+  }
+  .mock-d .swipe-hint .arrow {
+    animation: bounce 1.5s infinite;
+    font-size: 12px;
+  }
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+  }
+  /* bottom nav */
+  .mock-d .bot-nav {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    display: flex; justify-content: space-around;
+    padding: 6px 0 8px;
+    background: rgba(0,0,0,0.4);
+    backdrop-filter: blur(12px);
+    border-top: 0.5px solid rgba(255,255,255,0.1);
+    font-size: 10px;
+    color: rgba(255,255,255,0.5);
+  }
+  .mock-d .bot-nav .it.on { color: white; }
+  .mock-d .bot-nav .it { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .mock-d .bot-nav .it .em { font-size: 14px; }
+
+  /* ─── footer notes ─── */
+  .key-comparison {
+    margin-top: 36px;
+    padding: 24px;
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+  }
+  .key-comparison h2 {
+    font-size: 16px; margin-bottom: 14px; color: var(--accent-soft);
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .key-comparison table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .key-comparison th, .key-comparison td {
+    padding: 10px 12px; border-bottom: 1px solid var(--line-soft);
+    text-align: left; vertical-align: top;
+  }
+  .key-comparison th { color: var(--accent-soft); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .key-comparison td { color: var(--fg-dim); }
+  .key-comparison td b { color: var(--fg); }
+
+  /* ─── 신뢰도 mock 섹션 ─── */
+  .trust-section {
+    margin-top: 48px;
+    padding-top: 32px;
+    border-top: 1px solid var(--line);
+  }
+  .trust-section h1.page-title { margin-top: 0; }
+
+  .trust-patterns {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  @media (max-width: 1100px) { .trust-patterns { grid-template-columns: repeat(2, 1fr); } }
+  .tp-card {
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px 18px;
+  }
+  .tp-card .tp-label {
+    font-size: 10px; color: var(--accent-soft);
+    text-transform: uppercase; letter-spacing: 0.1em;
+    margin-bottom: 4px;
+  }
+  .tp-card .tp-title {
+    font-size: 15px; color: var(--fg); font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .tp-card .tp-pros-cons {
+    font-size: 10px; color: var(--fg-mute);
+    margin-bottom: 14px;
+    line-height: 1.5;
+  }
+  .tp-card .tp-pros-cons b { color: var(--green); }
+  .tp-card .tp-pros-cons i { color: var(--red); font-style: normal; }
+  .tp-card .tp-demo {
+    background: #0a0908;
+    border: 1px solid var(--line-soft);
+    border-radius: 8px;
+    padding: 14px;
+    min-height: 90px;
+    display: flex; flex-direction: column;
+    justify-content: center;
+  }
+  .tp-card .tp-stock {
+    font-size: 11px; color: var(--fg-mute);
+    margin-bottom: 4px;
+  }
+  .tp-card .tp-name {
+    font-size: 13px; color: var(--fg); font-weight: 600;
+    margin-bottom: 8px;
+  }
+  /* A: 숫자 점수 */
+  .tp-pat-a .num-big { font-size: 28px; font-weight: 800; color: var(--green); }
+  .tp-pat-a .num-small { font-size: 10px; color: var(--fg-mute); margin-top: 2px; }
+  /* B: 별 */
+  .tp-pat-b .stars { font-size: 22px; color: var(--yellow); letter-spacing: 2px; margin-bottom: 4px; }
+  .tp-pat-b .stars-meta { font-size: 10px; color: var(--fg-mute); }
+  /* C: 자연어 */
+  .tp-pat-c .label-pill {
+    display: inline-block;
+    background: rgba(74,222,128,0.15);
+    color: var(--green);
+    border: 1px solid rgba(74,222,128,0.3);
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 12px; font-weight: 600;
+  }
+  .tp-pat-c .meta { font-size: 10px; color: var(--fg-mute); margin-top: 6px; }
+  /* D: 막대 */
+  .tp-pat-d .bar-wrap {
+    background: var(--line); height: 8px; border-radius: 4px; overflow: hidden;
+    margin-bottom: 4px;
+  }
+  .tp-pat-d .bar-fill {
+    background: linear-gradient(90deg, var(--green), var(--accent-soft));
+    height: 100%; width: 70%;
+  }
+  .tp-pat-d .bar-label {
+    display: flex; justify-content: space-between;
+    font-size: 11px;
+  }
+  .tp-pat-d .bar-label .v { color: var(--green); font-weight: 700; }
+  .tp-pat-d .bar-label .l { color: var(--fg-mute); }
+  /* E: 사용 사례 */
+  .tp-pat-e .case-num {
+    font-size: 22px; font-weight: 800; color: var(--fg);
+  }
+  .tp-pat-e .case-num b { color: var(--green); }
+  .tp-pat-e .case-meta { font-size: 10px; color: var(--fg-mute); margin-top: 4px; }
+  /* F: 반례 */
+  .tp-pat-f .ok-row, .tp-pat-f .miss-row {
+    display: flex; justify-content: space-between;
+    font-size: 11px; padding: 2px 0;
+  }
+  .tp-pat-f .ok-row { color: var(--green); }
+  .tp-pat-f .miss-row { color: var(--red); }
+  .tp-pat-f .miss-link {
+    font-size: 10px; color: var(--accent-soft);
+    margin-top: 6px; text-decoration: underline;
+  }
+
+  /* ─── Multi-level Trust 인터랙션 ─── */
+  .multi-level {
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 28px;
+  }
+  .multi-level h2 {
+    font-size: 16px; color: var(--accent-soft);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    margin-bottom: 6px;
+  }
+  .multi-level p.intro {
+    font-size: 13px; color: var(--fg-dim); margin-bottom: 24px;
+  }
+  .levels {
+    display: grid;
+    grid-template-columns: 1fr 24px 1fr 24px 1fr;
+    gap: 12px;
+    align-items: stretch;
+  }
+  @media (max-width: 1100px) { .levels { grid-template-columns: 1fr; } .levels .arrow-col { display: none; } }
+  .level {
+    background: #0a0908;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px 18px;
+    display: flex; flex-direction: column;
+  }
+  .level .lv-tag {
+    display: inline-block;
+    font-size: 9px; color: var(--accent); font-weight: 700;
+    background: rgba(255,72,54,0.1);
+    padding: 3px 8px; border-radius: 4px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    align-self: flex-start; margin-bottom: 8px;
+  }
+  .level h3 { font-size: 14px; color: var(--fg); margin-bottom: 4px; }
+  .level .lv-when { font-size: 11px; color: var(--fg-mute); margin-bottom: 14px; }
+  .level .lv-mock {
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 10px;
+    flex: 1;
+  }
+  .level .lv-explain {
+    font-size: 10px; color: var(--fg-mute); line-height: 1.5;
+  }
+  .level .lv-explain b { color: var(--fg-dim); }
+  .arrow-col {
+    display: flex; align-items: center; justify-content: center;
+    color: var(--accent); font-size: 24px;
+  }
+  /* Level 1 mock: 카드 */
+  .lv1-card .nm { font-size: 13px; color: var(--fg); font-weight: 700; margin-bottom: 2px; }
+  .lv1-card .chg { font-size: 16px; color: var(--green); font-weight: 700; margin-bottom: 8px; }
+  .lv1-card .trust-chip {
+    display: inline-block;
+    background: rgba(74,222,128,0.12);
+    color: var(--green);
+    border: 1px solid rgba(74,222,128,0.3);
+    padding: 3px 9px; border-radius: 999px;
+    font-size: 10px; font-weight: 600;
+  }
+  .lv1-card .trust-chip::before { content: "✓ "; }
+  /* Level 2 mock: 모달 */
+  .lv2-modal .mh {
+    font-size: 11px; color: var(--accent-soft);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    margin-bottom: 8px;
+  }
+  .lv2-modal .row {
+    display: flex; justify-content: space-between;
+    font-size: 11px; padding: 4px 0;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .lv2-modal .row .l { color: var(--fg-mute); }
+  .lv2-modal .row .v { color: var(--fg); font-weight: 600; }
+  .lv2-modal .row.up .v { color: var(--green); }
+  .lv2-modal .row.dn .v { color: var(--red); }
+  .lv2-modal .cta {
+    display: block; text-align: center;
+    font-size: 11px; color: var(--accent);
+    background: rgba(255,72,54,0.1);
+    border: 1px solid rgba(255,72,54,0.3);
+    padding: 6px; border-radius: 6px;
+    margin-top: 10px;
+    text-decoration: none;
+  }
+  /* Level 3 mock: 백테스트 */
+  .lv3-bt .chart-area {
+    height: 50px;
+    background: linear-gradient(180deg, rgba(74,222,128,0.15), transparent);
+    border-bottom: 1px solid var(--line-soft);
+    position: relative;
+    margin-bottom: 8px;
+  }
+  .lv3-bt .chart-line {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 1.5px;
+    background: linear-gradient(90deg, var(--green) 0%, var(--accent-soft) 100%);
+  }
+  .lv3-bt .chart-line::before {
+    content: ''; position: absolute; right: 0; bottom: 0;
+    width: 6px; height: 6px; background: var(--accent-soft); border-radius: 50%;
+    transform: translate(50%, 50%);
+  }
+  .lv3-bt .stats {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px;
+    font-size: 10px;
+  }
+  .lv3-bt .stat .l { color: var(--fg-mute); font-size: 9px; }
+  .lv3-bt .stat .v { color: var(--fg); font-weight: 700; }
+  .lv3-bt .stat.up .v { color: var(--green); }
+
+  @media print {
+    @page { size: A4 landscape; margin: 10mm; }
+    body { background: white; color: #111; padding: 0; }
+    h1.page-title { color: #c0392b; -webkit-background-clip: initial; background: none; -webkit-text-fill-color: #c0392b; }
+    .page-sub { color: #555; }
+    .mock { background: #fafafa; border-color: #ddd; }
+    .mock-head { background: #f0f0f0; border-bottom-color: #ddd; }
+    .mock-head h2 { color: #111; }
+    .mock-head .label { color: #b45309; }
+    .mock-head .pros-cons { color: #555; }
+    .mock-body { background: white; }
+    .grid { gap: 16px; page-break-inside: avoid; }
+    .key-comparison { background: #fafafa; border-color: #ddd; }
+    .key-comparison th { color: #c0392b; }
+    .key-comparison td { color: #333; }
+  }
+</style>
+</head>
+<body>
+
+<h1 class="page-title">StoryQuant · UX Mock 4종 비교</h1>
+<p class="page-sub">같은 데이터(오늘 KR 시장)를 4가지 가공 수준 + 레이아웃으로 비교 — 컨설팅용</p>
+
+<div class="grid">
+
+<!-- ═══════════════ Mock A: Newsroom-first ═══════════════ -->
+<div class="mock mock-a">
+  <div class="mock-head">
+    <div>
+      <div class="label">Mock A · 현재 구조</div>
+      <h2>Newsroom-first — 헤드라인 스트림 + 5분류 라벨</h2>
+    </div>
+    <div class="pros-cons">
+      <b>+</b> 모든 정보 즉시 노출 · <i>−</i> 첫 5초 인지 부담 큼
+    </div>
+  </div>
+  <div class="mock-body">
+    <div class="strip">
+      <div class="it"><div class="nm">KOSPI</div><div class="vl">2,684 <span class="ch up">+0.42%</span></div></div>
+      <div class="it"><div class="nm">KOSDAQ</div><div class="vl">756.3 <span class="ch dn">−0.18%</span></div></div>
+      <div class="it"><div class="nm">USDKRW</div><div class="vl">1,361 <span class="ch up">+0.21%</span></div></div>
+      <div class="it"><div class="nm">VIX</div><div class="vl">14.2 <span class="ch dn">−2.1%</span></div></div>
+    </div>
+    <div class="feed">
+      <h3>📰 헤드라인 · 28건 / 32 매체</h3>
+      <div class="row">
+        <div class="src">연합</div>
+        <div class="ttl">삼성전자, 3분기 영업이익 컨센서스 12% 상회</div>
+        <div class="chips"><span class="chip bull">호재</span><span class="chip sub">◆실질</span><span class="chip cat">실적</span><span class="chip star">★★</span></div>
+      </div>
+      <div class="row">
+        <div class="src">한경</div>
+        <div class="ttl">SK하이닉스, HBM3E 엔비디아 양산 공급 임박</div>
+        <div class="chips"><span class="chip bull">호재</span><span class="chip sub">◆실질</span><span class="chip cat">신제품</span><span class="chip star">★★★</span></div>
+      </div>
+      <div class="row">
+        <div class="src">매경</div>
+        <div class="ttl">2차전지株 약세 지속… 기관 매도 우위</div>
+        <div class="chips"><span class="chip bear">악재</span><span class="chip cat">시황</span><span class="chip star">★</span></div>
+      </div>
+      <div class="row">
+        <div class="src">파이낸셜</div>
+        <div class="ttl">현대차, 미국 IRA 보조금 확대안 통과 수혜 전망</div>
+        <div class="chips"><span class="chip bull">호재</span><span class="chip sub">◆실질</span><span class="chip cat">정책</span><span class="chip star">★★</span></div>
+      </div>
+      <div class="row">
+        <div class="src">뉴시스</div>
+        <div class="ttl">한화에어로, 폴란드 K9 자주포 추가 수주 1.2조원</div>
+        <div class="chips"><span class="chip bull">호재</span><span class="chip sub">◆실질</span><span class="chip cat">수주</span><span class="chip star">★★★</span></div>
+      </div>
+      <div class="row">
+        <div class="src">조선비즈</div>
+        <div class="ttl">LG에너지솔루션, GM 합작법인 2공장 가동 지연</div>
+        <div class="chips"><span class="chip bear">악재</span><span class="chip sub">◆실질</span><span class="chip cat">생산</span><span class="chip star">★★</span></div>
+      </div>
+      <div class="row">
+        <div class="src">서경</div>
+        <div class="ttl">네이버, AI 데이터센터 신규 투자 5,000억 발표</div>
+        <div class="chips"><span class="chip bull">호재</span><span class="chip sub">◆실질</span><span class="chip cat">투자</span><span class="chip star">★★</span></div>
+      </div>
+      <div class="row">
+        <div class="src">한겨레</div>
+        <div class="ttl">셀트리온, 짐펜트라 미국 메디케어 등재 협상 중</div>
+        <div class="chips"><span class="chip bull">호재</span><span class="chip cat">임상규제</span><span class="chip star">★★</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ Mock B: Signal-first ═══════════════ -->
+<div class="mock mock-b">
+  <div class="mock-head">
+    <div>
+      <div class="label">Mock B · 종합 점수 우선</div>
+      <h2>Signal-first — Top 5 종목 카드 + 작은 신뢰 배지</h2>
+    </div>
+    <div class="pros-cons">
+      <b>+</b> 의사결정 1초 · <i>−</i> 어떻게 계산? 의문</div>
+  </div>
+  <div class="mock-body">
+    <div class="hero">
+      <div class="title">🎯 오늘의 매수 후보 · Top 5</div>
+      <div class="badge">✓ 검증된 신호 +11.5%</div>
+    </div>
+    <div class="cards">
+      <div class="card">
+        <div class="rank">1</div>
+        <div>
+          <div class="nm">한화에어로스페이스 (012450)</div>
+          <div class="why">폴란드 K9 1.2조 수주 + 방산 호재</div>
+        </div>
+        <div class="score">+9.4</div>
+        <div class="arr">›</div>
+      </div>
+      <div class="card">
+        <div class="rank">2</div>
+        <div>
+          <div class="nm">SK하이닉스 (000660)</div>
+          <div class="why">HBM3E 엔비디아 공급 임박</div>
+        </div>
+        <div class="score">+8.7</div>
+        <div class="arr">›</div>
+      </div>
+      <div class="card">
+        <div class="rank">3</div>
+        <div>
+          <div class="nm">삼성전자 (005930)</div>
+          <div class="why">3Q 영업이익 컨센 12% 상회</div>
+        </div>
+        <div class="score">+7.2</div>
+        <div class="arr">›</div>
+      </div>
+      <div class="card">
+        <div class="rank">4</div>
+        <div>
+          <div class="nm">현대차 (005380)</div>
+          <div class="why">IRA 보조금 확대 수혜</div>
+        </div>
+        <div class="score">+5.8</div>
+        <div class="arr">›</div>
+      </div>
+      <div class="card">
+        <div class="rank">5</div>
+        <div>
+          <div class="nm">네이버 (035420)</div>
+          <div class="why">AI 데이터센터 5,000억 투자</div>
+        </div>
+        <div class="score">+4.1</div>
+        <div class="arr">›</div>
+      </div>
+    </div>
+    <div class="nav">
+      <a href="#">📰 전체 헤드라인 (28)</a>
+      <a href="#">📊 신뢰도 검증 →</a>
+      <a href="#">🇺🇸 US 시장</a>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ Mock C: Narrative-first ═══════════════ -->
+<div class="mock mock-c">
+  <div class="mock-head">
+    <div>
+      <div class="label">Mock C · 매크로 narrative</div>
+      <h2>Narrative-first — "오늘 시장은…" 한 줄 + 핫 종목 3</h2>
+    </div>
+    <div class="pros-cons">
+      <b>+</b> 이해 가장 쉬움 · <i>−</i> 환각 우려, 텍스트 의존</div>
+  </div>
+  <div class="mock-body">
+    <div class="head-narr">
+      <span class="tag">오늘 시장 · 2026-05-28 오전</span>
+      <div class="narr">
+        한국 시장은 <b>반도체·방산 호재</b>가 우세. KOSPI <b>+0.42%</b>로 상승 출발, VIX 14.2로 <b>평온 분위기</b>. 2차전지는 기관 매도로 약세.
+      </div>
+    </div>
+    <div class="stories">
+      <div class="story">
+        <div class="h">
+          <span class="nm">한화에어로스페이스</span>
+          <span class="chg up">+5.2%</span>
+        </div>
+        <p>폴란드 K9 자주포 추가 1.2조 수주 발표. 작년 동기 대비 수주 잔고 38% 증가. 방산 ETF 동반 상승.</p>
+        <span class="badge">신호 신뢰도 ★★★</span>
+      </div>
+      <div class="story">
+        <div class="h">
+          <span class="nm">SK하이닉스</span>
+          <span class="chg up">+3.1%</span>
+        </div>
+        <p>HBM3E 엔비디아 양산 공급 임박 보도. 한경·연합 등 5개 매체 동시 보도. AI 반도체 모멘텀 재점화.</p>
+        <span class="badge">신호 신뢰도 ★★★</span>
+      </div>
+      <div class="story">
+        <div class="h">
+          <span class="nm">LG에너지솔루션</span>
+          <span class="chg dn">−2.4%</span>
+        </div>
+        <p>GM 합작법인 2공장 가동 지연 보도. 2차전지 섹터 전반 약세에 추가 압력. 매수 자제 권장.</p>
+        <span class="badge">신호 신뢰도 ★★</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ Mock D: 쇼츠/릴스 스타일 (모바일 풀스크린) ═══════════════ -->
+<div class="mock mock-d">
+  <div class="mock-head">
+    <div>
+      <div class="label">Mock D · 모바일 풀스크린</div>
+      <h2>Shorts/Reels — 세로 스와이프 자동재생 카드 feed</h2>
+    </div>
+    <div class="pros-cons">
+      <b>+</b> 모바일 최적 · 친숙 · 자투리 시간 · <i>−</i> 비교 어려움 · 깊은 분석 X
+    </div>
+  </div>
+  <div class="mock-body">
+    <div class="phone">
+      <!-- 상단 progress bar (5개 reel 중 2번째) -->
+      <div class="progress-bar">
+        <div class="seg done"><div class="fill"></div></div>
+        <div class="seg now"><div class="fill"></div></div>
+        <div class="seg"><div class="fill"></div></div>
+        <div class="seg"><div class="fill"></div></div>
+        <div class="seg"><div class="fill"></div></div>
+      </div>
+      <!-- top meta -->
+      <div class="top-meta">
+        <span class="cat-chip">🔥 핫 종목</span>
+        <span class="time">2 / 5</span>
+      </div>
+      <!-- 풀스크린 reel -->
+      <div class="reel">
+        <div class="ticker-row">012450 · KOSPI · 방산</div>
+        <h3>한화에어로스페이스</h3>
+        <div class="change-hero">+5.2%</div>
+        <div class="change-sub">오늘 14:23 · 거래량 평균 대비 +180%</div>
+
+        <div class="sparkline">
+          <div style="height: 28%"></div><div style="height: 38%"></div>
+          <div style="height: 32%"></div><div style="height: 52%"></div>
+          <div style="height: 48%"></div><div style="height: 62%"></div>
+          <div style="height: 58%"></div><div style="height: 75%"></div>
+          <div style="height: 72%"></div><div style="height: 88%"></div>
+          <div style="height: 85%"></div><div style="height: 100%"></div>
+        </div>
+
+        <div class="why-card">
+          <div class="why-label">왜 움직였나</div>
+          <div class="why-txt">폴란드 K9 자주포 <b>1.2조원 추가 수주</b>. 매경·연합 등 8개 매체 동시 보도.</div>
+        </div>
+
+        <div class="trust-badge">✓ 검증된 신호 · 위기 시기 적중률 70%</div>
+      </div>
+
+      <!-- 우측 액션 rail (쇼츠 스타일) -->
+      <div class="actions-rail">
+        <div class="item"><div class="ico saved">⭐</div><div class="lab">12</div></div>
+        <div class="item"><div class="ico">📈</div><div class="lab">차트</div></div>
+        <div class="item"><div class="ico">📰</div><div class="lab">뉴스</div></div>
+        <div class="item"><div class="ico">↗</div><div class="lab">공유</div></div>
+      </div>
+
+      <!-- swipe hint -->
+      <div class="swipe-hint">
+        <span class="arrow">︽</span>
+        <span>위로 스와이프</span>
+      </div>
+
+      <!-- bottom nav -->
+      <div class="bot-nav">
+        <div class="it on"><span class="em">🔥</span><span>핫</span></div>
+        <div class="it"><span class="em">🔍</span><span>탐색</span></div>
+        <div class="it"><span class="em">⭐</span><span>저장</span></div>
+        <div class="it"><span class="em">👤</span><span>나</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<!-- ═══════════════ 신뢰도 UX 섹션 ═══════════════ -->
+<div class="trust-section">
+  <h1 class="page-title">🛡 신뢰도 표시 — 6 패턴 비교</h1>
+  <p class="page-sub">같은 데이터(한화에어로스페이스 +5.2% 신호)를 6가지 신뢰도 표시 방식으로 — 컨설팅용</p>
+
+  <div class="trust-patterns">
+
+    <!-- A. 절대 점수 -->
+    <div class="tp-card tp-pat-a">
+      <div class="tp-label">A · 절대 점수</div>
+      <div class="tp-title">숫자 / IR · %</div>
+      <div class="tp-pros-cons"><b>+</b> 정확 · 비교 가능 · <i>−</i> "어떻게 계산?" 의문, 학술 거부감</div>
+      <div class="tp-demo">
+        <div class="tp-stock">012450 · KOSPI</div>
+        <div class="tp-name">한화에어로스페이스</div>
+        <div class="num-big">87%</div>
+        <div class="num-small">신뢰도 (IR=+0.115)</div>
+      </div>
+    </div>
+
+    <!-- B. 별 등급 -->
+    <div class="tp-card tp-pat-b">
+      <div class="tp-label">B · 별 등급</div>
+      <div class="tp-title">⭐⭐⭐ 친숙</div>
+      <div class="tp-pros-cons"><b>+</b> 즉시 인지 · 모바일 친화 · <i>−</i> 깊이 없음 · "왜 3성?" 설명 부재</div>
+      <div class="tp-demo">
+        <div class="tp-stock">012450 · KOSPI</div>
+        <div class="tp-name">한화에어로스페이스</div>
+        <div class="stars">★★★☆☆</div>
+        <div class="stars-meta">신호 강도 3 / 5</div>
+      </div>
+    </div>
+
+    <!-- C. 자연어 -->
+    <div class="tp-card tp-pat-c">
+      <div class="tp-label">C · 자연어 라벨</div>
+      <div class="tp-title">"강한 신호"</div>
+      <div class="tp-pros-cons"><b>+</b> 즉시 이해 · 부담 없음 · <i>−</i> 기준 모호 · 동질화 위험</div>
+      <div class="tp-demo">
+        <div class="tp-stock">012450 · KOSPI</div>
+        <div class="tp-name">한화에어로스페이스</div>
+        <span class="label-pill">강한 신호</span>
+        <div class="meta">실질 정보 · 위기 시기 적합</div>
+      </div>
+    </div>
+
+    <!-- D. 적중률 막대 -->
+    <div class="tp-card tp-pat-d">
+      <div class="tp-label">D · 적중률 막대</div>
+      <div class="tp-title">▓▓▓▓▓▓▓░░ 70%</div>
+      <div class="tp-pros-cons"><b>+</b> 시각적 · 사용자 친화 · <i>−</i> 시점·조건 의존</div>
+      <div class="tp-demo">
+        <div class="tp-stock">012450 · KOSPI</div>
+        <div class="tp-name">한화에어로스페이스</div>
+        <div class="bar-wrap"><div class="bar-fill"></div></div>
+        <div class="bar-label"><span class="l">적중률</span><span class="v">70%</span></div>
+      </div>
+    </div>
+
+    <!-- E. 사용 사례 -->
+    <div class="tp-card tp-pat-e">
+      <div class="tp-label">E · 구체 사례</div>
+      <div class="tp-title">"10번 중 7번 적중"</div>
+      <div class="tp-pros-cons"><b>+</b> 구체적 · 솔직 · <i>−</i> 조건(위기 시기) 명시 필요</div>
+      <div class="tp-demo">
+        <div class="tp-stock">012450 · KOSPI</div>
+        <div class="tp-name">한화에어로스페이스</div>
+        <div class="case-num">10번 중 <b>7번</b> 적중</div>
+        <div class="case-meta">위기 시기 (VIX≥22) · 5일 보유 시</div>
+      </div>
+    </div>
+
+    <!-- F. 반례 노출 -->
+    <div class="tp-card tp-pat-f">
+      <div class="tp-label">F · 반례 노출</div>
+      <div class="tp-title">"못 맞춘 2개도 보기"</div>
+      <div class="tp-pros-cons"><b>+</b> 신뢰 강화 (역설적) · <i>−</i> 위험감지 사용자 부담</div>
+      <div class="tp-demo">
+        <div class="tp-stock">012450 · KOSPI</div>
+        <div class="tp-name">한화에어로스페이스</div>
+        <div class="ok-row"><span>✓ 적중 7건</span><span>+8.4% 평균</span></div>
+        <div class="miss-row"><span>✗ 실패 2건</span><span>−2.1% 평균</span></div>
+        <div class="miss-link">실패 사례 자세히 보기 →</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════ Multi-level Trust ═══════════════ -->
+  <div class="multi-level">
+    <h2>🎯 추천 — Multi-level Trust (점진 공개)</h2>
+    <p class="intro">사용자 수준에 맞춰 신뢰 정보를 점진적으로 노출. 모바일·바쁜 사용자는 Level 1만으로 OK, 전문가는 Level 3까지 진입.</p>
+
+    <div class="levels">
+
+      <!-- LEVEL 1 -->
+      <div class="level">
+        <span class="lv-tag">Level 1 · 즉시</span>
+        <h3>신호 카드 작은 배지</h3>
+        <div class="lv-when">바쁜 사용자 · 모바일 · 1초 인지</div>
+        <div class="lv-mock lv1-card">
+          <div class="nm">한화에어로스페이스</div>
+          <div class="chg">+5.2%</div>
+          <span class="trust-chip">검증된 신호 · 70%</span>
+        </div>
+        <div class="lv-explain">
+          <b>위치</b>: 모든 종목 카드 안<br>
+          <b>정보량</b>: 1줄 (배지)<br>
+          <b>목적</b>: "이거 믿어도 되는 신호?" 즉시 답
+        </div>
+      </div>
+
+      <div class="arrow-col">→</div>
+
+      <!-- LEVEL 2 -->
+      <div class="level">
+        <span class="lv-tag">Level 2 · 호기심</span>
+        <h3>배지 클릭 → 작은 모달</h3>
+        <div class="lv-when">"왜 70%?" 알고 싶은 사용자</div>
+        <div class="lv-mock lv2-modal">
+          <div class="mh">📊 신호 적중률 상세</div>
+          <div class="row up"><span class="l">위기 시기 (VIX≥22)</span><span class="v">+3.05%</span></div>
+          <div class="row up"><span class="l">위기 시기 win rate</span><span class="v">70%</span></div>
+          <div class="row"><span class="l">평온기 (VIX≤15)</span><span class="v">≈ 0%</span></div>
+          <div class="row"><span class="l">최근 90일 적중</span><span class="v">28 / 40</span></div>
+          <a class="cta">직접 검증 →</a>
+        </div>
+        <div class="lv-explain">
+          <b>위치</b>: 배지 클릭 시 모달<br>
+          <b>정보량</b>: 4-5줄 (시기 분해)<br>
+          <b>목적</b>: 신뢰 근거 + 다음 step 유도
+        </div>
+      </div>
+
+      <div class="arrow-col">→</div>
+
+      <!-- LEVEL 3 -->
+      <div class="level">
+        <span class="lv-tag">Level 3 · 전문가</span>
+        <h3>"직접 검증" → 백테스트</h3>
+        <div class="lv-when">신호 자체를 검증하려는 전문가</div>
+        <div class="lv-mock lv3-bt">
+          <div class="chart-area">
+            <div class="chart-line" style="bottom: 30%"></div>
+          </div>
+          <div class="stats">
+            <div class="stat up"><div class="l">누적</div><div class="v">+11.5%</div></div>
+            <div class="stat up"><div class="l">Sharpe</div><div class="v">1.42</div></div>
+            <div class="stat"><div class="l">MDD</div><div class="v">-4.2%</div></div>
+          </div>
+        </div>
+        <div class="lv-explain">
+          <b>위치</b>: 별도 백테스트 페이지<br>
+          <b>정보량</b>: IC · Sharpe · regime · decile 등<br>
+          <b>목적</b>: 사용자가 모드 토글하며 자기 검증
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ 비교 표 ═══════════════ -->
+<div class="key-comparison">
+  <h2>📋 핵심 비교 — 4가지 mock 한눈에</h2>
+  <table>
+    <tr>
+      <th>축</th>
+      <th>A. Newsroom</th>
+      <th>B. Signal</th>
+      <th>C. Narrative</th>
+      <th>D. Card-Swipe</th>
+    </tr>
+    <tr>
+      <td><b>가공 수준</b></td>
+      <td>Raw + 라벨</td>
+      <td>점수 압축</td>
+      <td>텍스트 narrative</td>
+      <td>점수 + narrative</td>
+    </tr>
+    <tr>
+      <td><b>첫 화면 정보량</b></td>
+      <td>높음 (10+ 헤드라인)</td>
+      <td>중간 (Top 5)</td>
+      <td>낮음 (1 narrative + 3 카드)</td>
+      <td><b>최저</b> (1 종목)</td>
+    </tr>
+    <tr>
+      <td><b>인지 부담</b></td>
+      <td>높음</td>
+      <td>중간</td>
+      <td>낮음</td>
+      <td><b>최저</b></td>
+    </tr>
+    <tr>
+      <td><b>백테스트 위치</b></td>
+      <td>메인 메뉴</td>
+      <td>"신뢰" 배지 + 보조 메뉴</td>
+      <td>각 story의 ★ 신뢰도</td>
+      <td>카드 안 "검증된 적중률"</td>
+    </tr>
+    <tr>
+      <td><b>모바일 적합도</b></td>
+      <td>중간 (정보량 많음)</td>
+      <td>높음</td>
+      <td>높음</td>
+      <td><b>최적</b></td>
+    </tr>
+    <tr>
+      <td><b>전문가 신뢰</b></td>
+      <td><b>높음</b> (원본 보임)</td>
+      <td>중간 (블랙박스 우려)</td>
+      <td>낮음 (환각 우려)</td>
+      <td>중간</td>
+    </tr>
+    <tr>
+      <td><b>"왜 움직였는지"</b></td>
+      <td>사용자가 헤드라인 읽고 추론</td>
+      <td>카드 내 1줄 요약</td>
+      <td>narrative 한 문단</td>
+      <td>카드 안 큰 박스</td>
+    </tr>
+    <tr>
+      <td><b>맞는 사용자</b></td>
+      <td>전문가 / 매크로 트레이더</td>
+      <td>의사결정 빨리 하고 싶은 개인</td>
+      <td>스토리·맥락 좋아하는 초보</td>
+      <td><b>출퇴근·자투리 시간형</b> (쇼츠·릴스 익숙)</td>
+    </tr>
+  </table>
+</div>
+
+</body>
+</html>
