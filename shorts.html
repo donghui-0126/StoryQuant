@@ -127,6 +127,152 @@
   .sector-info-line .sec-pol-flat { color: rgba(255,255,255,0.5); font-weight: 600; }
   .reel h3 { font-size: 24px; margin-bottom: 14px; font-weight: 700; letter-spacing: -0.01em; }
 
+  /* ─── 뉴스 점수 HERO (최상단 강조) ─── */
+  .score-hero {
+    border-radius: 16px;
+    padding: 18px 18px 14px;
+    margin: 12px 0 14px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
+    border: 1.5px solid rgba(255,255,255,0.12);
+    cursor: pointer;
+    transition: all 0.18s;
+    position: relative;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+  }
+  .score-hero:active { transform: scale(0.985); }
+  .score-hero-pos {
+    background: linear-gradient(135deg, rgba(74,222,128,0.32), rgba(74,222,128,0.08));
+    border-color: rgba(74,222,128,0.55);
+    box-shadow: 0 6px 30px rgba(74,222,128,0.20);
+  }
+  .score-hero-neg {
+    background: linear-gradient(135deg, rgba(239,68,68,0.32), rgba(239,68,68,0.08));
+    border-color: rgba(239,68,68,0.55);
+    box-shadow: 0 6px 30px rgba(239,68,68,0.20);
+  }
+  .score-hero-flat {
+    background: linear-gradient(135deg, rgba(160,160,160,0.18), rgba(160,160,160,0.05));
+    border-color: rgba(255,255,255,0.18);
+  }
+  .score-hero.is-hold {
+    background: linear-gradient(135deg, rgba(180,180,180,0.10), rgba(180,180,180,0.03));
+    border-color: rgba(255,255,255,0.10);
+    opacity: 0.85;
+  }
+  .sh-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .sh-label { font-size: 12px; color: rgba(255,255,255,0.7); font-weight: 600; letter-spacing: 0.02em; }
+  .sh-rank {
+    font-size: 10.5px; color: #fff;
+    background: rgba(255,255,255,0.18);
+    padding: 3px 9px; border-radius: 999px; font-weight: 700;
+  }
+  .sh-value {
+    font-size: 48px; font-weight: 800; line-height: 1;
+    color: #fff; font-variant-numeric: tabular-nums;
+    margin: 4px 0 6px;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.35);
+  }
+  .score-hero.is-hold .sh-value { font-size: 32px; color: rgba(255,255,255,0.75); }
+  .sh-narrative {
+    font-size: 14.5px; color: #fff; font-weight: 700;
+    margin-bottom: 12px;
+  }
+  .sh-confidence {
+    background: rgba(0,0,0,0.20); border-radius: 10px;
+    padding: 8px 10px 9px; margin-bottom: 10px;
+  }
+  .sc-row { display: flex; justify-content: space-between; align-items: center; font-size: 11px; margin-bottom: 4px; }
+  .sc-l { color: rgba(255,255,255,0.6); }
+  .sc-r { font-weight: 700; }
+  .sc-r.sc-hold { color: #cbd5e1; }
+  .sc-r.sc-low { color: #fbbf24; }
+  .sc-r.sc-normal { color: #60a5fa; }
+  .sc-r.sc-high { color: #4ade80; }
+  .sc-bar { background: rgba(255,255,255,0.08); height: 5px; border-radius: 99px; overflow: hidden; }
+  .sc-fill { height: 100%; border-radius: 99px; transition: width 0.4s; }
+  .sc-fill.sc-fill-hold { background: linear-gradient(90deg, #94a3b8, #cbd5e1); }
+  .sc-fill.sc-fill-low { background: linear-gradient(90deg, #fbbf24, #fde047); }
+  .sc-fill.sc-fill-normal { background: linear-gradient(90deg, #60a5fa, #93c5fd); }
+  .sc-fill.sc-fill-high { background: linear-gradient(90deg, #4ade80, #86efac); }
+  .sc-meta { font-size: 10px; color: rgba(255,255,255,0.5); margin-top: 5px; text-align: right; }
+  .sh-cta {
+    display: flex; justify-content: flex-end; align-items: center; gap: 4px;
+    font-size: 11.5px; color: rgba(255,255,255,0.7); font-weight: 600;
+  }
+  .sh-cta .arr { font-size: 14px; }
+
+  /* ─── 수익률 박스 ─── */
+  .ret-box {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+  .ret-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+  .ret-row:has(.hl) { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .ret-cell { text-align: center; padding: 4px 2px; }
+  .ret-cell.hl { background: rgba(255,255,255,0.06); border-radius: 8px; padding: 6px 4px; }
+  .rc-lbl { font-size: 9.5px; color: rgba(255,255,255,0.5); margin-bottom: 3px; letter-spacing: 0.03em; }
+  .rc-val { font-size: 15px; font-weight: 700; color: rgba(255,255,255,0.8); font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .ret-cell.hl .rc-val { font-size: 17px; }
+  .rc-val.up { color: #4ade80; }
+  .rc-val.dn { color: #ef4444; }
+  .ret-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 10px 0; }
+
+  /* ─── CTA 버튼 ─── */
+  .cta-row { display: flex; gap: 8px; margin: 10px 0 8px; }
+  .cta-btn {
+    flex: 1; padding: 12px 10px;
+    border: 1.5px solid rgba(255,255,255,0.18);
+    background: rgba(255,255,255,0.08);
+    color: #fff; font-size: 13px; font-weight: 700;
+    border-radius: 12px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    transition: all 0.15s;
+  }
+  .cta-btn:active { transform: scale(0.97); background: rgba(255,255,255,0.15); }
+  .cta-news { border-color: rgba(96,165,250,0.45); background: rgba(96,165,250,0.15); }
+  .cta-news:active { background: rgba(96,165,250,0.28); }
+  .cta-score { border-color: rgba(250,204,21,0.45); background: rgba(250,204,21,0.13); }
+  .cta-score:active { background: rgba(250,204,21,0.25); }
+  .cta-btn .arr { font-size: 16px; opacity: 0.85; }
+
+  /* ─── 시장 토글 (KR/US) ─── */
+  .market-toggle {
+    position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+    z-index: 100;
+    display: flex; gap: 0;
+    background: rgba(20,20,20,0.85); backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 999px; padding: 3px;
+  }
+  .market-toggle .mt-btn {
+    padding: 6px 14px; font-size: 12px; font-weight: 700;
+    background: transparent; border: none; color: rgba(255,255,255,0.55);
+    border-radius: 999px; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .market-toggle .mt-btn.on {
+    background: rgba(255,255,255,0.18); color: #fff;
+  }
+  .market-toggle .mt-btn:not(.on):active { background: rgba(255,255,255,0.06); }
+
+  /* ─── 점수 모달: 이 점수의 근거 ─── */
+  .ev-grid {
+    background: rgba(255,255,255,0.04); border-radius: 12px;
+    padding: 12px 14px; display: flex; flex-direction: column; gap: 8px;
+  }
+  .ev-row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 12.5px;
+  }
+  .ev-l { color: rgba(255,255,255,0.65); }
+  .ev-r { color: #fff; font-weight: 600; text-align: right; }
+  .ev-r .up { color: #4ade80; }
+  .ev-r .dn { color: #ef4444; }
+  .ev-bar { background: rgba(255,255,255,0.08); height: 6px; border-radius: 99px; overflow: hidden; margin: 2px 0 6px; }
+
   .change-hero {
     font-size: 56px; font-weight: 800;
     line-height: 1; margin-bottom: 4px;
@@ -1045,6 +1191,12 @@
     <div>핫 종목 로딩...</div>
   </div>
 
+  <!-- KR/US 시장 토글 -->
+  <div class="market-toggle" id="marketToggle">
+    <button class="mt-btn on" data-mkt="kr">🇰🇷 국장</button>
+    <button class="mt-btn" data-mkt="us">🇺🇸 미장</button>
+  </div>
+
   <div class="bot-nav">
     <div class="it on" data-tab="hot"><span class="em">🔥</span><span>핫</span></div>
     <div class="it" data-tab="sector"><span class="em">📁</span><span>섹터</span></div>
@@ -1280,9 +1432,21 @@
   const regimeChip = document.getElementById('regimeChip');
 
   // ─── API ───
+  let CURRENT_MARKET = (localStorage.getItem('sq_market') || 'kr');
+  // 시장 토글 초기화 + reload
+  document.querySelectorAll('#marketToggle .mt-btn').forEach(btn => {
+    if (btn.dataset.mkt === CURRENT_MARKET) btn.classList.add('on');
+    else btn.classList.remove('on');
+    btn.addEventListener('click', () => {
+      const m = btn.dataset.mkt;
+      if (m === CURRENT_MARKET) return;
+      localStorage.setItem('sq_market', m);
+      location.reload();
+    });
+  });
   async function fetchSweep() {
     try {
-      const r = await fetch(`${API_BASE}/api/sweep?market=kr&top_n=80`);
+      const r = await fetch(`${API_BASE}/api/sweep?market=${CURRENT_MARKET}&top_n=80`);
       return await r.json();
     } catch (e) {
       return { error: e.message };
@@ -1490,7 +1654,7 @@
   const chartCache = new Map();
   async function loadChart(code) {
     if (chartCache.has(code)) return chartCache.get(code);
-    const p = fetch(`${API_BASE}/api/stock-chart?code=${code}&range=1mo&market=kr`)
+    const p = fetch(`${API_BASE}/api/stock-chart?code=${code}&range=1mo&market=${CURRENT_MARKET}`)
       .then(r => r.json()).then(d => d.bars || []).catch(() => []);
     chartCache.set(code, p);
     return p;
@@ -1501,7 +1665,8 @@
   async function loadKospi() {
     if (kospiBars !== null) return kospiBars;
     try {
-      const r = await fetch(`${API_BASE}/api/stock-chart?code=^KS11&range=1mo&market=kr`);
+      const benchCode = CURRENT_MARKET === 'us' ? '^GSPC' : '^KS11';
+      const r = await fetch(`${API_BASE}/api/stock-chart?code=${benchCode}&range=1mo&market=${CURRENT_MARKET}`);
       const j = await r.json();
       kospiBars = j.bars || [];
     } catch (e) { kospiBars = []; }
@@ -1550,6 +1715,39 @@
     const last = valid[valid.length - 1];
     const meta = `1M · ${valid.length}봉 · 마감 ${last.c.toLocaleString()}`;
     return out + `<div class="ck-meta">${meta}</div>`;
+  }
+
+  // ─── 신뢰도 계산 (보류·낮음·보통·높음) ───
+  // 표본 크기 + 매체 신뢰도 + 실질 비율 기반
+  function computeConfidence(s) {
+    const sub = s.sub_count || 0;
+    const n = s.news_count || 0;
+    const src = s.src_avg || 0.5;
+    if (n < 3 || sub === 0) return { level: 'hold', label: '보류', short: '데이터 부족', pct: 15 };
+    if (sub < 2) return { level: 'low', label: '낮음', short: '실질 뉴스 부족', pct: 35 };
+    if (sub < 5 || src < 0.45) return { level: 'normal', label: '보통', short: `실질 ${sub}건`, pct: 60 };
+    if (sub >= 8 && src >= 0.55) return { level: 'high', label: '높음', short: `실질 ${sub}건 · 신뢰 매체`, pct: 92 };
+    return { level: 'high', label: '높음', short: `실질 ${sub}건`, pct: 80 };
+  }
+  // ─── 종합 점수 자연어 라벨 ───
+  function newsRatingNarrative(nr, sub) {
+    if (sub === 0) return { txt: '뉴스 없음', cls: 'flat' };
+    if (nr >= 50) return { txt: '강한 호재 신호', cls: 'pos' };
+    if (nr >= 20) return { txt: '호재 우세', cls: 'pos' };
+    if (nr >= 5) return { txt: '약한 호재', cls: 'pos' };
+    if (nr <= -50) return { txt: '강한 악재 신호', cls: 'neg' };
+    if (nr <= -20) return { txt: '악재 우세', cls: 'neg' };
+    if (nr <= -5) return { txt: '약한 악재', cls: 'neg' };
+    return { txt: '중립 (방향 모호)', cls: 'flat' };
+  }
+  // ─── 백분위 (상위/하위 N%) ───
+  function rankPercentile(s) {
+    if (!allResults || allResults.length < 5) return null;
+    const sorted = [...allResults].sort((a, b) => (b.news_score || 0) - (a.news_score || 0));
+    const rank = sorted.findIndex(x => x.code === s.code) + 1;
+    if (rank === 0) return null;
+    const pct = Math.round(rank / sorted.length * 100);
+    return { rank, total: sorted.length, pct };
   }
 
   // ─── 카드 렌더 ───
@@ -1604,60 +1802,81 @@
                         ? (sectorAlpha > 0 ? 'up' : (sectorAlpha < 0 ? 'dn' : 'flat'))
                         : 'flat';
     const sectorSign = sectorAlpha !== null && sectorAlpha > 0 ? '+' : '';
+    const conf = computeConfidence(s);
+    const narr = newsRatingNarrative(newsRating, s.sub_count || 0);
+    const pctile = rankPercentile(s);
+    const secAvg5 = (st && st.n >= 2) ? st.avgMom5 : null;
     return `
       <div class="reel ${bgCls}" data-idx="${idx}" data-code="${s.code}">
         <div class="ticker-row">${s.code} · ${s.market || 'KOSPI'}${secKR ? ' · ' + secKR : ''}</div>
         <h3>${s.name}</h3>
-        ${sectorInfoHtml}
-        <div class="change-hero ${chgCls}" data-explain="${idx}">${sign}${alpha.toFixed(1)}%</div>
-        <div class="change-sub" data-explain="${idx}" style="font-size:11.5px;opacity:0.7;">5일 코스피 대비 상대수익률 <span class="score-hint">?</span></div>
 
-        <div class="compare-box compare-2x2">
-          <div class="cmp-cell stock">
-            <div class="lbl">이 종목 5일</div>
-            <div class="val ${s.mom_5>0?'up':s.mom_5<0?'dn':'flat'}">${s.mom_5>0?'+':''}${s.mom_5.toFixed(1)}%</div>
-            <div class="sub-lbl">절대 수익률</div>
+        <!-- ① 뉴스 점수 — 최상단 핵심 결론 (큰 색박스 + 신뢰도 게이지) -->
+        <div class="score-hero score-hero-${narr.cls} ${conf.level === 'hold' ? 'is-hold' : ''}" data-explain="${idx}">
+          <div class="sh-top">
+            <div class="sh-label">뉴스 점수</div>
+            ${pctile && conf.level !== 'hold' ? `<div class="sh-rank">상위 ${pctile.pct}%</div>` : ''}
           </div>
-          <div class="cmp-cell bench">
-            <div class="lbl">코스피 5일</div>
-            <div class="val ${a.kospi5>0?'up':a.kospi5<0?'dn':'flat'}">${a.kospi5>0?'+':''}${a.kospi5.toFixed(1)}%</div>
-            <div class="sub-lbl">시장 변동</div>
+          <div class="sh-value">
+            ${conf.level === 'hold' ? '보류' : `${newsRating > 0 ? '+' : ''}${newsRating.toFixed(0)}`}
           </div>
-          ${(() => {
-            const st = sectorId ? sectorStats[sectorId] : null;
-            const secAvg = (st && st.n >= 2) ? st.avgMom5 : null;
-            return `
-            <div class="cmp-cell stock">
-              <div class="lbl">섹터 5일</div>
-              <div class="val ${secAvg !== null ? (secAvg>0?'up':secAvg<0?'dn':'flat') : 'flat'}">${secAvg !== null ? (secAvg>0?'+':'') + secAvg.toFixed(1) + '%' : '—'}</div>
-              <div class="sub-lbl">섹터 평균</div>
+          <div class="sh-narrative">${conf.level === 'hold' ? '데이터 부족 — 판단 보류' : narr.txt}</div>
+          <div class="sh-confidence">
+            <div class="sc-row">
+              <span class="sc-l">신뢰도</span>
+              <span class="sc-r sc-${conf.level}">${conf.label}</span>
             </div>
-            <div class="cmp-cell bench">
-              <div class="lbl">섹터 대비</div>
-              <div class="val ${sectorCls}">${sectorAlpha !== null ? sectorSign + sectorAlpha.toFixed(1) + '%p' : '—'}</div>
-              <div class="sub-lbl">상대수익률</div>
-            </div>
-            `;
-          })()}
+            <div class="sc-bar"><div class="sc-fill sc-fill-${conf.level}" style="width:${conf.pct}%"></div></div>
+            <div class="sc-meta">${conf.short}</div>
+          </div>
+          <div class="sh-cta"><span>자세히 보기</span> <span class="arr">›</span></div>
         </div>
 
+        <!-- ② 수익률 박스 (절대 + 상대) -->
+        <div class="ret-box">
+          <div class="ret-row">
+            <div class="ret-cell">
+              <div class="rc-lbl">이 종목 5일</div>
+              <div class="rc-val ${s.mom_5>0?'up':s.mom_5<0?'dn':''}">${s.mom_5>0?'+':''}${s.mom_5.toFixed(1)}%</div>
+            </div>
+            <div class="ret-cell">
+              <div class="rc-lbl">코스피 5일</div>
+              <div class="rc-val ${a.kospi5>0?'up':a.kospi5<0?'dn':''}">${a.kospi5>0?'+':''}${a.kospi5.toFixed(1)}%</div>
+            </div>
+            <div class="ret-cell">
+              <div class="rc-lbl">섹터 5일</div>
+              <div class="rc-val ${secAvg5 !== null ? (secAvg5>0?'up':secAvg5<0?'dn':'') : ''}">${secAvg5 !== null ? (secAvg5>0?'+':'') + secAvg5.toFixed(1) + '%' : '—'}</div>
+            </div>
+          </div>
+          <div class="ret-divider"></div>
+          <div class="ret-row">
+            <div class="ret-cell hl">
+              <div class="rc-lbl">코스피 대비</div>
+              <div class="rc-val ${kospiCls}">${sign}${alpha.toFixed(1)}%p</div>
+            </div>
+            <div class="ret-cell hl">
+              <div class="rc-lbl">섹터 대비</div>
+              <div class="rc-val ${sectorCls}">${sectorAlpha !== null ? sectorSign + sectorAlpha.toFixed(1) + '%p' : '—'}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ③ 왜 움직였나 -->
         <div class="why-card">
           <div class="why-label">${why.label}</div>
           <div class="why-txt ${why.cls === 'dn' ? 'dn' : ''}">${why.text}</div>
         </div>
 
-        <div class="metrics-line" style="display:flex;justify-content:center;align-items:center;gap:8px;font-size:11.5px;color:rgba(255,255,255,0.55);margin:6px 0 10px;">
-          전체 뉴스 <b style="color:#fff;font-size:14px;">${s.sub_count}</b>건
-          <span style="opacity:0.4;">·</span>
-          <a data-explain="${idx}" style="color:#facc15;cursor:pointer;font-weight:600;">뉴스 점수 보기 ›</a>
-        </div>
+        ${sectorInfoHtml}
 
-        <div class="trust-badge ${trust.cls}">${trust.txt}</div>
+        <!-- ④ CTA 버튼 (강조) -->
+        <div class="cta-row">
+          <button class="cta-btn cta-news" data-action="news">📰 뉴스 ${s.sub_count}건 <span class="arr">›</span></button>
+          <button class="cta-btn cta-score" data-explain="${idx}">📊 점수 근거 <span class="arr">›</span></button>
+        </div>
 
         <div class="actions-rail">
           <div class="item ${(JSON.parse(localStorage.getItem('sq_saved')||'[]')).includes(s.code) ? 'on' : ''}" data-action="save"><div class="ico">⭐</div><div class="lab">저장</div></div>
-          <div class="item" data-action="chart"><div class="ico">📈</div><div class="lab">점수</div></div>
-          <div class="item" data-action="news"><div class="ico">📰</div><div class="lab">뉴스</div></div>
         </div>
 
         ${idx === 0 ? '<div class="swipe-hint"><span class="arrow">︽</span><span>위로 스와이프</span></div>' : ''}
@@ -1849,6 +2068,10 @@
     else if (nr <= -10) { newsLabel = '나쁜 뉴스 약간 더 많음'; newsCls = 'neg'; }
     else { newsLabel = '좋은 뉴스·나쁜 뉴스 비슷 (방향 모호)'; newsCls = 'flat'; }
 
+    // 신뢰도 + 순위 (evidence 카드용)
+    const _conf = computeConfidence(s);
+    const _pctile = rankPercentile(s);
+
     // 섹터 평균 대비 alpha — attr-grid + section 양쪽에서 사용
     const stkSec = s.sector_resolved || getSector(s);
     const secAvgAlpha = (stkSec && sectorStats[stkSec] && sectorStats[stkSec].n >= 2)
@@ -1975,6 +2198,26 @@
         </div>
       </section>
 
+      <section>
+        <h4>이 점수의 근거</h4>
+        <div class="ev-grid">
+          <div class="ev-row">
+            <div class="ev-l">신뢰도</div>
+            <div class="ev-r"><b class="sc-${_conf.level}">${_conf.label}</b> <span style="opacity:0.6;font-size:11px;">— ${_conf.short}</span></div>
+          </div>
+          <div class="ev-bar"><div class="sc-fill sc-fill-${_conf.level}" style="width:${_conf.pct}%"></div></div>
+          <div class="ev-row"><div class="ev-l">표본 크기</div><div class="ev-r">전체 ${s.news_count}건 · 실질 ${s.sub_count}건</div></div>
+          <div class="ev-row"><div class="ev-l">언론사 신뢰도 (평균)</div><div class="ev-r">${(s.src_avg || 0).toFixed(2)} <span style="opacity:0.5;font-size:11px;">(${(s.src_avg||0) >= 0.55 ? '높음' : (s.src_avg||0) >= 0.45 ? '보통' : '낮음'})</span></div></div>
+          <div class="ev-row"><div class="ev-l">호재 / 악재</div><div class="ev-r">좋은 <b class="up">${s.news_bull||0}</b> / 나쁜 <b class="dn">${s.news_bear||0}</b></div></div>
+          ${_pctile ? `<div class="ev-row"><div class="ev-l">오늘 ${_pctile.total}종목 중 순위</div><div class="ev-r"><b>${_pctile.rank}위</b> (상위 ${_pctile.pct}%)</div></div>` : ''}
+          <div class="ev-row"><div class="ev-l">과거 1년 backtest (KR)</div><div class="ev-r" style="font-size:11.5px;opacity:0.75;">forward R² <b>+0.005</b> · past R² <b>+0.034</b> · 섹터 이김 F1 <b>0.54</b></div></div>
+        </div>
+        <p style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:10px;line-height:1.55;">
+          ※ <b>신뢰도</b>는 표본 크기·실질 뉴스 비율·언론사 평균을 종합한 등급입니다.
+          데이터 부족 시 자동으로 <b>보류</b>로 분류됩니다.
+        </p>
+      </section>
+
       ${sectorHtml}
 
       <section>
@@ -2055,7 +2298,7 @@
     newsBody.innerHTML = '<div class="news-load">⌛ 뉴스 가져오는 중...</div>';
     openSheet(newsSheet, newsBackdrop);
     try {
-      const r = await fetch(`${API_BASE}/api/stock-news?code=${s.code}&market=kr&page=1`);
+      const r = await fetch(`${API_BASE}/api/stock-news?code=${s.code}&market=${CURRENT_MARKET}&page=1`);
       const j = await r.json();
       // 표시 뉴스: priced_in 제외 + 실제 사건 (substantive) 만
       const all = (j.articles || []);
@@ -2510,7 +2753,7 @@
   async function loadUniverse() {
     if (universeCache) return universeCache;
     try {
-      const r = await fetch(`${API_BASE}/api/universe?market=kr`);
+      const r = await fetch(`${API_BASE}/api/universe?market=${CURRENT_MARKET}`);
       const j = await r.json();
       universeCache = Object.entries(j.tickers || {}).map(([code, info]) => ({
         code, name: info.name, market: info.market,
