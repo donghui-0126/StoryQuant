@@ -167,18 +167,21 @@ news_score   =  0.40 × news_rating
 
 ---
 
-## 📊 회귀 분석 결과 (KR top-80 · n=1,989 · 5일 horizon)
+## 📊 회귀 분석 결과 (KR top-80 · n=1,927 · **시계열 75/25 split**)
 
 | 모델 | R² test / F1 | baseline |
 |:---|:---:|:---:|
-| LIN forward alpha (KOSPI) | **+0.005** | — |
-| LIN past mom5 (뉴스만) | **+0.034** | 0 |
-| LOG 섹터 평균 이김 | F1 = **0.536** | 0.452 |
-| LOG past_up (뉴스만) | F1 = **0.490** | 0.517 |
+| LIN forward alpha 1d / 5d / 20d | **−0.055 / −0.031 / −0.008** | — |
+| LIN past mom5 (뉴스만, 가격 모멘텀 제외) | **+0.013** | 0 |
+| LOG KOSPI 이김 | F1 = 0.401 | 0.348 |
+| LOG 섹터 평균 이김 | F1 = 0.414 | 0.440 |
 
-→ 미래 예측 R²는 사실상 0. **과거 변동 설명력은 통계적으로 유의**.
+→ **미래 예측은 모든 horizon에서 불가** (R² 전부 음수).
+→ 과거 변동 설명력은 약하지만 양수 (+0.013, train +0.016과 일치 — overfit 아님).
 
-`shrink_polarity` 계수가 모든 모델에서 일관되게 **+** — 새 보정 점수가 정직한 시그널.
+> ⚠ 초기엔 random split으로 past R² +0.034가 나왔으나, 시계열 데이터에 random split은
+> look-ahead leakage를 일으킵니다. 시간 기준 split로 바꾼 정직한 수치가 위 표입니다.
+> Scaler 도 train 구간에만 fit합니다.
 
 ---
 
@@ -201,9 +204,9 @@ news_score   =  0.40 × news_rating
 
 회귀 결과가 이 철학을 통계적으로 입증합니다:
 
-- **forward R² ≈ 0** → 가격 예측은 불가능
-- **past R² > 0** → 동시기 가격 변동의 일부는 뉴스로 설명 가능
-- **시스템은 attribution + quality 평가에 집중**
+- **forward R² < 0 (전 horizon)** → 가격 예측은 불가능
+- **past R² > 0** → 동시기 가격 변동의 일부(~1.3%)는 뉴스로 설명 가능
+- **시스템은 attribution + quality 평가에 집중** — UI에도 "사후 설명 · 예측 아님"을 명시
 
 가격을 맞추는 게 아니라 **이미 일어난 일을 정확히 해석**합니다.
 

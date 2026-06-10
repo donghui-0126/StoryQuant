@@ -601,12 +601,16 @@ def walkforward_backtest(market, top_n=80, days=120, top_k=8, hold=5,
             tod_offmkt = ((tod_pre + tod_after) / max(1, n_count)) if n_count >= 3 else 0
 
             forward = (bars[t+hold]['c'] / cur - 1) * 100
+            # horizon 비교용 — 1일/20일 forward (범위 밖이면 None)
+            forward_1 = (bars[t+1]['c'] / cur - 1) * 100 if t + 1 < len(bars) else None
+            forward_20 = (bars[t+20]['c'] / cur - 1) * 100 if t + 20 < len(bars) else None
             # v21.2 — macro beta (negative = defensive: VIX 상승 시 가격 하락 안 함)
             macro_beta = (macro_betas.get(code) or {}).get('beta_vix', 0)
             feat_rows.append({
                 'code': code, 'mom5': mom5_clip, 'mom20': mom20_clip,
                 'polarity': polarity, 'density': density, 'attention': attention,
                 'disagree': disagree, 'n_count': n_count, 'forward': forward,
+                'forward_1': forward_1, 'forward_20': forward_20,
                 's_polarity': s_polarity, 's_density': s_density,
                 's_count': s_count, 'reactive_ratio': reactive_ratio,
                 'specificity': spec_avg, 'surprise': surp_avg, 'src_avg': src_avg,
@@ -684,10 +688,16 @@ def walkforward_backtest(market, top_n=80, days=120, top_k=8, hold=5,
                      + 0.30 * (f['polarity'] / 10) + 0.10 * f['density'])
             scores.append((f['code'], s, f['forward'] / 100, f['polarity'], f['n_count']))
 
-        # bench forward (t → t+hold) 미리 계산 — all_feat 의 alpha 산출용
+        # bench forward (t → t+hold / +1 / +20) 미리 계산 — all_feat 의 alpha 산출용
         bench_fwd_pct = 0.0
+        bench_fwd1_pct = None
+        bench_fwd20_pct = None
         if bench_bars and t + hold < len(bench_bars) and bench_bars[t] and bench_bars[t+hold]:
             bench_fwd_pct = (bench_bars[t+hold]['c'] / bench_bars[t]['c'] - 1) * 100
+        if bench_bars and t + 1 < len(bench_bars) and bench_bars[t] and bench_bars[t+1]:
+            bench_fwd1_pct = (bench_bars[t+1]['c'] / bench_bars[t]['c'] - 1) * 100
+        if bench_bars and t + 20 < len(bench_bars) and bench_bars[t] and bench_bars[t+20]:
+            bench_fwd20_pct = (bench_bars[t+20]['c'] / bench_bars[t]['c'] - 1) * 100
         for r in feat_rows:
             cc = r.get('cat_counts') or {}
             if cc:
@@ -704,6 +714,10 @@ def walkforward_backtest(market, top_n=80, days=120, top_k=8, hold=5,
                 'forward': r['forward'],
                 'bench_forward': bench_fwd_pct,
                 'alpha': r['forward'] - bench_fwd_pct,
+                'alpha_1': (r['forward_1'] - bench_fwd1_pct)
+                            if (r['forward_1'] is not None and bench_fwd1_pct is not None) else None,
+                'alpha_20': (r['forward_20'] - bench_fwd20_pct)
+                            if (r['forward_20'] is not None and bench_fwd20_pct is not None) else None,
                 'sector_polarity': r['sector_polarity'],
                 'sector_mom5': r['sector_mom5'],
                 'sector_forward': r['sector_forward'],
@@ -914,6 +928,7 @@ def walkforward_backtest(market, top_n=80, days=120, top_k=8, hold=5,
                                'sector_polarity', 'sector_mom5']
             X_news_list, X_full_list = [], []
             y_alpha, y_sector_alpha, y_past = [], [], []
+            y_alpha_1, y_alpha_20 = [], []      # horizon 비교 (None 가능)
             for r in rows:
                 pn = r['polarity']; n = r['n_count']
                 diff = pn / 100.0 * n
@@ -930,6 +945,8 @@ def walkforward_backtest(market, top_n=80, days=120, top_k=8, hold=5,
                 y_alpha.append(r['alpha'])              # KOSPI 대비
                 y_sector_alpha.append(r['sector_alpha'])  # 섹터 평균 대비
                 y_past.append(r['mom5'])                # 동시기 (과거 5일)
+                y_alpha_1.append(r.get('alpha_1'))
+                y_alpha_20.append(r.get('alpha_20'))
 
             X_news = np.array(X_news_list)
             X_full = np.array(X_full_list)
@@ -940,16 +957,22 @@ def walkforward_backtest(market, top_n=80, days=120, top_k=8, hold=5,
             y_sout = (y_sa > 0).astype(int)             # 섹터 평균 이김
             y_past_up = (y_p > 0).astype(int)
 
-            scaler_full = StandardScaler()
-            X_full_s = scaler_full.fit_transform(X_full)
-            scaler_news = StandardScaler()
-            X_news_s = scaler_news.fit_transform(X_news)
+            # ── 시계열 split (rows 는 rebalance 시간순) ──
+            # random split 은 시점 간 autocorrelation 으로 leakage — 앞 75% train / 뒤 25% test
+            cut = int(len(X_full) * 0.75)
+            scaler_full = StandardScaler().fit(X_full[:cut])    # train 에만 fit (leakage 방지)
+            X_full_s = scaler_full.transform(X_full)
+            scaler_news = StandardScaler().fit(X_news[:cut])
+            X_news_s = scaler_news.transform(X_news)
 
-            # 같은 split index 사용
-            Xftr, Xfte, yatr, yate, ysatr, ysate, yotr, yote, ysotr, ysote = train_test_split(
-                X_full_s, y_a, y_sa, y_out, y_sout, test_size=0.25, random_state=42)
-            Xntr, Xnte, yptr, ypte, yputr, ypute = train_test_split(
-                X_news_s, y_p, y_past_up, test_size=0.25, random_state=42)
+            Xftr, Xfte = X_full_s[:cut], X_full_s[cut:]
+            yatr, yate = y_a[:cut], y_a[cut:]
+            ysatr, ysate = y_sa[:cut], y_sa[cut:]
+            yotr, yote = y_out[:cut], y_out[cut:]
+            ysotr, ysote = y_sout[:cut], y_sout[cut:]
+            Xntr, Xnte = X_news_s[:cut], X_news_s[cut:]
+            yptr, ypte = y_p[:cut], y_p[cut:]
+            yputr, ypute = y_past_up[:cut], y_past_up[cut:]
 
             def lin_block(Xtr, ytr, Xte, yte, label, names=full_feat_names):
                 m = LinearRegression(); m.fit(Xtr, ytr)
@@ -1014,6 +1037,26 @@ def walkforward_backtest(market, top_n=80, days=120, top_k=8, hold=5,
                 'logistic_past_news_only': log_block(Xntr, yputr, Xnte, ypute,
                                                   'past_up (mom5>0, 뉴스만)',
                                                   names=news_feat_names),
+            }
+
+            # ─── Horizon 비교 (1d / hold / 20d) — alpha 대상, valid rows 만 ───
+            def horizon_block(y_list, label):
+                mask = np.array([v is not None for v in y_list])
+                if mask.sum() < 80:
+                    return {'target': label, 'error': f'insufficient rows ({int(mask.sum())})'}
+                Xh = X_full[mask]
+                yh = np.array([v for v in y_list if v is not None])
+                cut_h = int(len(Xh) * 0.75)
+                sch = StandardScaler().fit(Xh[:cut_h])
+                Xh_s = sch.transform(Xh)
+                return lin_block(Xh_s[:cut_h], yh[:cut_h], Xh_s[cut_h:], yh[cut_h:], label)
+
+            regression['horizon_comparison'] = {
+                '1d':  horizon_block(y_alpha_1, 'forward_alpha 1일 (KOSPI 대비)'),
+                f'{hold}d': {'target': f'forward_alpha {hold}일',
+                             'r2_test': regression['linear_alpha_kospi']['r2_test'],
+                             'r2_train': regression['linear_alpha_kospi']['r2_train']},
+                '20d': horizon_block(y_alpha_20, 'forward_alpha 20일 (KOSPI 대비)'),
             }
     except Exception as e:
         regression = {'error': f'{type(e).__name__}: {e}'}

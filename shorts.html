@@ -326,6 +326,7 @@
     margin-bottom: 12px;
   }
   .why-label { font-size: 9px; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 5px; }
+  .why-hint { text-transform: none; letter-spacing: 0; opacity: 0.55; font-size: 8.5px; }
   .why-txt { font-size: 13px; line-height: 1.45; font-weight: 500; }
   .why-txt b { color: #4ade80; font-weight: 700; }
   .why-txt.dn b { color: #ef4444; }
@@ -1536,6 +1537,8 @@
   }
 
   // ─── 뉴스 quality 점수 (모멘텀 제거 — 가격 예측 X) ───
+  // 2026-06 회귀 정렬: density 는 forward alpha 에 음의 계수 (뉴스 폭풍 후
+  // mean reversion) → 가중 0.25→0.10 축소. shrinkage rating·실질 비율 ↑.
   function computeNewsScore(s) {
     if (!s) return 0;
     const rating = computeNewsRating(s) / 10;                               // -10 ~ +10
@@ -1545,9 +1548,9 @@
     const spec = s.specificity || 0;
     const pen = s.priced_in_penalty || 0;
     return (
-      0.40 * rating
-      + 0.25 * density
-      + 0.15 * (subRatio * 10)
+      0.50 * rating
+      + 0.10 * density
+      + 0.20 * (subRatio * 10)
       + 0.10 * (srcAvg * 10)
       + 0.10 * spec
       + pen
@@ -1562,9 +1565,9 @@
     const spec = s.specificity || 0;
     const pen = s.priced_in_penalty || 0;
     return {
-      rating: 0.40 * rating,
-      density: 0.25 * density,
-      substance: 0.15 * (subRatio * 10),
+      rating: 0.50 * rating,
+      density: 0.10 * density,
+      substance: 0.20 * (subRatio * 10),
       source: 0.10 * (srcAvg * 10),
       specificity: 0.10 * spec,
       penalty: pen,
@@ -1861,9 +1864,9 @@
           </div>
         </div>
 
-        <!-- ③ 왜 움직였나 -->
+        <!-- ③ 왜 움직였나 (사후 설명 명시) -->
         <div class="why-card">
-          <div class="why-label">${why.label}</div>
+          <div class="why-label">${why.label} <span class="why-hint">— 이미 일어난 변동의 사후 설명 · 예측 아님</span></div>
           <div class="why-txt ${why.cls === 'dn' ? 'dn' : ''}">${why.text}</div>
         </div>
 
@@ -2210,11 +2213,12 @@
           <div class="ev-row"><div class="ev-l">언론사 신뢰도 (평균)</div><div class="ev-r">${(s.src_avg || 0).toFixed(2)} <span style="opacity:0.5;font-size:11px;">(${(s.src_avg||0) >= 0.55 ? '높음' : (s.src_avg||0) >= 0.45 ? '보통' : '낮음'})</span></div></div>
           <div class="ev-row"><div class="ev-l">호재 / 악재</div><div class="ev-r">좋은 <b class="up">${s.news_bull||0}</b> / 나쁜 <b class="dn">${s.news_bear||0}</b></div></div>
           ${_pctile ? `<div class="ev-row"><div class="ev-l">오늘 ${_pctile.total}종목 중 순위</div><div class="ev-r"><b>${_pctile.rank}위</b> (상위 ${_pctile.pct}%)</div></div>` : ''}
-          <div class="ev-row"><div class="ev-l">과거 1년 backtest (KR)</div><div class="ev-r" style="font-size:11.5px;opacity:0.75;">forward R² <b>+0.005</b> · past R² <b>+0.034</b> · 섹터 이김 F1 <b>0.54</b></div></div>
+          <div class="ev-row"><div class="ev-l">과거 1년 backtest (KR · 시계열 검증)</div><div class="ev-r" style="font-size:11.5px;opacity:0.75;">미래 예측 R² <b>&lt; 0 (불가)</b> · 과거 설명 R² <b>+0.013</b></div></div>
         </div>
         <p style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:10px;line-height:1.55;">
           ※ <b>신뢰도</b>는 표본 크기·실질 뉴스 비율·언론사 평균을 종합한 등급입니다.
-          데이터 부족 시 자동으로 <b>보류</b>로 분류됩니다.
+          데이터 부족 시 자동으로 <b>보류</b>로 분류됩니다.<br>
+          ※ 이 점수는 <b>미래 가격을 예측하지 않습니다</b> — 이미 일어난 변동을 설명하는 사후 분석입니다 (시계열 backtest로 검증).
         </p>
       </section>
 
