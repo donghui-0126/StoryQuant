@@ -146,11 +146,28 @@ def fetch_news_window_for_code(code, name, start_ts, end_ts, market, use_llm=Fal
        use_llm=True 시 enriched 후 LLM 분류로 sentiment/substance/scope 재라벨링 (batch parallel)."""
     start_d = datetime.fromtimestamp(start_ts / 1000).date()
     end_d = datetime.fromtimestamp(end_ts / 1000).date()
-    cache_key = (market.id, name, start_d.isoformat(), end_d.isoformat(), 'llm' if use_llm else 'rule')
+    mode_tag = 'llm' if use_llm else 'rule'
+    cache_key = (market.id, name, start_d.isoformat(), end_d.isoformat(), mode_tag)
     now = time.time()
+    window_days = max(1, (end_d - start_d).days)
     cached = _HIST_NEWS_CACHE.get(cache_key)
-    if cached and (now - cached[0]) < 86400:
+    # 정확 키 hit — 단 장기간인데 데이터가 비정상적으로 적으면 (rate-limit 오염 의심)
+    # 신뢰하지 않고 fuzzy / 재fetch 로 진행
+    healthy = lambda data: len(data) >= 5 or window_days <= 7
+    if cached and (now - cached[0]) < 86400 and healthy(cached[1]):
         return cached[1]
+    # fuzzy 캐시 — 같은 종목의 다른 범위 캐시가 요청 범위를 커버하면 재사용
+    fuzzy_start = (start_d + timedelta(days=2)).isoformat()
+    fuzzy_end = (end_d - timedelta(days=2)).isoformat()
+    best_fuzzy = None
+    for k, (ts_c, data_c) in list(_HIST_NEWS_CACHE.items()):
+        if (len(k) >= 5 and k[0] == market.id and k[1] == name and k[4] == mode_tag
+                and k[2] <= fuzzy_start and k[3] >= fuzzy_end
+                and (now - ts_c) < 86400 * 3 and len(data_c) >= 5):
+            if best_fuzzy is None or len(data_c) > len(best_fuzzy):
+                best_fuzzy = data_c
+    if best_fuzzy is not None:
+        return best_fuzzy
     all_items = []
     chunk = timedelta(days=14)
     cur = start_d
@@ -198,8 +215,11 @@ def fetch_news_window_for_code(code, name, start_ts, end_ts, market, use_llm=Fal
                     o['sentiment'], o['score'], o['substance'] = 'neut', 0.0, 'neutral'
     except Exception:
         pass
-    _HIST_NEWS_CACHE[cache_key] = (now, out)
-    _save_disk_cache(cache_key, now, out)   # v21.4 — disk persistence
+    # rate-limit 오염 방지 — 장기간 요청인데 결과가 비정상적으로 적으면 캐시 저장 skip
+    # (Google News 429 시 빈 결과가 정상 캐시를 덮어쓰는 사고 방지)
+    if len(out) >= 5 or window_days <= 7:
+        _HIST_NEWS_CACHE[cache_key] = (now, out)
+        _save_disk_cache(cache_key, now, out)   # v21.4 — disk persistence
     if len(_HIST_NEWS_CACHE) > 5000:
         oldest = min(_HIST_NEWS_CACHE.items(), key=lambda kv: kv[1][0])
         _HIST_NEWS_CACHE.pop(oldest[0])

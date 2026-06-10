@@ -105,6 +105,11 @@ scope (영향 범위):
 3. 헤드라인 주체가 다른 회사인데 우리 종목명이 부수적으로 나오면 → off_topic
 4. 사건이 분명하지만 호악재 방향이 진짜 애매하면 → confidence 낮춤
 5. confidence는 0.0~1.0. 0.7 이상이어야 점수 반영됨
+6. ⚠ 기업 보도자료 재가공 기사 — 신제품 소개, MOU·업무협약, 수상, 캠페인, CSR,
+   기념행사, 브랜드 홍보, 단순 출시 알림 등 주가에 유의미한 영향이 불확실한 것 →
+   event_bull 이 아니라 speculative. event_bull 은 매출·계약금액·승인 등
+   재무적 영향이 구체적인 사건에만 부여하세요. (한국 뉴스는 보도자료 기반 호재가
+   과잉 생산되므로 event_bull 기준을 엄격하게.)
 
 출력: 다음 JSON 한 줄만, 다른 텍스트 금지:
 {"label":"event_bull|event_bear|reactive|speculative|off_topic","scope":"stock|sector|macro","confidence":0.0-1.0,"reason":"한 줄 한국어 근거"}"""

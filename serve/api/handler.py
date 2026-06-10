@@ -52,9 +52,35 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return self._api_walkforward(u)
         if u.path == '/api/macro':
             return self._api_macro(u)
+        if u.path == '/api/stock-events':
+            return self._api_stock_events(u)
         if u.path == '/api':
             return self._api_index()
         return super().do_GET()
+
+    EVENTS_CACHE = {}
+    def _api_stock_events(self, u):
+        """Event-driven attribution — 일 단위 큰 변동 ↔ 직전 48h 뉴스."""
+        q = urllib.parse.parse_qs(u.query)
+        market = self._market(q)
+        code = q.get('code', [''])[0]
+        if not code:
+            return self._send_json({'error': 'code required'}, status=400)
+        days = max(10, min(90, int(q.get('days', ['60'])[0])))
+        threshold = max(1.0, min(10.0, float(q.get('threshold', ['2.5'])[0])))
+        key = f'{market.id}|{code}|{days}|{threshold}'
+        now = time.time()
+        cached = Handler.EVENTS_CACHE.get(key)
+        if cached and (now - cached[0]) < 3600 * 6:
+            return self._send_json({'cached': True, **cached[1]})
+        try:
+            from ..core.events import detect_events
+            data = detect_events(code, market, days=days, threshold=threshold)
+            Handler.EVENTS_CACHE[key] = (now, data)
+            self._send_json({'cached': False, **data})
+        except Exception as e:
+            import traceback
+            self._send_json({'error': str(e)[:200], 'trace': traceback.format_exc()[-300:]}, status=500)
 
     # ───────── helpers ─────────
     def _send_json(self, obj, status=200):

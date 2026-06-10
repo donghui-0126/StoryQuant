@@ -177,6 +177,11 @@
     font-size: 14.5px; color: #fff; font-weight: 700;
     margin-bottom: 12px;
   }
+  .sh-overheat {
+    background: rgba(251,191,36,0.15); border: 1px solid rgba(251,191,36,0.4);
+    border-radius: 8px; padding: 8px 10px; margin-bottom: 10px;
+    font-size: 11px; color: #fde68a; line-height: 1.5;
+  }
   .sh-confidence {
     background: rgba(0,0,0,0.20); border-radius: 10px;
     padding: 8px 10px 9px; margin-bottom: 10px;
@@ -1824,6 +1829,9 @@
             ${conf.level === 'hold' ? '보류' : `${newsRating > 0 ? '+' : ''}${newsRating.toFixed(0)}`}
           </div>
           <div class="sh-narrative">${conf.level === 'hold' ? '데이터 부족 — 판단 보류' : narr.txt}</div>
+          ${newsRating >= 35 && alpha <= -2 && conf.level !== 'hold' ? `
+          <div class="sh-overheat">⚠ 뉴스 과열 의심 — 좋은 뉴스가 많은데 가격은 약세. 포장된 호재이거나 이미 반영됐을 수 있어요</div>
+          ` : ''}
           <div class="sh-confidence">
             <div class="sc-row">
               <span class="sc-l">신뢰도</span>
@@ -1864,9 +1872,9 @@
           </div>
         </div>
 
-        <!-- ③ 왜 움직였나 (사후 설명 명시) -->
+        <!-- ③ 뉴스 흐름 (인과 단정 X — 참고용) -->
         <div class="why-card">
-          <div class="why-label">${why.label} <span class="why-hint">— 이미 일어난 변동의 사후 설명 · 예측 아님</span></div>
+          <div class="why-label">최근 뉴스 흐름 <span class="why-hint">— 가격 변동의 원인이라고 단정할 수 없어요 · 참고용</span></div>
           <div class="why-txt ${why.cls === 'dn' ? 'dn' : ''}">${why.text}</div>
         </div>
 
@@ -2233,6 +2241,11 @@
         </div>
       </section>
 
+      <section id="evtTimelineSec">
+        <h4>📅 최근 큰 변동과 그 원인</h4>
+        <div id="evtTimeline" class="news-load" style="padding:16px;text-align:center;opacity:0.5;font-size:12px;">⌛ 이벤트 분석 중...</div>
+      </section>
+
       <section>
         <h4>💬 커뮤니티</h4>
         <button class="comm-cta" data-comm-scope="stock_${s.code}" data-comm-name="${s.name}">
@@ -2243,6 +2256,59 @@
       </section>
     `;
     openSheet(scoreSheet, scoreBackdrop);
+    loadEventTimeline(s.code);
+  }
+
+  // ─── Event-driven attribution 타임라인 (lazy) ───
+  async function loadEventTimeline(code) {
+    const el = document.getElementById('evtTimeline');
+    if (!el) return;
+    try {
+      const r = await fetch(`${API_BASE}/api/stock-events?code=${code}&market=${CURRENT_MARKET}&days=60&threshold=2.5`);
+      const j = await r.json();
+      if (j.error) { el.innerHTML = `<div style="opacity:0.5;font-size:12px;">분석 실패: ${j.error}</div>`; return; }
+      const evs = j.events || [];
+      const cov = j.coverage || {};
+      if (evs.length === 0) {
+        el.innerHTML = '<div style="opacity:0.55;font-size:12.5px;padding:6px 0;">최근 60일간 시장 대비 ±2.5% 이상 움직인 날이 없어요.</div>';
+        return;
+      }
+      const headHtml = `
+        <div style="font-size:11.5px;color:rgba(255,255,255,0.55);margin-bottom:10px;line-height:1.5;">
+          최근 60일 중 시장 대비 ±2.5% 이상 변동 <b style="color:#fff;">${cov.n_events}일</b> ·
+          직전 48시간 뉴스로 방향까지 설명되는 날 <b style="color:#4ade80;">${cov.explained}일</b>
+          ${cov.unexplained ? `· 원인 미상 <b style="color:#a78bfa;">${cov.unexplained}일</b>` : ''}
+        </div>`;
+      const rows = evs.slice(0, 6).map(ev => {
+        const dirCls = ev.direction === 'up' ? 'up' : 'dn';
+        const sign = ev.rel_move_pct > 0 ? '+' : '';
+        const badge = ev.attribution === 'explained'
+          ? '<span style="color:#4ade80;font-size:10px;font-weight:700;">설명됨</span>'
+          : ev.attribution === 'partial'
+            ? '<span style="color:#fbbf24;font-size:10px;font-weight:700;">방향 불일치</span>'
+            : '<span style="color:#a78bfa;font-size:10px;font-weight:700;">원인 미상</span>';
+        const newsHtml = (ev.matched || []).slice(0, 2).map(m => `
+          <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:4px;padding-left:10px;border-left:2px solid rgba(255,255,255,0.15);" ${m.link ? `data-link="${m.link}"` : ''}>
+            ${m.sentiment === 'bull' ? '🟢' : '🔴'} ${m.title}
+          </div>`).join('');
+        return `
+          <div style="padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.06);">
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:12.5px;">
+              <span style="opacity:0.7;">${ev.date}</span>
+              <span><b class="${dirCls}" style="font-variant-numeric:tabular-nums;">${sign}${ev.rel_move_pct.toFixed(1)}%p</b> ${badge}</span>
+            </div>
+            ${newsHtml || '<div style="font-size:10.5px;opacity:0.4;margin-top:3px;">연결되는 사건 뉴스 없음</div>'}
+          </div>`;
+      }).join('');
+      el.innerHTML = headHtml + rows + `
+        <p style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:8px;line-height:1.5;">
+          ※ 변동일 직전 48시간 안에 나온 사건 뉴스만 연결합니다. 시장 대비 상대 변동 기준.
+        </p>`;
+      el.classList.remove('news-load');
+      el.style.cssText = '';
+    } catch (e) {
+      el.innerHTML = `<div style="opacity:0.5;font-size:12px;">분석 실패</div>`;
+    }
   }
 
   // ─── 뉴스 sheet ───
