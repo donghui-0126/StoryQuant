@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <!-- 보안 — CSP -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http://127.0.0.1:8765 https://*.trycloudflare.com https://*.supabase.co wss://*.supabase.co; font-src 'self' data:; frame-ancestors 'none';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://www.gstatic.com https://apis.google.com https://pagead2.googlesyndication.com https://googleads.g.doubleclick.net https://tpc.googlesyndication.com https://www.googletagservices.com https://adservice.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' http://127.0.0.1:8765 https://*.trycloudflare.com https://*.supabase.co wss://*.supabase.co https://*.googleapis.com https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com; font-src 'self' data:; frame-src https://*.firebaseapp.com https://accounts.google.com https://*.doubleclick.net https://*.googlesyndication.com https://www.google.com; frame-ancestors 'none';">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <title>StoryQuant Shorts</title>
 <!-- Supabase SDK (있으면 클라우드 모드, 없거나 미설정 시 localStorage fallback) -->
@@ -109,6 +109,19 @@
     scrollbar-width: none;
   }
   .reel::-webkit-scrollbar { display: none; }
+  /* 광고 카드 (AdSense in-feed) */
+  .reel-ad {
+    justify-content: center; align-items: center;
+    background: #141210;
+    overflow: hidden;
+  }
+  .reel-ad .ad-tag {
+    position: absolute; top: 56px; left: 18px;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.4);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 4px; padding: 2px 6px;
+  }
   .reel.up   { background: radial-gradient(circle at 70% 25%, rgba(74,222,128,0.22), transparent 55%), linear-gradient(180deg, rgba(74,222,128,0.10), #0a0908 70%); }
   .reel.upS  { background: radial-gradient(circle at 70% 25%, rgba(74,222,128,0.35), transparent 55%), linear-gradient(180deg, rgba(74,222,128,0.18), #0a0908 70%); }
   .reel.dn   { background: radial-gradient(circle at 70% 25%, rgba(239,68,68,0.22), transparent 55%), linear-gradient(180deg, rgba(239,68,68,0.10), #0a0908 70%); }
@@ -1310,11 +1323,68 @@
     console.log('[Supabase] not configured — using localStorage fallback');
   }
 
+  // ═══════════════════════════════════════════════
+  //  Firebase Auth (Google 로그인) — config 채우면 자동 활성화
+  //  console.firebase.google.com → 프로젝트 → 웹 앱 등록 → 아래에 붙여넣기
+  //  Authentication > Sign-in method 에서 Google 활성화 +
+  //  Settings > Authorized domains 에 배포 도메인 추가 필요
+  // ═══════════════════════════════════════════════
+  const FIREBASE_CONFIG = window.SQ_FIREBASE_CONFIG
+    || JSON.parse(localStorage.getItem('SQ_FIREBASE_CONFIG') || 'null')
+    || null;   // ← { apiKey:'...', authDomain:'xxx.firebaseapp.com', projectId:'xxx', appId:'...' }
+
+  // ═══════════════════════════════════════════════
+  //  Google AdSense — client/slot 채우면 쇼츠 every 개마다 광고 카드 삽입
+  //  adsense.google.com 승인 후: client='ca-pub-XXXXXXXXXXXXXXXX', slot=인피드 광고 단위 ID
+  // ═══════════════════════════════════════════════
+  const ADSENSE = window.SQ_ADSENSE || { client: '', slot: '', every: 8 };
+
+  const loadScript = (src) => new Promise((res, rej) => {
+    const el = document.createElement('script');
+    el.src = src; el.async = true;
+    el.onload = res; el.onerror = () => rej(new Error('script load fail: ' + src));
+    document.head.appendChild(el);
+  });
+
+  let fbAuth = null;
+  if (FIREBASE_CONFIG) {
+    try {
+      await loadScript('https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js');
+      await loadScript('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js');
+      firebase.initializeApp(FIREBASE_CONFIG);
+      fbAuth = firebase.auth();
+      console.log('[Firebase] auth ready');
+    } catch (e) {
+      console.warn('[Firebase] init failed — local 모드로 진행', e);
+    }
+  }
+
+  if (ADSENSE.client) {
+    loadScript(`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${encodeURIComponent(ADSENSE.client)}`)
+      .catch(() => console.warn('[AdSense] script load 실패 (차단기?)'));
+  }
+
   // 백엔드 추상 — 모든 댓글·인증 호출은 이 객체 통과
   const Backend = {
-    cloud: !!sb,
+    cloud: !!fbAuth || !!sb,
     async signInGoogle() {
-      if (!sb) throw new Error('Supabase 미설정 — supabase-setup.md 참조');
+      if (fbAuth) {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
+        try {
+          await fbAuth.signInWithPopup(provider);
+        } catch (e) {
+          // 모바일 인앱브라우저 등 popup 차단 환경 → redirect fallback
+          if (e && (e.code === 'auth/popup-blocked' || e.code === 'auth/popup-closed-by-user'
+                    || e.code === 'auth/operation-not-supported-in-this-environment')) {
+            await fbAuth.signInWithRedirect(provider);
+            return;
+          }
+          throw e;
+        }
+        return;
+      }
+      if (!sb) throw new Error('Firebase/Supabase 미설정 — 설정 후 사용 가능');
       const { error } = await sb.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -1331,9 +1401,26 @@
       return { uid, name };
     },
     async signOut() {
+      if (fbAuth) { try { await fbAuth.signOut(); } catch (_) {} }
       if (sb) await sb.auth.signOut();
     },
     async getSession() {
+      if (fbAuth) {
+        // 초기화 직후 currentUser 가 아직 null 일 수 있음 — 첫 auth state 대기
+        const u = await new Promise(res => {
+          const un = fbAuth.onAuthStateChanged(x => { un(); res(x); }, () => { un(); res(null); });
+        });
+        if (u) {
+          return {
+            uid: u.uid,
+            name: u.displayName || (u.email ? u.email.split('@')[0] : '익명'),
+            picture: u.photoURL || null,
+            email: u.email || null,
+            provider: 'google',
+          };
+        }
+        return null;
+      }
       if (sb) {
         const { data } = await sb.auth.getSession();
         const u = data.session?.user;
@@ -1411,6 +1498,15 @@
   }
   await syncUserFromSession();
 
+  let activeTab = 'hot';   // auth 리스너가 즉시 발화할 수 있어 여기서 선언
+  if (fbAuth) {
+    fbAuth.onAuthStateChanged(async (u) => {
+      console.log('[Auth:firebase]', u ? 'signed-in' : 'signed-out');
+      if (u) await syncUserFromSession();
+      else localStorage.removeItem('sq_user');
+      if (typeof renderMe === 'function' && activeTab === 'me') renderMe();
+    });
+  }
   if (sb) {
     sb.auth.onAuthStateChange(async (event, session) => {
       console.log('[Auth]', event);
@@ -1967,11 +2063,32 @@
   // progress segments
   progressEl.innerHTML = stocks.map((_, i) => `<div class="seg" data-i="${i}"><div class="fill"></div></div>`).join('');
 
-  // 카드 렌더
-  reelsEl.innerHTML = stocks.map((s, i) => renderReel(s, i, stocks.length)).join('');
+  // 카드 렌더 — AdSense 설정 시 every 개마다 광고 카드 삽입
+  const adsOn = !!(ADSENSE.client && ADSENSE.slot && ADSENSE.every > 0);
+  function renderAdReel() {
+    return `
+      <div class="reel reel-ad">
+        <div class="ad-tag">광고</div>
+        <ins class="adsbygoogle" style="display:block;width:100%;max-width:374px;"
+             data-ad-client="${ADSENSE.client}" data-ad-slot="${ADSENSE.slot}"
+             data-ad-format="fluid" data-full-width-responsive="true"></ins>
+      </div>`;
+  }
+  let reelsHtml = '';
+  stocks.forEach((s, i) => {
+    reelsHtml += renderReel(s, i, stocks.length);
+    if (adsOn && (i + 1) % ADSENSE.every === 0 && i < stocks.length - 1) reelsHtml += renderAdReel();
+  });
+  reelsEl.innerHTML = reelsHtml;
+  if (adsOn) {
+    reelsEl.querySelectorAll('ins.adsbygoogle').forEach(() => {
+      try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch (_) {}
+    });
+  }
 
   // ─── 현재 카드 추적 (IntersectionObserver) ───
-  const reels = [...reelsEl.querySelectorAll('.reel')];
+  // 광고 릴 제외 — reels[i] 가 stocks[i] 와 1:1 이어야 점프·내비가 안 깨짐
+  const reels = [...reelsEl.querySelectorAll('.reel[data-idx]')];
   const segs = [...progressEl.querySelectorAll('.seg')];
   let currentIdx = 0;
   function setCurrent(i) {
@@ -2578,7 +2695,7 @@
 
       const modeNote = Backend.cloud
         ? ''
-        : '<p class="note">※ Supabase 미설정 — Local prototype 모드. supabase-setup.md 참고해 클라우드 활성화하세요.</p>';
+        : '<p class="note">※ Firebase/Supabase 미설정 — Local prototype 모드. Firebase 콘솔에서 웹 앱 등록 후 FIREBASE_CONFIG 를 채우면 Google 로그인이 켜집니다.</p>';
 
       meContent.innerHTML = `
         <div class="login-form">
@@ -2671,7 +2788,7 @@
 
   // ─── 탭 전환 (좌우 swipe 지원) ───
   const TABS = ['hot', 'explore', 'saved', 'me'];
-  let activeTab = 'hot';
+  // (activeTab 은 auth 리스너보다 먼저 선언 — script 상단 참조)
   const exploreView = document.getElementById('exploreView');
   function switchTab(tab) {
     if (!TABS.includes(tab)) return;
