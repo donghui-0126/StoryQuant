@@ -36,15 +36,20 @@ def fetch_stock_news(code, page, page_size, market, use_llm=False):
                     a['llm_confidence'] = conf
                     a['llm_reason'] = res.get('reason')
                     a['scope'] = res.get('scope') or 'stock'
-                    if conf < 0.7:
-                        continue
-                    if lbl == 'event_bull':
+                    # event_* 는 conf>=0.7 일 때만 점수 반영 (호악재 오판 방지).
+                    # 중립화 라벨은 conf 무관 적용 — LLM이 확신해도 conf 0.0 을
+                    # 주는 사례가 있어, 게이트에 걸리면 룰의 substantive 가
+                    # 살아남아 무관 기사가 호재로 집계되는 버그가 있었음.
+                    if lbl == 'event_bull' and conf >= 0.7:
                         a['sentiment'], a['score'], a['substance'] = 'bull', round(conf, 2), 'substantive'
-                    elif lbl == 'event_bear':
+                    elif lbl == 'event_bear' and conf >= 0.7:
                         a['sentiment'], a['score'], a['substance'] = 'bear', -round(conf, 2), 'substantive'
                     elif lbl == 'reactive':
                         a['sentiment'], a['score'], a['substance'] = 'neut', 0.0, 'reactive'
                     elif lbl in ('speculative', 'off_topic'):
+                        a['sentiment'], a['score'], a['substance'] = 'neut', 0.0, 'neutral'
+                    elif lbl in ('event_bull', 'event_bear'):
+                        # 저신뢰 event — 방향 점수는 주지 않되 호재 집계에서도 제외
                         a['sentiment'], a['score'], a['substance'] = 'neut', 0.0, 'neutral'
         except Exception:
             pass
@@ -203,15 +208,16 @@ def fetch_news_window_for_code(code, name, start_ts, end_ts, market, use_llm=Fal
                 o['llm_confidence'] = conf
                 o['llm_reason'] = res.get('reason')
                 o['scope'] = res.get('scope') or 'stock'
-                if conf < 0.7:
-                    continue
-                if lbl == 'event_bull':
+                # event_* 만 conf 게이트 — 중립화 라벨은 conf 무관 적용 (위 fetch_stock_news 와 동일)
+                if lbl == 'event_bull' and conf >= 0.7:
                     o['sentiment'], o['score'], o['substance'] = 'bull', round(conf, 2), 'substantive'
-                elif lbl == 'event_bear':
+                elif lbl == 'event_bear' and conf >= 0.7:
                     o['sentiment'], o['score'], o['substance'] = 'bear', -round(conf, 2), 'substantive'
                 elif lbl == 'reactive':
                     o['sentiment'], o['score'], o['substance'] = 'neut', 0.0, 'reactive'
                 elif lbl in ('speculative', 'off_topic'):
+                    o['sentiment'], o['score'], o['substance'] = 'neut', 0.0, 'neutral'
+                elif lbl in ('event_bull', 'event_bear'):
                     o['sentiment'], o['score'], o['substance'] = 'neut', 0.0, 'neutral'
     except Exception:
         pass

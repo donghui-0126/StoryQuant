@@ -219,7 +219,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         if c and (now - c[0]) < 120:
             return self._send_json(c[1])
         try:
-            data = fetch_stock_news(code, page=page, page_size=20, market=market)
+            data = fetch_stock_news(code, page=page, page_size=20, market=market, use_llm=True)
             Handler.STOCK_NEWS_CACHE[key] = (now, data)
             if len(Handler.STOCK_NEWS_CACHE) > 100:
                 old = min(Handler.STOCK_NEWS_CACHE.items(), key=lambda kv: kv[1][0])
