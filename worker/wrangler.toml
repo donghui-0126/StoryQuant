@@ -1,7 +1,16 @@
-name = "storyquant-api"
+name = "storyquant"
 main = "index.js"
-compatibility_date = "2024-09-23"
+compatibility_date = "2026-06-01"
 
-# 무료 tier: 일 100,000 요청. dashboard는 5분 캐시 + 사용자당 분당 1-2 호출 → 여유.
+# 정적 앱 (shorts.html) — deploy/build-public.sh 가 ./public 에 복사
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+# 백엔드 터널 주소 저장용 KV — deploy/setup.sh 가 생성 후 id 를 채움
+[[kv_namespaces]]
+binding = "CFG"
+id = "REPLACE_WITH_KV_ID"
+
 [observability]
 enabled = true
