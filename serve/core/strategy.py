@@ -116,6 +116,18 @@ def fetch_one_for_sweep(code, market, macro_regime='neutral'):
             'speculative_n': speculative_n,
             'offtopic_n': offtopic_n,
             'llm_used': llm_used,
+            # 카드 큐레이션용 — 실질 사건 뉴스 상위 3건 (미반영 우선, 최신순)
+            'top_news': [
+                {'title': a.get('title'), 'link': a.get('link'),
+                 'paper': a.get('paper') or a.get('source'),
+                 'ts': a.get('ts'), 'sentiment': a.get('sentiment'),
+                 'scope': a.get('scope') or 'stock',
+                 'priced_in': bool(a.get('priced_in'))}
+                for a in sorted(
+                    [a for a in articles if a.get('substance') == 'substantive'
+                     and a.get('sentiment') in ('bull', 'bear')],
+                    key=lambda a: (a.get('priced_in') and 1 or 0, -(a.get('ts') or 0)))[:3]
+            ],
             # scope=sector + event_* 인 기사만 — 섹터 sheet 용
             '_sector_articles': [
                 {'title': a.get('title'), 'link': a.get('link'),
