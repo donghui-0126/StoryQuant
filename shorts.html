@@ -101,10 +101,14 @@
     scroll-snap-stop: always;
     position: relative;
     display: flex; flex-direction: column;
-    padding: 80px 18px 80px;
+    padding: 64px 18px 96px;
     color: white;
-    overflow: hidden;
+    /* 짧은 화면에서 내용이 넘치면 카드 내부 스크롤 (CTA 잘림 방지) */
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: none;
   }
+  .reel::-webkit-scrollbar { display: none; }
   .reel.up   { background: radial-gradient(circle at 70% 25%, rgba(74,222,128,0.22), transparent 55%), linear-gradient(180deg, rgba(74,222,128,0.10), #0a0908 70%); }
   .reel.upS  { background: radial-gradient(circle at 70% 25%, rgba(74,222,128,0.35), transparent 55%), linear-gradient(180deg, rgba(74,222,128,0.18), #0a0908 70%); }
   .reel.dn   { background: radial-gradient(circle at 70% 25%, rgba(239,68,68,0.22), transparent 55%), linear-gradient(180deg, rgba(239,68,68,0.10), #0a0908 70%); }
@@ -130,8 +134,8 @@
   /* ─── 뉴스 점수 HERO (최상단 강조) ─── */
   .score-hero {
     border-radius: 16px;
-    padding: 18px 18px 14px;
-    margin: 12px 0 14px;
+    padding: 14px 16px 12px;
+    margin: 10px 0 12px;
     background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.03));
     border: 1.5px solid rgba(255,255,255,0.12);
     cursor: pointer;
@@ -172,6 +176,10 @@
     margin: 4px 0 6px;
     text-shadow: 0 2px 12px rgba(0,0,0,0.35);
   }
+  .sh-value.sh-counts { font-size: 30px; letter-spacing: -0.01em; }
+  .sh-counts .c-bull { color: #4ade80; }
+  .sh-counts .c-bear { color: #f87171; }
+  .sh-counts .c-sep { color: rgba(255,255,255,0.4); margin: 0 8px; font-weight: 400; }
   .score-hero.is-hold .sh-value { font-size: 32px; color: rgba(255,255,255,0.75); }
   .sh-narrative {
     font-size: 14.5px; color: #fff; font-weight: 700;
@@ -1255,7 +1263,7 @@
   <div class="sheet-handle"></div>
   <div class="sheet-head">
     <h3 id="scoreHeadName">종목명</h3>
-    <div class="sub">이 점수가 어떻게 나왔고, 어떻게 해석해야 하는지</div>
+    <div class="sub">이 평가가 어떻게 나왔고, 어떻게 해석해야 하는지</div>
   </div>
   <div class="sheet-body score-explain" id="scoreBody"></div>
 </div>
@@ -1442,22 +1450,24 @@
     if (mys || (Math.abs(aval) >= 3 && n === 0)) {
       return { label: '원인 미상', text: `<b>뉴스 없이</b> 코스피보다 ${aSign}${aval.toFixed(1)}% 움직였어요`, cls: 'mystery' };
     }
+    const bull = s.news_bull || 0;
+    const bear = s.news_bear || 0;
     if (sub >= 5 && r >= 35) {
-      return { label: '왜 움직였나', text: `좋은 사건 뉴스 <b>${sub}건</b> · 뉴스 점수 <b>+${r.toFixed(0)}</b>`, cls: upDn };
+      return { label: '왜 움직였나', text: `좋은 사건 뉴스 <b>${sub}건</b> (호재 ${bull} · 악재 ${bear})`, cls: upDn };
     }
     if (sub >= 5 && r <= -35) {
-      return { label: '왜 움직였나', text: `나쁜 사건 뉴스 <b>${sub}건</b> · 뉴스 점수 <b>${r.toFixed(0)}</b>`, cls: 'dn' };
+      return { label: '왜 움직였나', text: `나쁜 사건 뉴스 <b>${sub}건</b> (호재 ${bull} · 악재 ${bear})`, cls: 'dn' };
     }
     if (n >= 3 && r >= 15) {
-      return { label: '왜 움직였나', text: `좋은 뉴스 우세 (${n}건 · 점수 <b>+${r.toFixed(0)}</b>)`, cls: upDn };
+      return { label: '왜 움직였나', text: `좋은 뉴스 우세 — 호재 <b>${bull}</b> vs 악재 ${bear} (전체 ${n}건)`, cls: upDn };
     }
     if (n >= 3 && r <= -15) {
-      return { label: '왜 움직였나', text: `나쁜 뉴스 우세 (${n}건 · 점수 <b>${r.toFixed(0)}</b>)`, cls: 'dn' };
+      return { label: '왜 움직였나', text: `나쁜 뉴스 우세 — 악재 <b>${bear}</b> vs 호재 ${bull} (전체 ${n}건)`, cls: 'dn' };
     }
     if (n === 0) {
       return { label: '뉴스 없음', text: `코스피 대비 ${aSign}<b>${aval.toFixed(1)}%</b> 움직였지만 관련 뉴스는 없음`, cls: upDn };
     }
-    return { label: '왜 움직였나', text: `뉴스 ${n}건 · 점수 <b>${rSign}${r.toFixed(0)}</b> (방향 약함)`, cls: upDn };
+    return { label: '왜 움직였나', text: `뉴스 ${n}건 · 호재 ${bull} vs 악재 ${bear} (방향 약함)`, cls: upDn };
   }
 
   // ─── 신뢰 배지 (쉬운 한국어) ───
@@ -1760,7 +1770,7 @@
       sectorInfoHtml = `
         <div class="sector-info-line">
           <span class="sec-name">📁 ${secKR}</span>
-          <span>뉴스 점수 <span class="${rCls}">${rSign}${st.avgRating.toFixed(0)}</span></span>
+          <span>뉴스 분위기 <span class="${rCls}">${rSign}${st.avgRating.toFixed(0)}</span></span>
           ${secOwnHtml}
           <span>· 코스피보다 <span class="${aCls2}">${aSign}${st.avgAlpha.toFixed(1)}%</span></span>
         </div>
@@ -1781,7 +1791,6 @@
     const sectorSign = sectorAlpha !== null && sectorAlpha > 0 ? '+' : '';
     const conf = computeConfidence(s);
     const narr = newsRatingNarrative(newsRating, s.sub_count || 0);
-    const pctile = rankPercentile(s);
     const secAvg5 = (st && st.n >= 2) ? st.avgMom5 : null;
     return `
       <div class="reel ${bgCls}" data-idx="${idx}" data-code="${s.code}">
@@ -1789,16 +1798,18 @@
         <div class="ticker-row">${s.code} · ${s.market || 'KOSPI'}${secKR ? ' · ' + secKR : ''}</div>
         <h3>${s.name}</h3>
 
-        <!-- ① 뉴스 점수 — 최상단 핵심 결론 (큰 색박스 + 신뢰도 게이지) -->
+        <!-- ① 뉴스 집계 — 최상단 핵심 결론 (세어볼 수 있는 사실 + 신뢰도 게이지)
+             합성 점수는 예측력 검증 실패로 카드에서 강등 — 집계가 1차 정보 -->
         <div class="score-hero score-hero-${narr.cls} ${conf.level === 'hold' ? 'is-hold' : ''}" data-explain="${idx}">
           <div class="sh-top">
-            <div class="sh-label">뉴스 점수</div>
-            ${pctile && conf.level !== 'hold' ? `<div class="sh-rank">상위 ${pctile.pct}%</div>` : ''}
+            <div class="sh-label">최근 뉴스 집계</div>
           </div>
-          <div class="sh-value">
-            ${conf.level === 'hold' ? '보류' : `${newsRating > 0 ? '+' : ''}${newsRating.toFixed(0)}`}
+          <div class="sh-value sh-counts">
+            ${conf.level === 'hold' ? '보류' : `<span class="c-bull">호재 ${s.news_bull || 0}</span><span class="c-sep">·</span><span class="c-bear">악재 ${s.news_bear || 0}</span>`}
           </div>
-          <div class="sh-narrative">${conf.level === 'hold' ? '데이터 부족 — 판단 보류' : narr.txt}</div>
+          <div class="sh-narrative">${conf.level === 'hold'
+            ? '데이터 부족 — 판단 보류'
+            : `실질 뉴스 ${s.sub_count || 0}건 / 전체 ${s.news_count || 0}건 · ${narr.txt}`}</div>
           ${newsRating >= 35 && alpha <= -2 && conf.level !== 'hold' ? `
           <div class="sh-overheat">⚠ 뉴스 과열 의심 — 좋은 뉴스가 많은데 가격은 약세. 포장된 호재이거나 이미 반영됐을 수 있어요</div>
           ` : ''}
@@ -1853,7 +1864,7 @@
         <!-- ④ CTA 버튼 (강조) -->
         <div class="cta-row">
           <button class="cta-btn cta-news" data-action="news">📰 뉴스 ${s.sub_count}건 <span class="arr">›</span></button>
-          <button class="cta-btn cta-score" data-explain="${idx}">📊 점수 근거 <span class="arr">›</span></button>
+          <button class="cta-btn cta-score" data-explain="${idx}">📊 평가 근거 <span class="arr">›</span></button>
         </div>
 
         ${idx === 0 ? '<div class="swipe-hint"><span class="arrow">︽</span><span>위로 스와이프</span></div>' : ''}
@@ -2116,9 +2127,9 @@
         <section>
           <h4>같은 섹터 (${sLabel}) 안에서</h4>
           <div class="sector-compare">
-            <div class="sec-row"><span class="l">이 종목 뉴스 점수</span><span class="v ${myScore>0?'up':myScore<0?'dn':''}">${myScore.toFixed(2)}</span></div>
-            <div class="sec-row"><span class="l">${sLabel} 평균 뉴스 점수 (${st.n}종목)</span><span class="v">${st.avgScore.toFixed(2)}</span></div>
-            <div class="sec-row"><span class="l">${sLabel} 평균 뉴스 점수</span><span class="v ${st.avgRating>0?'up':st.avgRating<0?'dn':''}">${st.avgRating>0?'+':''}${st.avgRating.toFixed(0)}</span></div>
+            <div class="sec-row"><span class="l">이 종목 합성 점수 (참고용)</span><span class="v ${myScore>0?'up':myScore<0?'dn':''}">${myScore.toFixed(2)}</span></div>
+            <div class="sec-row"><span class="l">${sLabel} 평균 합성 점수 (${st.n}종목)</span><span class="v">${st.avgScore.toFixed(2)}</span></div>
+            <div class="sec-row"><span class="l">${sLabel} 평균 뉴스 분위기</span><span class="v ${st.avgRating>0?'up':st.avgRating<0?'dn':''}">${st.avgRating>0?'+':''}${st.avgRating.toFixed(0)}</span></div>
             ${st.sectorBull !== undefined && (st.sectorBull + st.sectorBear) > 0 ? `
             <div class="sec-row"><span class="l">업종 자체 호재/악재 (LLM scope=sector)</span><span class="v ${st.sectorRating>0?'up':st.sectorRating<0?'dn':''}">${st.sectorRating>0?'+':''}${st.sectorRating.toFixed(0)}</span></div>
             <div class="sec-row"><span class="l">→ 업종 호재 / 악재 건수</span><span class="v">${st.sectorBull} / ${st.sectorBear}</span></div>
@@ -2129,8 +2140,8 @@
           </div>
           <p style="font-size:13px; color: rgba(255,255,255,0.8); margin-top: 10px; line-height: 1.55;">
             ${better
-              ? `같은 ${sLabel} ${st.n}종목 중 <b>${rank}위</b>. 뉴스 점수 평균보다 <b>+${diff.toFixed(2)}</b> 높고, 가격은 ${sLabel} 평균보다 <b>${alphaVsSector>0?'+':''}${alphaVsSector.toFixed(1)}%</b>.`
-              : `같은 ${sLabel} ${st.n}종목 중 <b>${rank}위</b>. 뉴스 점수가 평균보다 <span class="dn">${diff.toFixed(2)}</span> 낮고, 가격은 ${sLabel} 평균보다 <b>${alphaVsSector>0?'+':''}${alphaVsSector.toFixed(1)}%</b>.`}
+              ? `같은 ${sLabel} ${st.n}종목 중 <b>${rank}위</b>. 합성 점수가 평균보다 <b>+${diff.toFixed(2)}</b> 높고, 가격은 ${sLabel} 평균보다 <b>${alphaVsSector>0?'+':''}${alphaVsSector.toFixed(1)}%</b>.`
+              : `같은 ${sLabel} ${st.n}종목 중 <b>${rank}위</b>. 합성 점수가 평균보다 <span class="dn">${diff.toFixed(2)}</span> 낮고, 가격은 ${sLabel} 평균보다 <b>${alphaVsSector>0?'+':''}${alphaVsSector.toFixed(1)}%</b>.`}
           </p>
           <button class="comm-cta" data-comm-scope="sector_${stockSector}" data-comm-name="${sLabel}">
             <span class="arr">›</span>
@@ -2161,7 +2172,7 @@
           <div class="attr-row">
             <div class="icon-cell">📰</div>
             <div class="body-cell">
-              <div class="title">뉴스 점수 (${nr>0?'+':''}${nr.toFixed(0)})</div>
+              <div class="title">뉴스 분위기 (${nr>0?'+':''}${nr.toFixed(0)})</div>
               <div class="value">
                 <span class="${newsCls}">${newsLabel}</span>
               </div>
@@ -2176,7 +2187,7 @@
       </section>
 
       <section>
-        <h4>이 점수의 근거</h4>
+        <h4>이 평가의 근거</h4>
         <div class="ev-grid">
           <div class="ev-row">
             <div class="ev-l">신뢰도</div>
@@ -2186,13 +2197,15 @@
           <div class="ev-row"><div class="ev-l">표본 크기</div><div class="ev-r">전체 ${s.news_count}건 · 실질 ${s.sub_count}건</div></div>
           <div class="ev-row"><div class="ev-l">언론사 신뢰도 (평균)</div><div class="ev-r">${(s.src_avg || 0).toFixed(2)} <span style="opacity:0.5;font-size:11px;">(${(s.src_avg||0) >= 0.55 ? '높음' : (s.src_avg||0) >= 0.45 ? '보통' : '낮음'})</span></div></div>
           <div class="ev-row"><div class="ev-l">호재 / 악재</div><div class="ev-r">좋은 <b class="up">${s.news_bull||0}</b> / 나쁜 <b class="dn">${s.news_bear||0}</b></div></div>
-          ${_pctile ? `<div class="ev-row"><div class="ev-l">오늘 ${_pctile.total}종목 중 순위</div><div class="ev-r"><b>${_pctile.rank}위</b> (상위 ${_pctile.pct}%)</div></div>` : ''}
+          ${_pctile ? `<div class="ev-row"><div class="ev-l">합성 점수 순위 (참고용)</div><div class="ev-r"><b>${_pctile.rank}위</b> / ${_pctile.total}종목 (상위 ${_pctile.pct}%)</div></div>` : ''}
           <div class="ev-row"><div class="ev-l">과거 1년 backtest (KR · 시계열 검증)</div><div class="ev-r" style="font-size:11.5px;opacity:0.75;">미래 예측 R² <b>&lt; 0 (불가)</b> · 과거 설명 R² <b>+0.013</b></div></div>
         </div>
         <p style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:10px;line-height:1.55;">
           ※ <b>신뢰도</b>는 표본 크기·실질 뉴스 비율·언론사 평균을 종합한 등급입니다.
           데이터 부족 시 자동으로 <b>보류</b>로 분류됩니다.<br>
-          ※ 이 점수는 <b>미래 가격을 예측하지 않습니다</b> — 이미 일어난 변동을 설명하는 사후 분석입니다 (시계열 backtest로 검증).
+          ※ 카드에는 <b>세어볼 수 있는 집계(호재/악재 건수)</b>만 표시합니다.
+          하나로 합친 '뉴스 점수'는 자체 검증에서 예측력이 확인되지 않아 참고 지표로만 남겼습니다.<br>
+          ※ 이 평가는 <b>미래 가격을 예측하지 않습니다</b> — 이미 일어난 변동을 설명하는 사후 분석입니다 (시계열 backtest로 검증).
         </p>
       </section>
 
@@ -2491,7 +2504,7 @@
         <div class="sv-card" data-code="${code}">
           <div class="sv-info">
             <div class="sv-name">${st.name}</div>
-            <div class="sv-meta">${code}${sec ? ' · ' + sec : ''} · 뉴스 점수 <span class="${polCls}">${polSign}${nr.toFixed(0)}</span> · 점수 ${st.score.toFixed(1)}</div>
+            <div class="sv-meta">${code}${sec ? ' · ' + sec : ''} · 뉴스 분위기 <span class="${polCls}">${polSign}${nr.toFixed(0)}</span> · 실질 ${st.sub_count || 0}건</div>
           </div>
           <div class="sv-chg ${chgCls}">${sign}${av.toFixed(1)}%<div style="font-size:9px;opacity:0.55;margin-top:2px;">코스피 대비</div></div>
           <div class="sv-rm" data-rm="${code}">✕</div>
@@ -2660,7 +2673,7 @@
     const label = sectorLabel(secId);
     document.getElementById('sectorSheetTitle').textContent = `📁 ${label}`;
     document.getElementById('sectorSheetSub').textContent =
-      `${st ? st.n : 0}종목 · 뉴스 점수 ${st && st.avgRating>0?'+':''}${st ? st.avgRating.toFixed(0) : 0} · 5일 코스피 대비 ${st && st.avgAlpha>0?'+':''}${st ? st.avgAlpha.toFixed(1) : 0}%p`;
+      `${st ? st.n : 0}종목 · 뉴스 분위기 ${st && st.avgRating>0?'+':''}${st ? st.avgRating.toFixed(0) : 0} · 5일 코스피 대비 ${st && st.avgAlpha>0?'+':''}${st ? st.avgAlpha.toFixed(1) : 0}%p`;
     // 종목 리스트 (이 섹터 내 종목들 — allResults에서 필터)
     const stocksInSec = allResults.filter(r => r.sector_resolved === secId)
       .sort((a, b) => b.news_score - a.news_score);
@@ -2672,7 +2685,7 @@
         <div class="ss-stock-row" data-code="${s.code}">
           <div class="ss-row-info">
             <div class="ss-row-name">${s.name}</div>
-            <div class="ss-row-meta">${s.code} · 뉴스 점수 <b style="color:${nr>5?'#4ade80':nr<-5?'#ef4444':'#aaa'}">${nr>0?'+':''}${nr.toFixed(0)}</b> · 실질 뉴스 ${s.sub_count||0}건</div>
+            <div class="ss-row-meta">${s.code} · 뉴스 분위기 <b style="color:${nr>5?'#4ade80':nr<-5?'#ef4444':'#aaa'}">${nr>0?'+':''}${nr.toFixed(0)}</b> · 실질 뉴스 ${s.sub_count||0}건</div>
           </div>
           <div class="ss-row-alpha ${aCls}">${a5>0?'+':''}${a5.toFixed(1)}%p<div style="font-size:9px;opacity:0.55;margin-top:1px;">코스피 대비</div></div>
         </div>
@@ -2749,7 +2762,7 @@
       const sb = (b.sectorRating !== undefined ? b.sectorRating : 0) * 0.5 + b.avgRating * 0.5;
       return sb - sa;
     });
-    sectorSub.textContent = `${secs.length}개 섹터 · 뉴스 점수 큰 순`;
+    sectorSub.textContent = `${secs.length}개 섹터 · 뉴스 분위기 순`;
     sectorList.innerHTML = secs.map(([id, st]) => {
       const label = sectorLabel(id);
       const ratingCls = st.avgRating > 5 ? 'up' : st.avgRating < -5 ? 'dn' : '';
@@ -2764,7 +2777,7 @@
             <div class="sec-count">${st.n}종목</div>
           </div>
           <div class="sec-stats">
-            <div class="sec-bar"><span>종목 평균 뉴스 점수</span><b class="${ratingCls}">${st.avgRating>0?'+':''}${st.avgRating.toFixed(0)}</b></div>
+            <div class="sec-bar"><span>종목 평균 뉴스 분위기</span><b class="${ratingCls}">${st.avgRating>0?'+':''}${st.avgRating.toFixed(0)}</b></div>
             ${sectorOwn}
             <div class="sec-bar"><span>5일 코스피 대비 평균</span><b class="${alphaCls}">${st.avgAlpha>0?'+':''}${st.avgAlpha.toFixed(1)}%p</b></div>
           </div>
