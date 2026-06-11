@@ -206,3 +206,93 @@ def classify_batch(items, max_workers=8):
 
 def stats():
     return dict(_STATS)
+
+
+# ═══════════════════════════════════════════════════════════
+#  뉴스별 한줄평 — 실질 사건(event_*)에만 생성. 분류 캐시와 분리.
+# ═══════════════════════════════════════════════════════════
+COMMENT_PROMPT = """당신은 금융·경제·시사·사회를 두루 아는 신중한 전문가 패널입니다.
+뉴스 헤드라인 하나에 대해 개인 투자자용 한줄평을 씁니다.
+
+먼저 뉴스 성격에 맞는 관점 하나를 고르세요:
+- 금융 애널리스트: 기업 실적·수주·계약 → 규모(시총 대비 유의미한가),
+  성격(일회성 vs 반복 사업), 시점(이미 알려진 재탕인가)
+- 경제 전문가: 산업·거시·환율·금리 → 업황 사이클 위치, 파급 범위,
+  비용/수요 어느 쪽에 작용하는가
+- 시사·정책 전문가: 규제·정책·정치 → 시행 시점과 실효성, 번복 가능성,
+  수혜/피해가 실제 어디로 가는가
+- 사회 전문가: 소비 트렌드·인구·노동·여론 → 구조적 변화인가 일시적 화제인가,
+  실제 매출로 이어지는 경로가 있는가
+
+규칙:
+1. 한국어 한 문장, 60자 이내. 평어체(~임, ~음) 또는 명사형 종결.
+2. '사실의 함의 + 주의점' — 고른 관점에서 가장 중요한 것 하나만.
+3. 매수·매도 권유 금지. 주가 방향 예측 금지 ("오를 것" X).
+4. 헤드라인만으로 모르는 것은 단정하지 말 것 ("규모 확인 필요" 같은 표현 OK).
+
+출력: JSON 한 줄만 {"comment":"..."}"""
+
+
+def comment_one(title, name=None, sector=None, label=None, model='gpt-4o-mini'):
+    """헤드라인 한 건에 대한 투자자용 한줄평. 캐시 prefix 'c_' 로 분류 캐시와 분리."""
+    if not title or not (title or '').strip():
+        return None
+    key = 'c_' + _cache_key(title, name, sector)
+    cached = _load_cached(key)
+    if cached:
+        _STATS['hit'] += 1
+        return cached.get('comment')
+    client = _get_client()
+    if client is None:
+        return None
+    sent = '호재로 분류됨' if label == 'event_bull' else ('악재로 분류됨' if label == 'event_bear' else '')
+    sec = f' / 섹터: {sector}' if sector else ''
+    try:
+        rsp = client.chat.completions.create(
+            model=model,
+            messages=[
+                {'role': 'system', 'content': COMMENT_PROMPT},
+                {'role': 'user', 'content': f'종목: {name or "?"}{sec} {sent}\n헤드라인: "{title}"'},
+            ],
+            temperature=0.2,
+            max_tokens=110,
+            response_format={'type': 'json_object'},
+        )
+        data = json.loads(rsp.choices[0].message.content or '{}')
+        comment = (data.get('comment') or '').strip()[:80]
+        if not comment:
+            return None
+        _save_cached(key, {'comment': comment})
+        _STATS['miss'] += 1
+        usage = getattr(rsp, 'usage', None)
+        if usage:
+            _STATS['cost_usd'] += usage.prompt_tokens * 0.15/1e6 + usage.completion_tokens * 0.60/1e6
+        return comment
+    except Exception:
+        _STATS['err'] += 1
+        return None
+
+
+def comment_batch(items, max_workers=6):
+    """items = [{'title','name','sector','label'}] → [comment|None] (병렬, 캐시 우선)."""
+    results = [None] * len(items)
+    pending = []
+    for i, it in enumerate(items):
+        key = 'c_' + _cache_key(it.get('title'), it.get('name'), it.get('sector'))
+        cached = _load_cached(key)
+        if cached:
+            _STATS['hit'] += 1
+            results[i] = cached.get('comment')
+        else:
+            pending.append(i)
+    if not pending:
+        return results
+    with ThreadPoolExecutor(max_workers=max_workers) as ex:
+        futs = {ex.submit(comment_one, items[i].get('title'), items[i].get('name'),
+                          items[i].get('sector'), items[i].get('label')): i for i in pending}
+        for f in futs:
+            try:
+                results[futs[f]] = f.result()
+            except Exception:
+                results[futs[f]] = None
+    return results

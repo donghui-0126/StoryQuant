@@ -54,9 +54,36 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return self._api_macro(u)
         if u.path == '/api/stock-events':
             return self._api_stock_events(u)
+        if u.path == '/api/saved-digest':
+            return self._api_saved_digest(u)
         if u.path == '/api':
             return self._api_index()
         return super().do_GET()
+
+    DIGEST_CACHE = {}
+    def _api_saved_digest(self, u):
+        """저장 종목 새 소식 — 실질 사건 뉴스 + 큰 변동. ?codes=a,b,c"""
+        q = urllib.parse.parse_qs(u.query)
+        market = self._market(q)
+        codes = [c.strip() for c in q.get('codes', [''])[0].split(',') if c.strip()][:30]
+        if not codes:
+            return self._send_json({'error': 'codes required'}, status=400)
+        days = max(1, min(7, int(q.get('days', ['3'])[0])))
+        key = f'{market.id}|{days}|{",".join(sorted(codes))}'
+        now = time.time()
+        cached = Handler.DIGEST_CACHE.get(key)
+        if cached and (now - cached[0]) < 600:
+            return self._send_json({'cached': True, **cached[1]})
+        try:
+            from ..core.digest import saved_digest
+            data = saved_digest(codes, market, days=days)
+            Handler.DIGEST_CACHE[key] = (now, data)
+            if len(Handler.DIGEST_CACHE) > 50:
+                old = min(Handler.DIGEST_CACHE.items(), key=lambda kv: kv[1][0])
+                Handler.DIGEST_CACHE.pop(old[0])
+            self._send_json({'cached': False, **data})
+        except Exception as e:
+            self._send_json({'error': str(e)[:200]}, status=500)
 
     EVENTS_CACHE = {}
     def _api_stock_events(self, u):

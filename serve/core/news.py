@@ -63,6 +63,23 @@ def fetch_stock_news(code, page, page_size, market, use_llm=False):
             annotate_priced_in(enriched, bars)
     except Exception:
         pass
+    # 한줄평 — 실질·미반영 사건 뉴스에만 (비용 통제: 최대 8건, 자체 캐시)
+    if use_llm:
+        try:
+            from . import llm_classify as _llm
+            if _llm.is_enabled():
+                targets = [a for a in enriched
+                           if a.get('substance') == 'substantive' and not a.get('priced_in')
+                           and a.get('sentiment') in ('bull', 'bear')][:8]
+                if targets:
+                    comments = _llm.comment_batch([
+                        {'title': a.get('title'), 'name': name, 'sector': sector,
+                         'label': a.get('llm_label')} for a in targets])
+                    for a, c in zip(targets, comments):
+                        if c:
+                            a['llm_comment'] = c
+        except Exception:
+            pass
     return {'code': code, 'page': page, 'articles': enriched, 'total': len(enriched)}
 
 

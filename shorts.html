@@ -213,7 +213,39 @@
     display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
   }
   .shn-meta { font-size: 10.5px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+  .shn-cmt {
+    font-size: 11.5px; color: rgba(244,222,170,0.92); line-height: 1.45;
+    margin-top: 3px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
   .shn-pi { color: #a78bfa; }
+  /* 뉴스 시트 한줄평 */
+  .news-row .nr-cmt {
+    font-size: 12px; color: rgba(244,222,170,0.92); line-height: 1.5;
+    margin: 4px 0 6px;
+    padding-left: 8px; border-left: 2px solid rgba(244,200,105,0.4);
+  }
+  /* 저장 탭 새 소식 다이제스트 */
+  .dg-section {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px; padding: 12px 14px; margin-bottom: 16px;
+  }
+  .dg-head { font-size: 13.5px; font-weight: 800; color: #fff; margin-bottom: 10px; }
+  .dg-row {
+    padding: 9px 0; border-top: 1px solid rgba(255,255,255,0.06);
+    cursor: pointer;
+  }
+  .dg-row:first-of-type { border-top: none; }
+  .dg-row.fresh { background: rgba(255,72,54,0.05); margin: 0 -8px; padding: 9px 8px; border-radius: 8px; }
+  .dg-meta { font-size: 10.5px; color: rgba(255,255,255,0.55); margin-bottom: 3px; }
+  .dg-new { color: #ff4836; font-weight: 800; font-size: 9.5px; }
+  .dg-ttl { font-size: 13px; color: #fff; line-height: 1.45; font-weight: 600; }
+  .dg-ttl .up { color: #4ade80; } .dg-ttl .dn { color: #ef4444; }
+  .dg-cmt {
+    font-size: 11.5px; color: rgba(244,222,170,0.92); line-height: 1.45; margin-top: 3px;
+    padding-left: 8px; border-left: 2px solid rgba(244,200,105,0.4);
+  }
   .sh-empty { font-size: 13.5px; color: rgba(255,255,255,0.8); line-height: 1.5; margin: 10px 0 12px; }
   .sh-agg { font-size: 12.5px; font-weight: 700; margin: 0 0 10px; }
   .sh-agg .c-bull { color: #4ade80; }
@@ -440,7 +472,14 @@
     color: rgba(255,255,255,0.5);
     z-index: 15;
   }
-  .bot-nav .it { display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; padding: 4px 14px; }
+  .bot-nav .it { display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer; padding: 4px 14px; position: relative; }
+  .nav-dot {
+    position: absolute; top: 0; right: 8px;
+    min-width: 15px; height: 15px; padding: 0 4px;
+    background: #ff4836; color: #fff;
+    border-radius: 999px; font-size: 9px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+  }
   .bot-nav .it .em { font-size: 16px; }
   .bot-nav .it.on { color: white; }
 
@@ -1848,11 +1887,12 @@
       if ((s.sub_count || 0) > 0) return '';   // 구버전 sweep 캐시 fallback — 집계만 표시
       return `<div class="sh-empty">최근 ${s.news_count}건 모두 시황 중계·추측성 기사 — 실제 사건 없음</div>`;
     }
-    return '<div class="sh-news">' + top.map(t => `
+    return '<div class="sh-news">' + top.map((t, i) => `
       <div class="shn-item">
         <span class="shn-chip ${t.sentiment === 'bull' ? 'bull' : 'bear'}">${t.sentiment === 'bull' ? '호재' : '악재'}</span>
         <div class="shn-body">
           <div class="shn-title">${t.title || ''}</div>
+          ${i === 0 && t.comment ? `<div class="shn-cmt">💬 ${t.comment}</div>` : ''}
           <div class="shn-meta">${t.paper || ''} · ${timeAgo(t.ts)}${t.scope === 'sector' ? ' · 업종 전반' : ''}${t.priced_in ? ' · <span class="shn-pi">이미 반영</span>' : ''}</div>
         </div>
       </div>`).join('') + '</div>';
@@ -2100,6 +2140,7 @@
     });
   }
   setCurrent(0);
+  checkSavedDigest();   // 저장 종목 새 소식 배지 (비동기, UI 안 막음)
 
   // (candle chart 제거됨 — 카드는 종목 vs 코스피 두 박스로 비교)
   const io = new IntersectionObserver((entries) => {
@@ -2140,6 +2181,7 @@
         const i = saved.indexOf(code);
         if (i >= 0) saved.splice(i, 1); else saved.push(code);
         localStorage.setItem('sq_saved', JSON.stringify(saved));
+        checkSavedDigest();   // 저장 변경 → 새 소식 재확인
       } else if (action === 'chart') {
         openScoreSheet(idx);
       } else if (action === 'news') {
@@ -2465,6 +2507,7 @@
           <span class="time">${timeAgo(a.ts || Date.now())}</span>
         </div>
         <div class="ttl">${a.title || ''}</div>
+        ${a.llm_comment ? `<div class="nr-cmt">💬 ${a.llm_comment}</div>` : ''}
         <div class="chips">
           ${a.sentiment === 'bull' ? '<span class="chip bull">호재</span>' : ''}
           ${a.sentiment === 'bear' ? '<span class="chip bear">악재</span>' : ''}
@@ -2472,7 +2515,9 @@
           ${a.category && a.category !== '기타' ? `<span class="chip cat">${a.category}</span>` : ''}
         </div>
       </div>
-    `).join('');
+    `).join('') + (visible.some(a => a.llm_comment)
+      ? '<div style="font-size:10.5px;color:rgba(255,255,255,0.4);padding:10px 4px;line-height:1.5;">💬 한줄평은 AI(전문가 관점 프롬프트)가 작성한 참고용 코멘트입니다 — 투자 권유가 아닙니다.</div>'
+      : '');
   }
 
   async function openNewsSheet(idx) { return openNewsSheetFor(stocks[idx]); }
@@ -2608,6 +2653,91 @@
     localStorage.setItem('sq_saved', JSON.stringify(arr));
   }
 
+  // ─── 저장 종목 다이제스트 — 새 사건 뉴스·큰 변동 알림 ───
+  let _digestData = null;
+  function _digestSeen() { return JSON.parse(localStorage.getItem('sq_digest_seen') || '{}'); }
+  function _digestUnseen() {
+    if (!_digestData) return 0;
+    const seen = _digestSeen();
+    let n = 0;
+    _digestData.items.forEach(it => {
+      const last = seen[it.code] || 0;
+      it.events.forEach(e => { if ((e.ts || 0) > last) n++; });
+      if (it.big_move && (it.big_move.ts || 0) > last) n++;
+    });
+    return n;
+  }
+  function updateSavedBadge() {
+    const el = document.querySelector('.bot-nav .it[data-tab="saved"]');
+    if (!el) return;
+    el.querySelector('.nav-dot')?.remove();
+    const n = _digestUnseen();
+    if (n > 0) {
+      const d = document.createElement('span');
+      d.className = 'nav-dot';
+      d.textContent = n > 9 ? '9+' : n;
+      el.appendChild(d);
+    }
+  }
+  async function checkSavedDigest() {
+    const codes = getSavedCodes();
+    if (!codes.length) { _digestData = null; updateSavedBadge(); return; }
+    try {
+      const r = await fetch(`${API_BASE}/api/saved-digest?codes=${codes.join(',')}&market=${CURRENT_MARKET}`);
+      const j = await r.json();
+      if (j.items) { _digestData = j; updateSavedBadge(); }
+    } catch (_) {}
+  }
+  function _digestSectionHtml() {
+    if (!_digestData) return '';
+    const seen = _digestSeen();
+    const rows = [];
+    _digestData.items.forEach(it => {
+      const last = seen[it.code] || 0;
+      if (it.big_move) rows.push({ type: 'move', it, ts: it.big_move.ts || 0, fresh: (it.big_move.ts || 0) > last });
+      it.events.forEach(e => rows.push({ type: 'news', it, e, ts: e.ts || 0, fresh: (e.ts || 0) > last }));
+    });
+    if (!rows.length) return '';
+    rows.sort((a, b) => b.ts - a.ts);
+    const body = rows.slice(0, 20).map(r => {
+      if (r.type === 'move') {
+        const m = r.it.big_move;
+        const cls = m.rel_pct > 0 ? 'up' : 'dn';
+        return `
+          <div class="dg-row ${r.fresh ? 'fresh' : ''}">
+            <div class="dg-meta"><b>${r.it.name}</b> · ${m.date}${r.fresh ? ' · <span class="dg-new">NEW</span>' : ''}</div>
+            <div class="dg-ttl">📈 코스피 대비 <b class="${cls}">${m.rel_pct > 0 ? '+' : ''}${m.rel_pct}%p</b> 큰 변동
+              <span style="opacity:0.6">(절대 ${m.abs_pct > 0 ? '+' : ''}${m.abs_pct}%)</span></div>
+            <div class="dg-cmt">${m.has_news ? '같은 기간 사건 뉴스 있음 — 아래 항목 참고' : '관련 사건 뉴스 없음 — 원인 미상 변동'}</div>
+          </div>`;
+      }
+      const e = r.e;
+      return `
+        <div class="dg-row ${r.fresh ? 'fresh' : ''}" data-link="${e.link || ''}">
+          <div class="dg-meta"><b>${r.it.name}</b> · ${e.paper || ''} · ${timeAgo(e.ts)}${r.fresh ? ' · <span class="dg-new">NEW</span>' : ''}</div>
+          <div class="dg-ttl"><span class="chip ${e.sentiment === 'bull' ? 'bull' : 'bear'}">${e.sentiment === 'bull' ? '호재' : '악재'}</span> ${e.title || ''}</div>
+          ${e.comment ? `<div class="dg-cmt">💬 ${e.comment}</div>` : ''}
+        </div>`;
+    }).join('');
+    return `
+      <div class="dg-section">
+        <div class="dg-head">📬 새 소식 <span style="font-size:10.5px;opacity:0.55;font-weight:400;">최근 ${_digestData.days}일 · 실제 사건·큰 변동만</span></div>
+        ${body}
+      </div>`;
+  }
+  function _digestMarkSeen() {
+    if (!_digestData) return;
+    const seen = _digestSeen();
+    _digestData.items.forEach(it => {
+      let m = seen[it.code] || 0;
+      it.events.forEach(e => { m = Math.max(m, e.ts || 0); });
+      if (it.big_move) m = Math.max(m, it.big_move.ts || 0);
+      seen[it.code] = m;
+    });
+    localStorage.setItem('sq_digest_seen', JSON.stringify(seen));
+    updateSavedBadge();
+  }
+
   function renderSavedList() {
     const saved = getSavedCodes();
     savedSub.textContent = `${saved.length}개`;
@@ -2621,7 +2751,8 @@
       `;
       return;
     }
-    savedList.innerHTML = saved.map(code => {
+    const digestHtml = _digestSectionHtml();
+    savedList.innerHTML = digestHtml + saved.map(code => {
       const st = stocks.find(x => x.code === code);
       if (!st) {
         return `
@@ -2653,6 +2784,11 @@
         </div>
       `;
     }).join('');
+    // 새 소식 링크 클릭 + 본 것 처리 (탭을 열어봤으면 확인한 것)
+    savedList.querySelectorAll('.dg-row[data-link]').forEach(row => {
+      row.addEventListener('click', () => { if (row.dataset.link) window.open(row.dataset.link, '_blank'); });
+    });
+    _digestMarkSeen();
   }
 
   const showTab = (t) => switchTab(t);  // alias — 새 switchTab으로 통합

@@ -122,6 +122,7 @@ def fetch_one_for_sweep(code, market, macro_regime='neutral'):
                  'paper': a.get('paper') or a.get('source'),
                  'ts': a.get('ts'), 'sentiment': a.get('sentiment'),
                  'scope': a.get('scope') or 'stock',
+                 'comment': a.get('llm_comment'),
                  'priced_in': bool(a.get('priced_in'))}
                 for a in sorted(
                     [a for a in articles if a.get('substance') == 'substantive'
