@@ -243,26 +243,6 @@
   .cta-score:active { background: rgba(250,204,21,0.25); }
   .cta-btn .arr { font-size: 16px; opacity: 0.85; }
 
-  /* ─── 시장 토글 (KR/US) ─── */
-  .market-toggle {
-    position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
-    z-index: 100;
-    display: flex; gap: 0;
-    background: rgba(20,20,20,0.85); backdrop-filter: blur(8px);
-    border: 1px solid rgba(255,255,255,0.10);
-    border-radius: 999px; padding: 3px;
-  }
-  .market-toggle .mt-btn {
-    padding: 6px 14px; font-size: 12px; font-weight: 700;
-    background: transparent; border: none; color: rgba(255,255,255,0.55);
-    border-radius: 999px; cursor: pointer;
-    transition: all 0.15s;
-  }
-  .market-toggle .mt-btn.on {
-    background: rgba(255,255,255,0.18); color: #fff;
-  }
-  .market-toggle .mt-btn:not(.on):active { background: rgba(255,255,255,0.06); }
-
   /* ─── 점수 모달: 이 점수의 근거 ─── */
   .ev-grid {
     background: rgba(255,255,255,0.04); border-radius: 12px;
@@ -363,31 +343,31 @@
   .trust-badge.low  { background: rgba(255,255,255,0.10); color: rgba(255,255,255,0.6); border-color: rgba(255,255,255,0.2); }
   .trust-badge.mystery { background: rgba(167,139,250,0.18); color: #a78bfa; border-color: rgba(167,139,250,0.4); }
 
-  /* right action rail */
-  .actions-rail {
-    position: absolute; right: 8px; top: 50%;
-    transform: translateY(-50%);
-    display: flex; flex-direction: column; gap: 12px;
+  /* 저장 버튼 — 카드 우측 상단 */
+  .save-chip {
+    position: absolute; top: 50px; right: 14px;
     z-index: 9;
-  }
-  .actions-rail .item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-  .actions-rail .ico {
-    width: 38px; height: 38px;
-    background: rgba(255,255,255,0.18);
+    width: 36px; height: 36px;
+    background: rgba(255,255,255,0.12);
     backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.14);
     border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    font-size: 16px;
+    font-size: 15px;
     cursor: pointer;
     transition: transform 0.12s ease, background 0.12s ease;
+    filter: grayscale(1) opacity(0.7);
   }
-  .actions-rail .ico:active { transform: scale(0.92); }
-  .actions-rail .item.on .ico { background: rgba(255,72,54,0.7); }
-  .actions-rail .lab { font-size: 8px; opacity: 0.85; font-weight: 600; }
+  .save-chip:active { transform: scale(0.92); }
+  .save-chip.on {
+    background: rgba(250,204,21,0.22);
+    border-color: rgba(250,204,21,0.5);
+    filter: none;
+  }
 
   /* swipe hint */
   .swipe-hint {
-    position: absolute; bottom: 70px; left: 0; right: 60px;
+    position: absolute; bottom: 70px; left: 0; right: 0;
     text-align: center;
     color: rgba(255,255,255,0.5);
     font-size: 9px;
@@ -444,7 +424,9 @@
   .sheet-backdrop.open { opacity: 1; pointer-events: auto; }
   .sheet {
     position: fixed; left: 0; right: 0; bottom: 0;
-    max-height: 82%;
+    max-height: 82vh;
+    max-height: 82dvh;   /* 모바일 주소창 변동 대응 */
+    height: auto;
     background: #1a1714;
     border-radius: 18px 18px 0 0;
     z-index: 51;
@@ -472,8 +454,12 @@
   .sheet-head .sub { font-size: 11px; color: rgba(255,255,255,0.5); }
   .sheet-body {
     flex: 1; overflow-y: auto;
-    padding: 14px 18px 24px;
+    min-height: 0;
+    padding: 14px 18px;
+    padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px));
     -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;   /* 리스트 스크롤이 뒤 reels로 전파 방지 */
+    touch-action: pan-y;
   }
 
   /* ─── 점수 설명 모달 (가독성·신뢰감 강화) ─── */
@@ -1197,12 +1183,6 @@
     <div>핫 종목 로딩...</div>
   </div>
 
-  <!-- KR/US 시장 토글 -->
-  <div class="market-toggle" id="marketToggle">
-    <button class="mt-btn on" data-mkt="kr">🇰🇷 국장</button>
-    <button class="mt-btn" data-mkt="us">🇺🇸 미장</button>
-  </div>
-
   <div class="bot-nav">
     <div class="it on" data-tab="hot"><span class="em">🔥</span><span>핫</span></div>
     <div class="it" data-tab="sector"><span class="em">📁</span><span>섹터</span></div>
@@ -1438,18 +1418,7 @@
   const regimeChip = document.getElementById('regimeChip');
 
   // ─── API ───
-  let CURRENT_MARKET = (localStorage.getItem('sq_market') || 'kr');
-  // 시장 토글 초기화 + reload
-  document.querySelectorAll('#marketToggle .mt-btn').forEach(btn => {
-    if (btn.dataset.mkt === CURRENT_MARKET) btn.classList.add('on');
-    else btn.classList.remove('on');
-    btn.addEventListener('click', () => {
-      const m = btn.dataset.mkt;
-      if (m === CURRENT_MARKET) return;
-      localStorage.setItem('sq_market', m);
-      location.reload();
-    });
-  });
+  const CURRENT_MARKET = 'kr';   // KR 전용 — US 토글 제거 (2026-06)
   async function fetchSweep() {
     try {
       const r = await fetch(`${API_BASE}/api/sweep?market=${CURRENT_MARKET}&top_n=80`);
@@ -1816,6 +1785,7 @@
     const secAvg5 = (st && st.n >= 2) ? st.avgMom5 : null;
     return `
       <div class="reel ${bgCls}" data-idx="${idx}" data-code="${s.code}">
+        <button class="save-chip item ${(JSON.parse(localStorage.getItem('sq_saved')||'[]')).includes(s.code) ? 'on' : ''}" data-action="save" aria-label="저장">⭐</button>
         <div class="ticker-row">${s.code} · ${s.market || 'KOSPI'}${secKR ? ' · ' + secKR : ''}</div>
         <h3>${s.name}</h3>
 
@@ -1884,10 +1854,6 @@
         <div class="cta-row">
           <button class="cta-btn cta-news" data-action="news">📰 뉴스 ${s.sub_count}건 <span class="arr">›</span></button>
           <button class="cta-btn cta-score" data-explain="${idx}">📊 점수 근거 <span class="arr">›</span></button>
-        </div>
-
-        <div class="actions-rail">
-          <div class="item ${(JSON.parse(localStorage.getItem('sq_saved')||'[]')).includes(s.code) ? 'on' : ''}" data-action="save"><div class="ico">⭐</div><div class="lab">저장</div></div>
         </div>
 
         ${idx === 0 ? '<div class="swipe-hint"><span class="arrow">︽</span><span>위로 스와이프</span></div>' : ''}
@@ -2015,7 +1981,7 @@
 
   // ─── 액션 버튼 ───
   reelsEl.addEventListener('click', (e) => {
-    const item = e.target.closest('.item[data-action]');
+    const item = e.target.closest('[data-action]');
     const explainTrigger = e.target.closest('[data-explain]');
     if (item) {
       const action = item.dataset.action;
@@ -2457,17 +2423,22 @@
       closeSheet(newsSheet, newsBackdrop);
     }
   });
-  // swipe down to close (간단)
+  // swipe down to close — 리스트가 맨 위일 때 시작한 제스처만 닫기로 인정
+  // (이전 버그: sheet.scrollTop은 항상 0이라 리스트 스크롤 중에도 시트가 닫혔음)
   [scoreSheet, newsSheet].forEach(sheet => {
-    let startY = 0;
-    sheet.addEventListener('touchstart', (e) => { startY = e.touches[0].clientY; });
+    const body = sheet.querySelector('.sheet-body');
+    let startY = 0, startedAtTop = false;
+    sheet.addEventListener('touchstart', (e) => {
+      startY = e.touches[0].clientY;
+      startedAtTop = !body || body.scrollTop <= 0;
+    }, { passive: true });
     sheet.addEventListener('touchend', (e) => {
       const dy = e.changedTouches[0].clientY - startY;
-      if (dy > 80 && sheet.scrollTop === 0) {
+      if (dy > 80 && startedAtTop && (!body || body.scrollTop <= 0)) {
         const bd = sheet === scoreSheet ? scoreBackdrop : newsBackdrop;
         closeSheet(sheet, bd);
       }
-    });
+    }, { passive: true });
   });
 
   // ─── 저장 탭 ───
@@ -2490,7 +2461,7 @@
         <div class="sv-empty">
           <span class="em">⭐</span>
           저장한 종목이 없습니다.<br>
-          핫 탭의 카드에서 <b>⭐ 저장</b>을 눌러보세요.
+          핫 탭 카드의 <b>오른쪽 위 ⭐</b>를 눌러보세요.
         </div>
       `;
       return;
