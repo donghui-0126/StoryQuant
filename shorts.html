@@ -919,6 +919,18 @@
   .chip.ex { color: var(--text-3); border-color: var(--text-3); }
   .chip.priced { color: #a78bfa; border-color: rgba(167,139,250,0.4); background: rgba(167,139,250,0.1); }
   .nr-reason { font-size: 11px; color: var(--text-3); margin: 3px 0 5px; font-style: italic; }
+  .nr-why {
+    font-size: 11.5px; color: var(--text-2); line-height: 1.45; margin: 3px 0 5px;
+    padding-left: 8px; border-left: 2px solid var(--line-2);
+  }
+  /* 신뢰도 평가 기준 표 (평가 근거 시트) */
+  .trust-criteria { margin-top: 12px; display: flex; flex-direction: column; gap: 7px; }
+  .trust-criteria .tc-title { font-size: 12px; font-weight: 800; color: var(--text); margin-bottom: 2px; }
+  .trust-criteria .tc-row { display: flex; align-items: flex-start; gap: 8px; font-size: 11.5px; color: var(--text-2); line-height: 1.4; }
+  .trust-criteria .tc-badge {
+    flex-shrink: 0; font-size: 10px; font-weight: 800; padding: 1px 7px; border-radius: 5px;
+    border: 1px solid currentColor; min-width: 34px; text-align: center;
+  }
   /* 섹터 탭 카드 */
   .sec-card {
     background: var(--fill); border: 1px solid var(--line);
@@ -1121,108 +1133,6 @@
     font-size: 9px; font-weight: 600;
     margin-top: 6px;
     letter-spacing: 0.04em;
-  }
-
-  /* ─── 커뮤니티 sheet ─── */
-  .community-content { padding-bottom: 80px; }
-  .comm-row {
-    background: var(--fill);
-    border-radius: 10px;
-    padding: 10px 14px;
-    margin-bottom: 8px;
-  }
-  .comm-row .head-line {
-    display: flex; justify-content: space-between;
-    margin-bottom: 4px;
-    font-size: 11px;
-  }
-  .comm-row .head-line .who { color: #f4c869; font-weight: 600; }
-  .comm-row .head-line .when { color: var(--text-3); }
-  .comm-row .txt {
-    font-size: 13px; color: var(--text);
-    line-height: 1.5;
-    white-space: pre-wrap; word-break: break-word;
-  }
-  .comm-empty {
-    text-align: center;
-    padding: 40px 20px;
-    color: var(--text-3);
-    font-size: 13px;
-    line-height: 1.6;
-  }
-  .comm-input-row {
-    position: absolute;
-    bottom: env(safe-area-inset-bottom, 0px);
-    left: 0; right: 0;
-    padding: 10px 14px 14px;
-    background: rgba(15,13,12,0.95);
-    backdrop-filter: blur(12px);
-    border-top: 1px solid var(--line);
-    display: flex; gap: 8px;
-  }
-  .comm-input-row input {
-    flex: 1;
-    background: var(--fill);
-    border: 1px solid var(--line-2);
-    color: var(--text);
-    padding: 9px 12px;
-    border-radius: 8px;
-    font-size: 13px;
-    outline: none;
-  }
-  .comm-input-row input:focus { border-color: #ff4836; }
-  .comm-input-row button {
-    background: #ff4836;
-    color: var(--text);
-    border: none;
-    padding: 9px 16px;
-    border-radius: 8px;
-    font-size: 13px; font-weight: 600;
-    cursor: pointer;
-  }
-  .comm-input-row button:disabled { opacity: 0.4; }
-  .comm-need-login {
-    text-align: center;
-    background: rgba(255,72,54,0.08);
-    border: 1px solid rgba(255,72,54,0.25);
-    border-radius: 10px;
-    padding: 14px;
-    margin: 14px 0;
-  }
-  .comm-need-login p { font-size: 12px; color: var(--text-2); margin-bottom: 10px; }
-  .comm-need-login button {
-    background: #ff4836; color: var(--text); border: none;
-    padding: 7px 16px; border-radius: 6px;
-    font-size: 12px; font-weight: 600;
-  }
-
-  /* 점수 모달 안 커뮤니티 진입 버튼 */
-  .score-explain .comm-cta {
-    display: block;
-    background: rgba(244,200,105,0.08);
-    border: 1px solid rgba(244,200,105,0.3);
-    border-radius: 10px;
-    padding: 12px 14px;
-    margin-bottom: 8px;
-    cursor: pointer;
-    text-align: left;
-    width: 100%;
-    color: var(--text);
-  }
-  .score-explain .comm-cta:active { background: rgba(244,200,105,0.15); }
-  .score-explain .comm-cta .ttl {
-    font-size: 13px; font-weight: 700;
-    color: #f4c869;
-    margin-bottom: 2px;
-  }
-  .score-explain .comm-cta .desc {
-    font-size: 11px; color: var(--text-2);
-  }
-  .score-explain .comm-cta .arr {
-    float: right;
-    font-size: 14px;
-    color: var(--text-3);
-    margin-top: 2px;
   }
 
   /* ─── 탐색 탭 view ─── */
@@ -1477,20 +1387,6 @@
   <div class="sheet-body" id="sectorSheetBody"></div>
 </div>
 
-<!-- 커뮤니티 Sheet -->
-<div class="sheet-backdrop" id="commBackdrop"></div>
-<div class="sheet" id="commSheet" aria-hidden="true">
-  <div class="sheet-handle"></div>
-  <div class="sheet-head">
-    <h3 id="commHead">💬 토론</h3>
-    <div class="sub" id="commHeadSub">댓글 0개</div>
-  </div>
-  <div class="sheet-body community-content" id="commBody"></div>
-  <div class="comm-input-row" id="commInputRow">
-    <input type="text" id="commInput" placeholder="댓글을 입력하세요" maxlength="200">
-    <button id="commSend">보내기</button>
-  </div>
-</div>
 
 <!-- Score Explain Sheet -->
 <div class="sheet-backdrop" id="scoreBackdrop"></div>
@@ -1654,45 +1550,6 @@
       }
       return null;
     },
-    async listComments(scope) {
-      if (sb) {
-        const { data, error } = await sb
-          .from('comments')
-          .select('id, user_name, text, ts')
-          .eq('scope', scope)
-          .order('ts', { ascending: true })
-          .limit(200);
-        if (error) { console.warn('list err', error); return []; }
-        return (data || []).map(c => ({ user: c.user_name, text: c.text, ts: new Date(c.ts).getTime(), id: c.id }));
-      }
-      return JSON.parse(localStorage.getItem('sq_comm_' + scope) || '[]');
-    },
-    async addComment(scope, text) {
-      const user = getUser();
-      if (!user) throw new Error('login required');
-      // 입력 검증 (서버 RLS와 별개로 클라이언트도)
-      if (!text || typeof text !== 'string') throw new Error('empty');
-      const trimmed = text.trim().slice(0, 200);
-      if (!trimmed) throw new Error('empty');
-      // rate limit — 마지막 댓글 후 3초
-      const lastTs = parseInt(localStorage.getItem('sq_last_comm_ts') || '0');
-      if (Date.now() - lastTs < 3000) throw new Error('too fast — 3초 후 다시');
-      localStorage.setItem('sq_last_comm_ts', String(Date.now()));
-      if (sb) {
-        const session = await sb.auth.getSession();
-        if (!session.data.session) throw new Error('not authenticated');
-        const { error } = await sb.from('comments').insert({
-          scope, user_name: user.name, text: trimmed,
-        });
-        if (error) throw error;
-        return true;
-      }
-      // local fallback
-      const list = JSON.parse(localStorage.getItem('sq_comm_' + scope) || '[]');
-      list.push({ user: user.name, text: trimmed, ts: Date.now() });
-      localStorage.setItem('sq_comm_' + scope, JSON.stringify(list));
-      return true;
-    },
   };
   window.SQ_Backend = Backend;  // 디버그용
 
@@ -1842,43 +1699,6 @@
   // ─── 뉴스 quality 점수 (모멘텀 제거 — 가격 예측 X) ───
   // 2026-06 회귀 정렬: density 는 forward alpha 에 음의 계수 (뉴스 폭풍 후
   // mean reversion) → 가중 0.25→0.10 축소. shrinkage rating·실질 비율 ↑.
-  function computeNewsScore(s) {
-    if (!s) return 0;
-    const rating = computeNewsRating(s) / 10;                               // -10 ~ +10
-    const density = Math.min(3.0, (s.news_count || 0) * 0.15);
-    const subRatio = s.news_count > 0 ? (s.sub_count / s.news_count) : 0;
-    const srcAvg = s.src_avg || 0.5;
-    const spec = s.specificity || 0;
-    const pen = s.priced_in_penalty || 0;
-    return (
-      0.50 * rating
-      + 0.10 * density
-      + 0.20 * (subRatio * 10)
-      + 0.10 * (srcAvg * 10)
-      + 0.10 * spec
-      + pen
-    );
-  }
-  // 점수 분해 (모달용)
-  function scoreBreakdown(s) {
-    const rating = computeNewsRating(s) / 10;
-    const density = Math.min(3.0, (s.news_count || 0) * 0.15);
-    const subRatio = s.news_count > 0 ? (s.sub_count / s.news_count) : 0;
-    const srcAvg = s.src_avg || 0.5;
-    const spec = s.specificity || 0;
-    const pen = s.priced_in_penalty || 0;
-    return {
-      rating: 0.50 * rating,
-      density: 0.10 * density,
-      substance: 0.20 * (subRatio * 10),
-      source: 0.10 * (srcAvg * 10),
-      specificity: 0.10 * spec,
-      penalty: pen,
-      total: computeNewsScore(s),
-      subRatio,
-      newsRating: computeNewsRating(s),  // -100~+100 라벨링용
-    };
-  }
   function sectorLabel(s) {
     if (!s) return null;
     return SECTOR_KR[s] || s;
@@ -2046,16 +1866,6 @@
     if (nr <= -5) return { txt: '약한 악재', cls: 'neg' };
     return { txt: '중립 (방향 모호)', cls: 'flat' };
   }
-  // ─── 백분위 (상위/하위 N%) ───
-  function rankPercentile(s) {
-    if (!allResults || allResults.length < 5) return null;
-    const sorted = [...allResults].sort((a, b) => (b.news_score || 0) - (a.news_score || 0));
-    const rank = sorted.findIndex(x => x.code === s.code) + 1;
-    if (rank === 0) return null;
-    const pct = Math.round(rank / sorted.length * 100);
-    return { rank, total: sorted.length, pct };
-  }
-
   // ─── 카드 큐레이션 — 실제 사건 헤드라인 (최대 2건, 미반영 우선) ───
   function renderTopNews(s, why) {
     const top = (s.top_news || []).slice(0, 2);
@@ -2214,39 +2024,36 @@
     return;
   }
 
-  // 모든 종목에 frontend news_score + news_rating 재계산 + sector fallback
+  // 모든 종목에 frontend news_rating(뉴스 분위기) 재계산 + sector fallback
   const allResults = (data.all || []).map(r => ({
     ...r,
-    news_score: computeNewsScore(r),
     news_rating: computeNewsRating(r),
     sector_resolved: r.sector || inferSector(r.name),
   }));
-  // news_score 기준 재정렬: top 18 (호재) + bottom 12 (악재) + mystery 5
-  const sortedByNews = [...allResults].sort((a, b) => b.news_score - a.news_score);
+  // 뉴스 분위기 기준 재정렬: top 18 (호재) + bottom 12 (악재) + mystery 5
+  const sortedByNews = [...allResults].sort((a, b) => b.news_rating - a.news_rating);
   const top = sortedByNews.slice(0, 18);
   const bot = sortedByNews.slice(-12).reverse();
   const mystery = (data.mystery_movers || []).map(r => ({
-    ...r, news_score: computeNewsScore(r), news_rating: computeNewsRating(r),
+    ...r, news_rating: computeNewsRating(r),
     sector_resolved: r.sector || inferSector(r.name),
   })).slice(0, 5);
   const stocks = [...top, ...bot, ...mystery]
     .filter((s, i, arr) => arr.findIndex(x => x.code === s.code) === i);
 
-  // ─── 섹터별 평균 (news_rating + news_score + alpha + mom5) ───
+  // ─── 섹터별 평균 (뉴스 분위기 + alpha + mom5) ───
   const sectorStats = {};
   allResults.forEach(r => {
     const sec = r.sector_resolved;
     if (!sec) return;
-    if (!sectorStats[sec]) sectorStats[sec] = { codes: [], newsScores: [], ratings: [], alphas5: [], moms5: [] };
+    if (!sectorStats[sec]) sectorStats[sec] = { codes: [], ratings: [], alphas5: [], moms5: [] };
     sectorStats[sec].codes.push(r.code);
-    sectorStats[sec].newsScores.push(r.news_score);
     sectorStats[sec].ratings.push(r.news_rating);
     sectorStats[sec].moms5.push(r.mom_5 || 0);
     sectorStats[sec].alphas5.push((r.mom_5 || 0) - kospiMomNDays(5));
   });
   const avg = (arr) => arr.length ? arr.reduce((a,b)=>a+b, 0) / arr.length : 0;
   Object.values(sectorStats).forEach(st => {
-    st.avgScore = avg(st.newsScores);
     st.avgRating = avg(st.ratings);
     st.avgAlpha = avg(st.alphas5);
     st.avgMom5 = avg(st.moms5);
@@ -2255,8 +2062,8 @@
   // LLM scope='sector' 뉴스로 backend 가 계산한 섹터 자체 호악재 신호 — sector_news_rating 등
   const sectorSignals = data.sector_signals || {};
   Object.entries(sectorSignals).forEach(([sec, sig]) => {
-    if (!sectorStats[sec]) sectorStats[sec] = { codes:[], newsScores:[], ratings:[], alphas5:[], n:0,
-                                                 avgScore:0, avgRating:0, avgAlpha:0 };
+    if (!sectorStats[sec]) sectorStats[sec] = { codes:[], ratings:[], alphas5:[], n:0,
+                                                 avgRating:0, avgAlpha:0 };
     sectorStats[sec].sectorBull   = sig.sector_bull || 0;
     sectorStats[sec].sectorBear   = sig.sector_bear || 0;
     sectorStats[sec].stockBull    = sig.stock_bull || 0;
@@ -2348,7 +2155,6 @@
       const row = await r.json();
       if (row.error) { loadingEl.classList.add('hide'); openNewsSheetFor({ code, name, mom_5: null }); return; }
       const s = { ...row,
-        news_score: computeNewsScore(row),
         news_rating: computeNewsRating(row),
         sector_resolved: row.sector || inferSector(row.name) };
       idx = stocks.length;
@@ -2428,8 +2234,6 @@
     const s = stocks[idx];
     if (!s) return;
     scoreHeadName.textContent = `${s.name} (${s.code})`;
-    // 뉴스 점수 분해
-    const bd = scoreBreakdown(s);
     const a = computeAlpha(s);
 
     // ─── 가격 (차트) · 뉴스 (평가) 매칭 ───
@@ -2451,9 +2255,8 @@
     else if (nr <= -10) { newsLabel = '나쁜 뉴스 약간 더 많음'; newsCls = 'neg'; }
     else { newsLabel = '좋은 뉴스·나쁜 뉴스 비슷 (방향 모호)'; newsCls = 'flat'; }
 
-    // 신뢰도 + 순위 (evidence 카드용)
+    // 신뢰도 (evidence 카드용)
     const _conf = computeConfidence(s);
-    const _pctile = rankPercentile(s);
 
     // 섹터 평균 대비 alpha — attr-grid + section 양쪽에서 사용
     const stkSec = s.sector_resolved || getSector(s);
@@ -2506,43 +2309,30 @@
       pricedInWarn = `<div style="margin-top:8px;font-size:12px;color:#a78bfa;">⚡ 좋은 뉴스 ${(s.priced_in_ratio*100).toFixed(0)}%가 이미 가격에 반영된 상태 — 점수에서 차감됨.</div>`;
     }
 
-    // 섹터 비교 section — news_score + alpha 기준
+    // 섹터 비교 section — 뉴스 분위기 + 코스피 대비 alpha 기준
     const stockSector = s.sector_resolved || getSector(s);
     let sectorHtml = '';
     if (stockSector && sectorStats[stockSector] && sectorStats[stockSector].n >= 2) {
       const st = sectorStats[stockSector];
       const sLabel = sectorLabel(stockSector);
-      const myScore = s.news_score;
       const myAlpha = a.alpha5;
-      const diff = myScore - st.avgScore;
-      const rank = st.newsScores.slice().sort((x,y)=>y-x).indexOf(myScore) + 1;
       const alphaVsSector = myAlpha - st.avgAlpha;
-      const better = diff > 0;
       sectorHtml = `
         <section>
           <h4>같은 섹터 (${sLabel}) 안에서</h4>
           <div class="sector-compare">
-            <div class="sec-row"><span class="l">이 종목 합성 점수 (참고용)</span><span class="v ${myScore>0?'up':myScore<0?'dn':''}">${myScore.toFixed(2)}</span></div>
-            <div class="sec-row"><span class="l">${sLabel} 평균 합성 점수 (${st.n}종목)</span><span class="v">${st.avgScore.toFixed(2)}</span></div>
-            <div class="sec-row"><span class="l">${sLabel} 평균 뉴스 분위기</span><span class="v ${st.avgRating>0?'up':st.avgRating<0?'dn':''}">${st.avgRating>0?'+':''}${st.avgRating.toFixed(0)}</span></div>
+            <div class="sec-row"><span class="l">이 종목 뉴스 분위기</span><span class="v ${nr>0?'up':nr<0?'dn':''}">${nr>0?'+':''}${nr.toFixed(0)}</span></div>
+            <div class="sec-row"><span class="l">${sLabel} 평균 뉴스 분위기 (${st.n}종목)</span><span class="v ${st.avgRating>0?'up':st.avgRating<0?'dn':''}">${st.avgRating>0?'+':''}${st.avgRating.toFixed(0)}</span></div>
             ${st.sectorBull !== undefined && (st.sectorBull + st.sectorBear) > 0 ? `
-            <div class="sec-row"><span class="l">업종 자체 호재/악재 (LLM scope=sector)</span><span class="v ${st.sectorRating>0?'up':st.sectorRating<0?'dn':''}">${st.sectorRating>0?'+':''}${st.sectorRating.toFixed(0)}</span></div>
-            <div class="sec-row"><span class="l">→ 업종 호재 / 악재 건수</span><span class="v">${st.sectorBull} / ${st.sectorBear}</span></div>
+            <div class="sec-row"><span class="l">업종 자체 호재 / 악재 건수</span><span class="v">${st.sectorBull} / ${st.sectorBear}</span></div>
             ` : ''}
             <div class="sec-row"><span class="l">${sLabel} 5일간 코스피 대비</span><span class="v ${st.avgAlpha>0?'up':st.avgAlpha<0?'dn':''}">${st.avgAlpha>0?'+':''}${st.avgAlpha.toFixed(1)}%</span></div>
-            <div class="sec-row"><span class="l">이 종목 vs ${sLabel} 평균</span><span class="v ${alphaVsSector>0?'up':alphaVsSector<0?'dn':''}">${alphaVsSector>0?'+':''}${alphaVsSector.toFixed(1)}%</span></div>
-            <div class="sec-row"><span class="l">${sLabel} 내 순위</span><span class="v">${rank} / ${st.n}</span></div>
+            <div class="sec-row"><span class="l">이 종목 vs ${sLabel} 평균</span><span class="v ${alphaVsSector>0?'up':alphaVsSector<0?'dn':''}">${alphaVsSector>0?'+':''}${alphaVsSector.toFixed(1)}%p</span></div>
           </div>
-          <p style="font-size:13px; color: var(--text); margin-top: 10px; line-height: 1.55;">
-            ${better
-              ? `같은 ${sLabel} ${st.n}종목 중 <b>${rank}위</b>. 합성 점수가 평균보다 <b>+${diff.toFixed(2)}</b> 높고, 가격은 ${sLabel} 평균보다 <b>${alphaVsSector>0?'+':''}${alphaVsSector.toFixed(1)}%</b>.`
-              : `같은 ${sLabel} ${st.n}종목 중 <b>${rank}위</b>. 합성 점수가 평균보다 <span class="dn">${diff.toFixed(2)}</span> 낮고, 가격은 ${sLabel} 평균보다 <b>${alphaVsSector>0?'+':''}${alphaVsSector.toFixed(1)}%</b>.`}
+          <p style="font-size:12.5px; color: var(--text-2); margin-top: 10px; line-height: 1.55;">
+            같은 ${sLabel} ${st.n}종목 평균보다 가격이 <b>${alphaVsSector>0?'+':''}${alphaVsSector.toFixed(1)}%p</b> ${alphaVsSector>0?'강해요':'약해요'}.
+            섹터 전체가 같이 움직였는지, 이 종목만의 이슈인지 구분하는 데 쓰세요.
           </p>
-          <button class="comm-cta" data-comm-scope="sector_${stockSector}" data-comm-name="${sLabel}">
-            <span class="arr">›</span>
-            <div class="ttl">💬 [${sLabel}] 섹터 토론</div>
-            <div class="desc">같은 섹터에 관심 있는 사람들의 의견</div>
-          </button>
         </section>
       `;
     }
@@ -2592,14 +2382,17 @@
           <div class="ev-row"><div class="ev-l">표본 크기</div><div class="ev-r">전체 ${s.news_count}건 · 실질 ${s.sub_count}건</div></div>
           <div class="ev-row"><div class="ev-l">언론사 신뢰도 (평균)</div><div class="ev-r">${(s.src_avg || 0).toFixed(2)} <span style="opacity:0.5;font-size:11px;">(${(s.src_avg||0) >= 0.55 ? '높음' : (s.src_avg||0) >= 0.45 ? '보통' : '낮음'})</span></div></div>
           <div class="ev-row"><div class="ev-l">호재 / 악재</div><div class="ev-r">좋은 <b class="up">${s.news_bull||0}</b> / 나쁜 <b class="dn">${s.news_bear||0}</b></div></div>
-          ${_pctile ? `<div class="ev-row"><div class="ev-l">합성 점수 순위 (참고용)</div><div class="ev-r"><b>${_pctile.rank}위</b> / ${_pctile.total}종목 (상위 ${_pctile.pct}%)</div></div>` : ''}
           <div class="ev-row"><div class="ev-l">과거 1년 backtest (KR · 시계열 검증)</div><div class="ev-r" style="font-size:11.5px;opacity:0.75;">미래 예측 R² <b>&lt; 0 (불가)</b> · 과거 설명 R² <b>+0.013</b></div></div>
         </div>
+        <div class="trust-criteria">
+          <div class="tc-title">신뢰도 평가 기준</div>
+          <div class="tc-row"><span class="tc-badge sc-hold">보류</span><span>실질 뉴스 0건 또는 전체 3건 미만 — 판단 보류</span></div>
+          <div class="tc-row"><span class="tc-badge sc-low">낮음</span><span>실질 사건 뉴스 2건 미만</span></div>
+          <div class="tc-row"><span class="tc-badge sc-normal">보통</span><span>실질 5건 미만, 또는 언론사 신뢰도 평균 0.45 미만</span></div>
+          <div class="tc-row"><span class="tc-badge sc-high">높음</span><span>실질 8건 이상 + 신뢰 매체 위주 (신뢰도 0.55↑)</span></div>
+        </div>
         <p style="font-size:11px;color: var(--text-3);margin-top:10px;line-height:1.55;">
-          ※ <b>신뢰도</b>는 표본 크기·실질 뉴스 비율·언론사 평균을 종합한 등급입니다.
-          데이터 부족 시 자동으로 <b>보류</b>로 분류됩니다.<br>
-          ※ 카드에는 <b>세어볼 수 있는 집계(호재/악재 건수)</b>만 표시합니다.
-          하나로 합친 '뉴스 점수'는 자체 검증에서 예측력이 확인되지 않아 참고 지표로만 남겼습니다.<br>
+          ※ <b>신뢰도</b>는 위 기준(표본 크기·실질 뉴스 비율·언론사 평균)으로 자동 산정됩니다.<br>
           ※ 이 평가는 <b>미래 가격을 예측하지 않습니다</b> — 이미 일어난 변동을 설명하는 사후 분석입니다 (시계열 backtest로 검증).
         </p>
       </section>
@@ -2613,15 +2406,6 @@
           본 서비스는 의사결정 참고용일 뿐, 매수·매도를 권유하지 않습니다.<br>
           뉴스 본문이 아닌 <b>제목과 요약만 분석</b>하므로 정확도에 한계가 있습니다.
         </div>
-      </section>
-
-      <section>
-        <h4>💬 커뮤니티</h4>
-        <button class="comm-cta" data-comm-scope="stock_${s.code}" data-comm-name="${s.name}">
-          <span class="arr">›</span>
-          <div class="ttl">💬 ${s.name} 토론</div>
-          <div class="desc">이 종목에 대한 다른 사람들의 생각</div>
-        </button>
       </section>
     `;
     openSheet(scoreSheet, scoreBackdrop);
@@ -2668,7 +2452,9 @@
         </div>
         <div class="ttl" style="${a._cat === 'excluded' ? 'opacity:0.6;' : ''}">${a.title || ''}</div>
         ${a.llm_comment && a._cat === 'event' ? `<div class="nr-cmt">💬 ${a.llm_comment}</div>` : ''}
-        ${a._cat === 'excluded' ? `<div class="nr-reason">제외 사유 — ${a._reason}</div>` : ''}
+        ${a._cat === 'event'
+            ? (a.llm_reason ? `<div class="nr-why">🔎 ${a.sentiment === 'bull' ? '호재' : a.sentiment === 'bear' ? '악재' : '사건'} 판단 근거 — ${a.llm_reason}</div>` : '')
+            : `<div class="nr-reason">제외 — ${a._reason}${a.llm_reason ? ` <span style="opacity:0.7">(AI: ${a.llm_reason})</span>` : ''}</div>`}
         <div class="chips">
           ${a._cat === 'event' && a.sentiment === 'bull' ? '<span class="chip bull">호재</span>' : ''}
           ${a._cat === 'event' && a.sentiment === 'bear' ? '<span class="chip bear">악재</span>' : ''}
@@ -2676,9 +2462,8 @@
           ${a.category && a.category !== '기타' ? `<span class="chip cat">${a.category}</span>` : ''}
         </div>
       </div>
-    `).join('') + (visible.some(a => a.llm_comment)
-      ? '<div style="font-size:10.5px;color: var(--text-3);padding:10px 4px;line-height:1.5;">💬 한줄평은 AI(전문가 관점 프롬프트)가 작성한 참고용 코멘트입니다 — 투자 권유가 아닙니다.</div>'
-      : '');
+    `).join('') +
+      '<div style="font-size:10.5px;color: var(--text-3);padding:10px 4px;line-height:1.5;">🔎 호재·악재·제외 판단과 💬 한줄평은 모두 AI(gpt-4o-mini)가 헤드라인·본문을 보고 분류·작성한 참고용입니다 — 투자 권유가 아닙니다.</div>';
   }
 
   async function openNewsSheet(idx) { return openNewsSheetFor(stocks[idx]); }
@@ -2717,8 +2502,8 @@
       })();
       const sectorAlpha = sectorAvgAlpha !== null ? (a.alpha5 - sectorAvgAlpha) : null;
 
-      const bullN = arts.filter(x => x.sentiment === 'bull').length;
-      const bearN = arts.filter(x => x.sentiment === 'bear').length;
+      const bullN = arts.filter(x => x._cat === 'event' && x.sentiment === 'bull').length;
+      const bearN = arts.filter(x => x._cat === 'event' && x.sentiment === 'bear').length;
       const hasMom = typeof s.mom_5 === 'number';
       let retLine = '';
       if (hasMom) {
@@ -3319,97 +3104,6 @@
       else if (dx > 0 && i > 0) switchTab(TABS[i - 1]);
     }
   }, { passive: true });
-
-  // ─── 커뮤니티 sheet ───
-  const commSheet = document.getElementById('commSheet');
-  const commBackdrop = document.getElementById('commBackdrop');
-  const commHead = document.getElementById('commHead');
-  const commHeadSub = document.getElementById('commHeadSub');
-  const commBody = document.getElementById('commBody');
-  const commInput = document.getElementById('commInput');
-  const commSend = document.getElementById('commSend');
-  let activeCommScope = null;
-
-  async function getComments(scope) { return Backend.listComments(scope); }
-  function timeAgoShort(ts) {
-    const d = (Date.now() - ts) / 1000;
-    if (d < 60) return '방금';
-    if (d < 3600) return Math.floor(d/60) + '분';
-    if (d < 86400) return Math.floor(d/3600) + '시간';
-    return Math.floor(d/86400) + '일';
-  }
-  async function renderComments() {
-    if (!activeCommScope) return;
-    commHeadSub.textContent = '⌛ 로딩 중...';
-    commBody.innerHTML = '<div class="comm-empty">⌛</div>';
-    const list = await getComments(activeCommScope);
-    const modeLabel = Backend.cloud ? '🌐 클라우드' : '📱 로컬 prototype';
-    commHeadSub.textContent = `댓글 ${list.length}개 · ${modeLabel}`;
-    const user = getUser();
-    let html = '';
-    if (!user) {
-      html += `<div class="comm-need-login">
-        <p>댓글을 남기려면 닉네임이 필요합니다.</p>
-        <button id="commGoLogin">닉네임 만들기 →</button>
-      </div>`;
-    }
-    if (list.length === 0) {
-      html += '<div class="comm-empty">아직 댓글이 없습니다.<br>첫 댓글을 남겨보세요!</div>';
-    } else {
-      html += list.slice().reverse().map(c => `
-        <div class="comm-row">
-          <div class="head-line"><span class="who">${esc(c.user)}</span><span class="when">${timeAgoShort(c.ts)} 전</span></div>
-          <div class="txt">${esc(c.text)}</div>
-        </div>
-      `).join('');
-    }
-    commBody.innerHTML = html;
-    if (!user) {
-      document.getElementById('commGoLogin')?.addEventListener('click', () => {
-        closeSheet(commSheet, commBackdrop);
-        switchTab('me');
-      });
-      commInput.disabled = true; commSend.disabled = true;
-      commInput.placeholder = '닉네임 만든 후 입력 가능';
-    } else {
-      commInput.disabled = false; commSend.disabled = false;
-      commInput.placeholder = '댓글을 입력하세요 (최대 200자)';
-    }
-  }
-  function openCommunity(scope, name) {
-    activeCommScope = scope;
-    const isSector = scope.startsWith('sector_');
-    commHead.textContent = isSector ? `💬 [${name}] 섹터 토론` : `💬 ${name} 토론`;
-    renderComments();
-    openSheet(commSheet, commBackdrop);
-  }
-  commBackdrop.addEventListener('click', () => closeSheet(commSheet, commBackdrop));
-  commSend.addEventListener('click', async () => {
-    const text = commInput.value.trim();
-    const user = getUser();
-    if (!text || !user || !activeCommScope) return;
-    commSend.disabled = true;
-    try {
-      await Backend.addComment(activeCommScope, text);
-      commInput.value = '';
-      await renderComments();
-    } catch (e) {
-      alert(e.message || '전송 실패');
-    } finally {
-      commSend.disabled = false;
-    }
-  });
-  commInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') commSend.click(); });
-
-  // 점수 모달의 comm-cta 클릭 — 점수 sheet 닫고 comm sheet 열기
-  scoreBody.addEventListener('click', (e) => {
-    const cta = e.target.closest('.comm-cta[data-comm-scope]');
-    if (!cta) return;
-    const scope = cta.dataset.commScope;
-    const name = cta.dataset.commName;
-    closeSheet(scoreSheet, scoreBackdrop);
-    setTimeout(() => openCommunity(scope, name), 320);
-  });
 
   savedList.addEventListener('click', (e) => {
     const rm = e.target.closest('[data-rm]');
