@@ -56,9 +56,38 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             return self._api_stock_events(u)
         if u.path == '/api/saved-digest':
             return self._api_saved_digest(u)
+        if u.path == '/api/stock-one':
+            return self._api_stock_one(u)
         if u.path == '/api':
             return self._api_index()
         return super().do_GET()
+
+    STOCK_ONE_CACHE = {}
+    def _api_stock_one(self, u):
+        """단일 종목 카드 데이터 (sweep 1건) — 검색·섹터에서 핫 외 종목을 릴로 표시용."""
+        q = urllib.parse.parse_qs(u.query)
+        market = self._market(q)
+        code = (q.get('code', [''])[0] or '').strip()
+        if not code:
+            return self._send_json({'error': 'code required'}, status=400)
+        key = f'{market.id}|{code}'
+        now = time.time()
+        c = Handler.STOCK_ONE_CACHE.get(key)
+        if c and (now - c[0]) < 600:
+            return self._send_json({'cached': True, **c[1]})
+        try:
+            from ..core.strategy import fetch_one_for_sweep
+            regime = (Handler.SWEEP_CACHE.get(f'{market.id}|200', {}).get('data') or {}).get('macro_regime', 'neutral')
+            row = fetch_one_for_sweep(code, market, macro_regime=regime)
+            if not row:
+                return self._send_json({'error': 'no data', 'code': code}, status=404)
+            row.pop('_sector_articles', None)
+            Handler.STOCK_ONE_CACHE[key] = (now, row)
+            if len(Handler.STOCK_ONE_CACHE) > 100:
+                Handler.STOCK_ONE_CACHE.pop(min(Handler.STOCK_ONE_CACHE.items(), key=lambda kv: kv[1][0])[0])
+            self._send_json({'cached': False, **row})
+        except Exception as e:
+            self._send_json({'error': str(e)[:200]}, status=500)
 
     DIGEST_CACHE = {}
     def _api_saved_digest(self, u):

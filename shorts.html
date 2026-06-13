@@ -904,7 +904,9 @@
   .chip.bear { color: #ef4444; border-color: rgba(239,68,68,0.4); }
   .chip.sub { color: #f4c869; border-color: rgba(244,200,105,0.4); }
   .chip.cat { color: var(--text-2); border-color: var(--text-3); }
+  .chip.ex { color: var(--text-3); border-color: var(--text-3); }
   .chip.priced { color: #a78bfa; border-color: rgba(167,139,250,0.4); background: rgba(167,139,250,0.1); }
+  .nr-reason { font-size: 11px; color: var(--text-3); margin: 3px 0 5px; font-style: italic; }
   /* 섹터 탭 카드 */
   .sec-card {
     background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
@@ -1228,15 +1230,17 @@
   }
   .explore-search input {
     width: 100%;
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.12);
+    background: var(--surface);
+    border: 1px solid var(--border);
     color: var(--text);
     padding: 11px 16px;
     border-radius: 10px;
     font-size: 14px;
     outline: none;
   }
+  body.light .explore-search input { background: #ffffff; border-color: rgba(20,25,35,0.18); box-shadow: 0 1px 3px rgba(20,25,35,0.05); }
   .explore-search input:focus { border-color: #ff4836; }
+  body.light .explore-search input:focus { border-color: var(--accent); }
   .explore-results {
     flex: 1;
     overflow-y: auto;
@@ -2316,6 +2320,43 @@
   }, { root: reelsEl, threshold: [0, 0.6, 1] });
   reels.forEach(r => io.observe(r));
 
+  // ─── 핫 외 종목을 쇼츠 슬라이드(릴)로 동적 삽입 ───
+  async function openStockAsReel(code, name) {
+    // 이미 릴에 있으면 그 카드로 점프
+    let idx = stocks.findIndex(x => x.code === code);
+    if (idx >= 0) {
+      switchTab('hot');
+      reels[idx].scrollIntoView({ behavior: 'instant', block: 'start' });
+      return;
+    }
+    // 로딩 표시
+    loadingEl.classList.remove('hide');
+    try {
+      const r = await fetch(`${API_BASE}/api/stock-one?code=${code}&market=${CURRENT_MARKET}`);
+      const row = await r.json();
+      if (row.error) { loadingEl.classList.add('hide'); openNewsSheetFor({ code, name, mom_5: null }); return; }
+      const s = { ...row,
+        news_score: computeNewsScore(row),
+        news_rating: computeNewsRating(row),
+        sector_resolved: row.sector || inferSector(row.name) };
+      idx = stocks.length;
+      stocks.push(s);
+      const wrap = document.createElement('div');
+      wrap.innerHTML = renderReel(s, idx, stocks.length);
+      const el = wrap.firstElementChild;
+      el.classList.add('reel-injected');
+      reelsEl.appendChild(el);
+      reels.push(el);
+      io.observe(el);
+      loadingEl.classList.add('hide');
+      switchTab('hot');
+      el.scrollIntoView({ behavior: 'instant', block: 'start' });
+    } catch (e) {
+      loadingEl.classList.add('hide');
+      openNewsSheetFor({ code, name, mom_5: null });
+    }
+  }
+
   // ─── 키보드 ↑↓ swipe ───
   document.addEventListener('keydown', (e) => {
     if (e.key === 'ArrowDown' || e.key === ' ' || e.key === 'PageDown') {
@@ -2656,9 +2697,10 @@
     const arts = _newsState.all;
     const filt = _newsState.filter;
     const visible = arts.filter(a => {
-      if (filt === 'bull') return a.sentiment === 'bull';
-      if (filt === 'bear') return a.sentiment === 'bear';
-      if (filt === 'sub') return a.substance === 'substantive';
+      if (filt === 'bull') return a.sentiment === 'bull' && a._cat === 'event';
+      if (filt === 'bear') return a.sentiment === 'bear' && a._cat === 'event';
+      if (filt === 'sub') return a._cat === 'event';
+      if (filt === 'ex') return a._cat === 'excluded';
       return true;
     });
     if (visible.length === 0) {
@@ -2672,12 +2714,13 @@
           <span class="src">${a.paper || a.source || ''}</span>
           <span class="time">${timeAgo(a.ts || Date.now())}</span>
         </div>
-        <div class="ttl">${a.title || ''}</div>
-        ${a.llm_comment ? `<div class="nr-cmt">💬 ${a.llm_comment}</div>` : ''}
+        <div class="ttl" style="${a._cat === 'excluded' ? 'opacity:0.6;' : ''}">${a.title || ''}</div>
+        ${a.llm_comment && a._cat === 'event' ? `<div class="nr-cmt">💬 ${a.llm_comment}</div>` : ''}
+        ${a._cat === 'excluded' ? `<div class="nr-reason">제외 사유 — ${a._reason}</div>` : ''}
         <div class="chips">
-          ${a.sentiment === 'bull' ? '<span class="chip bull">호재</span>' : ''}
-          ${a.sentiment === 'bear' ? '<span class="chip bear">악재</span>' : ''}
-          ${a.substance === 'substantive' ? '<span class="chip sub">◆ 실질</span>' : ''}
+          ${a._cat === 'event' && a.sentiment === 'bull' ? '<span class="chip bull">호재</span>' : ''}
+          ${a._cat === 'event' && a.sentiment === 'bear' ? '<span class="chip bear">악재</span>' : ''}
+          ${a._cat === 'event' ? '<span class="chip sub">◆ 실질</span>' : '<span class="chip ex">제외</span>'}
           ${a.category && a.category !== '기타' ? `<span class="chip cat">${a.category}</span>` : ''}
         </div>
       </div>
@@ -2698,15 +2741,22 @@
     try {
       const r = await fetch(`${API_BASE}/api/stock-news?code=${s.code}&market=${CURRENT_MARKET}&page=1&page_size=50`);
       const j = await r.json();
-      // 실제 사건(substantive) 우선 + 그 외 뉴스(off_topic·이미반영 제외)도 표시
-      // — 대형주는 실제 사건이 적어 사건만 보이면 비어 보이므로 참고 뉴스도 노출
+      // 모든 뉴스에 분류(_cat) + 제외 사유(_reason) 부여 — 사건/제외를 한 화면에서
       const all = (j.articles || []);
-      const substantive = all.filter(a => !a.priced_in && a.substance === 'substantive');
-      const others = all.filter(a => !a.priced_in && a.substance !== 'substantive'
-                                     && a.llm_label !== 'off_topic');
-      const arts = [...substantive, ...others];
+      all.forEach(a => {
+        if (a.substance === 'substantive' && !a.priced_in) { a._cat = 'event'; a._reason = ''; }
+        else if (a.priced_in) { a._cat = 'excluded'; a._reason = '이미 주가에 반영됨'; }
+        else if (a.llm_label === 'off_topic') { a._cat = 'excluded'; a._reason = '이 종목과 직접 관련 없음'; }
+        else if (a.substance === 'reactive' || a.llm_label === 'reactive') { a._cat = 'excluded'; a._reason = '가격·시황 중계 기사'; }
+        else if (a.llm_label === 'speculative') { a._cat = 'excluded'; a._reason = '추측·전망성 기사'; }
+        else { a._cat = 'excluded'; a._reason = '사건성 약함'; }
+      });
+      const events = all.filter(a => a._cat === 'event');
+      const excluded = all.filter(a => a._cat === 'excluded');
+      const arts = [...events, ...excluded];
       _newsState.all = arts;
-      _newsState.subCount = substantive.length;
+      _newsState.subCount = events.length;
+      _newsState.exCount = excluded.length;
 
       const a = computeAlpha(s);
       const sectorAvgAlpha = (() => {
@@ -2738,20 +2788,22 @@
 
       // 헤더 — 실제 사건 건수 + (있으면) 5일 수익률·코스피·섹터 대비
       const subN = _newsState.subCount || 0;
+      const exN = _newsState.exCount || 0;
       newsHeadSub.innerHTML = `
         <div style="display:flex;flex-direction:column;gap:4px;font-size:12px;line-height:1.45;">
-          <div style="opacity:0.85;">실제 사건 <b>${subN}</b>건 · 참고 뉴스 <b>${arts.length - subN}</b>건 <span style="opacity:0.6">(거시·무관 기사 제외)</span></div>
+          <div style="opacity:0.85;">실제 사건 <b>${subN}</b>건 · 제외 <b>${exN}</b>건 <span style="opacity:0.6">(제외 탭에서 사유 확인)</span></div>
           ${retLine}
         </div>
       `;
 
-      // 본문 — 필터 탭 + 리스트
+      // 본문 — 필터 탭 + 리스트 (가로 스크롤 가능)
       newsBody.innerHTML = `
-        <div class="news-filter-bar" style="display:flex;gap:8px;padding:10px 4px 14px 4px;border-bottom:1px solid var(--border);margin-bottom:8px;">
+        <div class="news-filter-bar" style="display:flex;gap:8px;padding:10px 4px 14px 4px;border-bottom:1px solid var(--border);margin-bottom:8px;overflow-x:auto;-webkit-overflow-scrolling:touch;">
           <button class="nf-tab active" data-filt="all">전체 ${arts.length}</button>
           <button class="nf-tab" data-filt="sub">실제 사건 ${subN}</button>
           <button class="nf-tab nf-bull" data-filt="bull">호재 ${bullN}</button>
           <button class="nf-tab nf-bear" data-filt="bear">악재 ${bearN}</button>
+          <button class="nf-tab" data-filt="ex">제외 ${exN}</button>
         </div>
         <div id="newsListInner"></div>
       `;
@@ -2841,31 +2893,11 @@
       <div style="font-size:11px;color:var(--text-3);margin-bottom:6px;line-height:1.5;">개별 종목이 아닌 <b>업종 전체</b>에 영향 미치는 사건만 골라낸 거예요.</div>
       ${artsHtml}`;
     openSheet(sectorSheet, sectorBackdrop);
-    // 종목 클릭 — 피드에 있으면 카드 점프, 없으면 뉴스 시트 바로 열기
+    // 종목 클릭 — 핫이든 아니든 쇼츠 슬라이드(릴)로 표시
     document.getElementById('sectorSheetBody').querySelectorAll('.sec-stock-row[data-code]').forEach(row => {
-      row.addEventListener('click', async () => {
-        const code = row.dataset.code;
-        if (row.dataset.feed === '1') {
-          const idx = stocks.findIndex(x => x.code === code);
-          if (idx < 0) return;
-          closeSheet(sectorSheet, sectorBackdrop);
-          switchTab('hot');
-          reels[idx].scrollIntoView({ behavior: 'instant', block: 'start' });
-          return;
-        }
-        // 핫 외 종목 — 뉴스 시트를 바로 (5일 수익률은 차트에서 계산)
-        const adhoc = { code, name: row.dataset.name || code, mom_5: null };
-        try {
-          const rr = await fetch(`${API_BASE}/api/stock-chart?code=${code}&range=1mo&market=${CURRENT_MARKET}`);
-          const jj = await rr.json();
-          const bars = jj.bars || [];
-          if (bars.length >= 6) {
-            const last = bars[bars.length-1].c, b5 = bars[bars.length-6].c;
-            if (last && b5) adhoc.mom_5 = (last - b5) / b5 * 100;
-          }
-        } catch (_) {}
+      row.addEventListener('click', () => {
         closeSheet(sectorSheet, sectorBackdrop);
-        openNewsSheetFor(adhoc);
+        openStockAsReel(row.dataset.code, row.dataset.name || row.dataset.code);
       });
     });
     document.getElementById('sectorSheetBody').querySelectorAll('.news-row[data-link]').forEach(row => {
@@ -3307,31 +3339,13 @@
     clearTimeout(exploreT);
     exploreT = setTimeout(() => renderExplore(e.target.value), 180);
   });
-  exploreResults.addEventListener('click', async (e) => {
+  exploreResults.addEventListener('click', (e) => {
     const row = e.target.closest('.ex-row[data-code]');
     if (!row) return;
     const code = row.dataset.code;
-    const idx = stocks.findIndex(s => s.code === code);
-    if (idx >= 0) {
-      // 즉시 해당 카드로 점프 — 스크롤 애니메이션·시트 자동 오픈 없이 메인 카드만
-      switchTab('hot');
-      reels[idx].scrollIntoView({ behavior: 'instant', block: 'start' });
-      return;
-    }
-    // 핫 목록에 없는 종목 — 뉴스 시트를 바로 연다 (구버전 페이지 점프 제거)
     const info = (universeCache || []).find(u => u.code === code);
-    const adhoc = { code, name: (info && info.name) || code, mom_5: null };
-    // 5일 수익률을 차트에서 계산해 헤더에 같이 표시 (실패해도 뉴스는 열림)
-    try {
-      const r = await fetch(`${API_BASE}/api/stock-chart?code=${code}&range=1mo&market=${CURRENT_MARKET}`);
-      const j = await r.json();
-      const bars = j.bars || [];
-      if (bars.length >= 6) {
-        const last = bars[bars.length - 1].c, b5 = bars[bars.length - 6].c;
-        if (last && b5) adhoc.mom_5 = (last - b5) / b5 * 100;
-      }
-    } catch (_) {}
-    openNewsSheetFor(adhoc);
+    // 핫이든 아니든 쇼츠 슬라이드(릴)로 — 핫 외면 동적 삽입
+    openStockAsReel(code, (info && info.name) || code);
   });
 
   // ─── 좌우 swipe로 탭 전환 ───
