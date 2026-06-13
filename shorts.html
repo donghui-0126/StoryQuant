@@ -2117,27 +2117,15 @@
             <div class="sc-bar"><div class="sc-fill sc-fill-${conf.level}" style="width:${conf.pct}%"></div></div>
             <div class="sc-meta">${conf.short}</div>
           </div>
-          <div class="sh-cta"><span>뉴스 전체 보기</span> <span class="arr">›</span></div>
         </div>
 
-        <!-- ② 수익률 박스 (절대 + 상대) -->
+        <!-- ② 수익률 — 5일 절대 + 코스피/섹터 대비 (핵심만) -->
         <div class="ret-box">
           <div class="ret-row">
             <div class="ret-cell">
               <div class="rc-lbl">이 종목 5일</div>
               <div class="rc-val ${s.mom_5>0?'up':s.mom_5<0?'dn':''}">${s.mom_5>0?'+':''}${s.mom_5.toFixed(1)}%</div>
             </div>
-            <div class="ret-cell">
-              <div class="rc-lbl">코스피 5일</div>
-              <div class="rc-val ${a.kospi5>0?'up':a.kospi5<0?'dn':''}">${a.kospi5>0?'+':''}${a.kospi5.toFixed(1)}%</div>
-            </div>
-            <div class="ret-cell">
-              <div class="rc-lbl">섹터 5일</div>
-              <div class="rc-val ${secAvg5 !== null ? (secAvg5>0?'up':secAvg5<0?'dn':'') : ''}">${secAvg5 !== null ? (secAvg5>0?'+':'') + secAvg5.toFixed(1) + '%' : '—'}</div>
-            </div>
-          </div>
-          <div class="ret-divider"></div>
-          <div class="ret-row">
             <div class="ret-cell hl">
               <div class="rc-lbl">코스피 대비</div>
               <div class="rc-val ${kospiCls}">${sign}${alpha.toFixed(1)}%p</div>
