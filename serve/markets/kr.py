@@ -204,148 +204,24 @@ SOURCE_PRIORS = {
 
 
 # ─── KR 종목 → 섹터 매핑 (시총 상위 + ETF + 주요 종목) ──────
-KR_SECTOR_MAP = {
-    # ── tech / 반도체 / IT ──
-    '005930': 'tech', '000660': 'tech', '042700': 'tech', '058470': 'tech',
-    '035420': 'tech', '035720': 'tech', '009150': 'tech', '005935': 'tech',
-    '034730': 'tech',  # SK (지주, IT 자회사 중심) — financials 도 가능하나 SK 본질 IT
-    '066570': 'tech',  # LG전자
-    '011070': 'tech',  # LG이노텍
-    '009830': 'tech',  # 한화솔루션 (전기·전자)
-    '393890': 'tech',  # 파라텍 — IT
-    '418550': 'tech',  # 제이오 (배터리 부품)
-    '413640': 'tech', '432320': 'tech', '462520': 'tech',
-    '014620': 'tech',  # SG등급 (전자부품)
-    '058610': 'tech',  # SG&G
-    '256940': 'tech',  # 케이피에스 (반도체장비)
-    '418420': 'tech', '420770': 'tech',  # 기가비스 (반도체검사장비)
-    '950140': 'tech',  # 잉글우드랩
-    '108860': 'tech',  # 셀바스AI
-    '034830': 'tech', '267850': 'tech', '060720': 'tech',
-    '278280': 'tech', '396270': 'tech', '347860': 'tech',
-    # ETF — 섹터별
-    '091160': 'tech',         # KODEX 반도체
-    '395160': 'tech',         # KODEX AI반도체TOP2플러스
-    '102780': 'tech',         # KODEX 삼성그룹
-    '305720': 'battery',      # KODEX 2차전지산업
-    '091170': 'financials',   # KODEX 은행
-    '244620': 'consumer',     # KODEX 게임
-    '139220': 'industrials',  # TIGER 200 건설기계
-    '139260': 'tech',         # TIGER 200 IT
-    '139250': 'industrials',  # TIGER 200 산업재
-    '278540': 'tech',         # KODEX MSCI Korea TR — proxy로 IT 우세
-    # ── 2차전지 / 에너지소재 ──
-    '373220': 'battery', '006400': 'battery', '247540': 'battery',
-    '003670': 'battery', '051910': 'chemicals', '454910': 'battery',
-    '450080': 'battery',  # 에코프로머티
-    # ── 자동차 ──
-    '005380': 'auto', '000270': 'auto', '012330': 'auto',
-    '161390': 'auto',  # 한국타이어앤테크놀로지
-    '011210': 'auto',  # 현대위아
-    '204320': 'auto',  # 만도
-    # ── 조선·방산·항공 ──
-    '042660': 'defense', '009540': 'defense', '010140': 'defense',
-    '012450': 'defense', '079550': 'defense', '047810': 'defense',
-    '329180': 'defense',  # HD현대중공업
-    '241560': 'defense',  # 두산밥캣
-    '034020': 'utility',  # 두산에너빌리티 (원자력)
-    '298690': 'defense',  # 에어부산
-    '003490': 'transport', # 대한항공
-    # ── 에너지·전력·원자력 ──
-    '015760': 'utility', '267260': 'utility', '010120': 'utility',
-    '021240': 'utility',  # 코웨이
-    '052690': 'utility',  # 한전기술
-    '298050': 'utility',  # 효성첨단소재
-    # ── 화학·소재·정유 ──
-    '005490': 'materials', '009830': 'chemicals',  # 한화솔루션
-    '096770': 'chemicals',  # SK이노베이션
-    '010950': 'chemicals',  # S-Oil
-    '011170': 'chemicals',  # 롯데케미칼
-    '298000': 'chemicals',  # 효성화학
-    '298020': 'chemicals',  # 효성티앤씨
-    '011790': 'chemicals',  # SKC
-    '004020': 'materials',  # 현대제철
-    '014820': 'materials',  # 동원시스템즈
-    '003410': 'materials',  # 쌍용씨앤이
-    # ── 금융·은행·증권·보험 ──
-    '105560': 'financials', '055550': 'financials', '086790': 'financials',
-    '316140': 'financials', '323410': 'financials',
-    '024110': 'financials',  # 기업은행
-    '139130': 'financials',  # DGB금융지주
-    '138930': 'financials',  # BNK금융지주
-    '175330': 'financials',  # JB금융지주
-    '030200': 'telecom',     # KT (telecom 분류 더 정확)
-    '029780': 'financials',  # 삼성카드
-    '032830': 'financials',  # 삼성생명
-    '000810': 'financials',  # 삼성화재
-    '001450': 'financials',  # 현대해상
-    '005830': 'financials',  # DB손해보험
-    '088350': 'financials',  # 한화생명
-    '006800': 'financials',  # 미래에셋증권
-    '016360': 'financials',  # 삼성증권
-    '030610': 'financials',  # 교보증권
-    '039490': 'financials',  # 키움증권
-    '071050': 'financials',  # 한국금융지주
-    '003540': 'financials',  # 대신증권
-    '034730_2': 'financials',
-    # ── 바이오·제약·헬스케어 ──
-    '207940': 'healthcare', '068270': 'healthcare', '196170': 'healthcare',
-    '028300': 'healthcare', '326030': 'healthcare',
-    '009420': 'healthcare',  # 한올바이오파마
-    '048410': 'healthcare',  # 현대바이오랜드
-    '085660': 'healthcare',  # 차바이오텍
-    '237690': 'healthcare',  # 에스티팜
-    '298380': 'healthcare',  # 에이비엘바이오
-    '328130': 'healthcare',  # 루닛
-    '145020': 'healthcare',  # 휴젤
-    '214150': 'healthcare',  # 클래시스
-    '950130': 'healthcare',  # 엑세스바이오
-    '950160': 'healthcare',  # 코오롱티슈진
-    '383310': 'healthcare',  # 에코프로에이치엔
-    '048260': 'healthcare',  # 오스템임플란트
-    '041830': 'healthcare',  # 인성정보
-    # ── 소비재·엔터·게임 ──
-    '352820': 'consumer', '259960': 'consumer', '036570': 'consumer',
-    '041510': 'consumer',  # SM
-    '122870': 'consumer',  # 와이지엔터테인먼트
-    '035900': 'consumer',  # JYP엔터
-    '293490': 'consumer',  # 카카오게임즈
-    '263750': 'consumer',  # 펄어비스
-    '194480': 'consumer',  # 데브시스터즈
-    '251270': 'consumer',  # 넷마블
-    '376300': 'consumer',  # 디어유
-    '253450': 'consumer',  # 스튜디오드래곤
-    '028260': 'consumer',  # 삼성물산 (가구·패션 부문)
-    '004990': 'consumer',  # 롯데
-    '023530': 'consumer',  # 롯데쇼핑
-    '139480': 'consumer',  # 이마트
-    '004170': 'consumer',  # 신세계
-    '161890': 'consumer',  # 한국콜마
-    '090430': 'consumer',  # 아모레퍼시픽
-    '051900': 'consumer',  # LG생활건강
-    '003230': 'consumer',  # 삼양식품
-    '004370': 'consumer',  # 농심
-    '097950': 'consumer',  # CJ제일제당
-    '001680': 'consumer',  # 대상
-    # 엔터 (consumer 세부)
-    '086520': 'consumer',  # 에코프로 (소비재 + 화학) — battery로 분류
-    # ── 운송·물류 ──
-    '011200': 'transport', '028670': 'transport',  # 팬오션
-    '000120': 'transport',  # CJ대한통운
-    '180640': 'transport',  # 한진칼
-    # ── 통신 ──
-    '030200': 'telecom',  # KT
-    '017670': 'telecom',  # SK텔레콤
-    '032640': 'telecom',  # LG유플러스
-    # ── 산업재 ──
-    '028260_2': 'industrials',  # 삼성물산 (건설 부문)
-    '000720': 'industrials',  # 현대건설
-    '047040': 'industrials',  # 대우건설
-    '375500': 'industrials',  # DL이앤씨
-    '006360': 'industrials',  # GS건설
-    '028050': 'industrials',  # 삼성E&A
-    '241590': 'industrials',  # 화승엔터프라이즈
+# ─── KR 종목 → 섹터 매핑 ──────────────────────────────────
+# 네이버 WICS 업종 자동 분류 (scripts/gen_sector_map.py 로 생성, ~2800종목).
+# kr_sectors.py 없으면 빈 dict → keyword fallback(프론트)으로 동작.
+try:
+    from .kr_sectors import KR_SECTOR_MAP as _WICS_SECTOR_MAP
+except Exception:
+    _WICS_SECTOR_MAP = {}
+
+# 수동 override — WICS 분류가 비거나 부정확한 소수 종목 보정 (지주·ETF 등)
+_SECTOR_OVERRIDE = {
+    '091160': 'tech', '395160': 'tech', '102780': 'tech', '139260': 'tech',
+    '278540': 'tech', '305720': 'battery', '091170': 'financials',
+    '244620': 'tech', '139220': 'industrials', '139250': 'industrials',
+    '034730': 'tech',  # SK (IT 지주)
+    '030200': 'telecom', '017670': 'telecom', '032640': 'telecom',
 }
+
+KR_SECTOR_MAP = {**_WICS_SECTOR_MAP, **_SECTOR_OVERRIDE}
 
 # KR Macro regime → sector 영향
 # +1.0 = 강한 호재 / -1.0 = 강한 악재 / 0 = 중립

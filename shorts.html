@@ -1538,6 +1538,7 @@
   await syncUserFromSession();
 
   let activeTab = 'hot';   // auth 리스너가 즉시 발화할 수 있어 여기서 선언
+  let _digestData = null;  // 저장 종목 다이제스트 — checkSavedDigest()가 선언보다 먼저 호출되어 위로 끌어올림
   if (fbAuth) {
     fbAuth.onAuthStateChanged(async (u) => {
       console.log('[Auth:firebase]', u ? 'signed-in' : 'signed-out');
@@ -1569,7 +1570,7 @@
   const CURRENT_MARKET = 'kr';   // KR 전용 — US 토글 제거 (2026-06)
   async function fetchSweep() {
     try {
-      const r = await fetch(`${API_BASE}/api/sweep?market=${CURRENT_MARKET}&top_n=80`);
+      const r = await fetch(`${API_BASE}/api/sweep?market=${CURRENT_MARKET}&top_n=200`);
       return await r.json();
     } catch (e) {
       return { error: e.message };
@@ -2654,7 +2655,7 @@
   }
 
   // ─── 저장 종목 다이제스트 — 새 사건 뉴스·큰 변동 알림 ───
-  let _digestData = null;
+  // (_digestData 선언은 위 활성탭 근처로 이동 — TDZ 방지)
   function _digestSeen() { return JSON.parse(localStorage.getItem('sq_digest_seen') || '{}'); }
   function _digestUnseen() {
     if (!_digestData) return 0;
