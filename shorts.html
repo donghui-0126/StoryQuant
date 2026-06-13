@@ -33,19 +33,20 @@
     --fs: 1;                    /* 글씨 크기 배율 (설정에서 변경) */
   }
   body.light {
-    --page-bg: #f4f1ec;
-    --reel-base: #ffffff;
-    --reel-flat-top: #fbf9f5;
-    --text: #1c1a17;
-    --text-2: rgba(28,26,23,0.66);
-    --text-3: rgba(28,26,23,0.45);
-    --surface: rgba(0,0,0,0.045);
-    --surface-2: rgba(0,0,0,0.08);
-    --border: rgba(0,0,0,0.12);
-    --sheet-bg: #ffffff;
-    --bg-soft: #f1ede6;
-    --nav-bg: rgba(255,255,255,0.82);
-    --pos: #16a34a; --neg: #dc2626; --accent: #b45309;
+    --page-bg: #ece8e1;          /* 따뜻한 연베이지 — 순백 대비 완화 */
+    --reel-base: #f7f4ee;        /* 카드 바탕도 살짝 톤다운 */
+    --reel-flat-top: #f1ede5;
+    --text: #2c2823;             /* 순흑 대신 따뜻한 진회색 */
+    --text-2: rgba(44,40,35,0.62);
+    --text-3: rgba(44,40,35,0.42);
+    --surface: rgba(60,50,38,0.05);
+    --surface-2: rgba(60,50,38,0.09);
+    --border: rgba(60,50,38,0.13);
+    --sheet-bg: #f5f1ea;
+    --bg-soft: #ebe6dd;
+    --nav-bg: rgba(240,236,228,0.88);
+    /* 채도 낮춘 차분한 색 — 흰 배경에서 눈 피로 완화 */
+    --pos: #2f9e5e; --neg: #cf5a52; --accent: #b1832e;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   html, body {
@@ -163,6 +164,12 @@
   .reel.dnS  { background: radial-gradient(circle at 70% 25%, rgba(239,68,68,0.28), transparent 55%), linear-gradient(180deg, rgba(239,68,68,0.14), var(--reel-base) 70%); }
   .reel.flat { background: linear-gradient(180deg, var(--reel-flat-top), var(--reel-base) 70%); }
   .reel.mystery { background: radial-gradient(circle at 70% 25%, rgba(167,139,250,0.24), transparent 55%), linear-gradient(180deg, rgba(167,139,250,0.12), var(--reel-base) 70%); }
+  /* 라이트 모드 — 그라데이션 채도/세기 대폭 완화 (눈 피로 방지) */
+  body.light .reel.up   { background: radial-gradient(circle at 75% 18%, rgba(47,158,94,0.08), transparent 50%), linear-gradient(180deg, rgba(47,158,94,0.05), var(--reel-base) 60%); }
+  body.light .reel.upS  { background: radial-gradient(circle at 75% 18%, rgba(47,158,94,0.12), transparent 50%), linear-gradient(180deg, rgba(47,158,94,0.07), var(--reel-base) 60%); }
+  body.light .reel.dn   { background: radial-gradient(circle at 75% 18%, rgba(207,90,82,0.08), transparent 50%), linear-gradient(180deg, rgba(207,90,82,0.05), var(--reel-base) 60%); }
+  body.light .reel.dnS  { background: radial-gradient(circle at 75% 18%, rgba(207,90,82,0.12), transparent 50%), linear-gradient(180deg, rgba(207,90,82,0.07), var(--reel-base) 60%); }
+  body.light .reel.mystery { background: radial-gradient(circle at 75% 18%, rgba(139,110,230,0.10), transparent 50%), linear-gradient(180deg, rgba(139,110,230,0.06), var(--reel-base) 60%); }
 
   .ticker-row { font-size: 11px; opacity: 0.75; margin-bottom: 6px; letter-spacing: 0.02em; }
   .sector-info-line {
@@ -220,6 +227,20 @@
     background: linear-gradient(135deg, rgba(160,160,160,0.18), rgba(160,160,160,0.05));
     border-color: var(--text-3);
   }
+  /* 라이트 모드 — 점수 패널·칩 채도 완화 */
+  body.light .score-hero-pos {
+    background: linear-gradient(135deg, rgba(47,158,94,0.13), rgba(47,158,94,0.04));
+    border-color: rgba(47,158,94,0.32); box-shadow: 0 4px 18px rgba(47,158,94,0.10);
+  }
+  body.light .score-hero-neg {
+    background: linear-gradient(135deg, rgba(207,90,82,0.13), rgba(207,90,82,0.04));
+    border-color: rgba(207,90,82,0.32); box-shadow: 0 4px 18px rgba(207,90,82,0.10);
+  }
+  body.light .sh-counts .c-bull, body.light .sh-agg .c-bull, body.light .chip.bull, body.light .shn-chip.bull { color: var(--pos); }
+  body.light .sh-counts .c-bear, body.light .sh-agg .c-bear, body.light .chip.bear, body.light .shn-chip.bear { color: var(--neg); }
+  body.light .shn-chip.bull { background: rgba(47,158,94,0.12); border-color: rgba(47,158,94,0.35); }
+  body.light .shn-chip.bear { background: rgba(207,90,82,0.12); border-color: rgba(207,90,82,0.35); }
+  body.light .up { color: var(--pos) !important; } body.light .dn { color: var(--neg) !important; }
   .score-hero.is-hold {
     background: linear-gradient(135deg, rgba(180,180,180,0.10), rgba(180,180,180,0.03));
     border-color: var(--text-3);
