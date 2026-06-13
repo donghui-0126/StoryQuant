@@ -195,6 +195,7 @@
     padding: 11px 0; border-bottom: 1px solid var(--border); cursor: pointer;
   }
   .sec-stock-row .ssr-name { font-size: 14px; font-weight: 700; color: var(--text); }
+  .sec-stock-row .ssr-go { color: var(--accent); font-weight: 700; margin-left: 2px; }
   .sec-stock-row .ssr-meta { font-size: 11px; color: var(--text-3); margin-top: 2px; }
   .sec-stock-row .ssr-alpha { font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
   .sec-stock-row .ssr-alpha.up { color: var(--pos); } .sec-stock-row .ssr-alpha.dn { color: var(--neg); }
@@ -356,16 +357,25 @@
   .sc-row { display: flex; justify-content: space-between; align-items: center; font-size: 11px; margin-bottom: 4px; }
   .sc-l { color: var(--text-2); }
   .sc-r { font-weight: 700; }
-  .sc-r.sc-hold { color: #cbd5e1; }
-  .sc-r.sc-low { color: #fbbf24; }
-  .sc-r.sc-normal { color: #60a5fa; }
-  .sc-r.sc-high { color: #4ade80; }
+  /* 신뢰도 라벨 — 형광 제거, 차분한 톤 */
+  .sc-r.sc-hold { color: #9aa3af; }
+  .sc-r.sc-low { color: #d99a2b; }
+  .sc-r.sc-normal { color: #6b94d6; }
+  .sc-r.sc-high { color: #46a06a; }
   .sc-bar { background: rgba(255,255,255,0.08); height: 5px; border-radius: 99px; overflow: hidden; }
   .sc-fill { height: 100%; border-radius: 99px; transition: width 0.4s; }
-  .sc-fill.sc-fill-hold { background: linear-gradient(90deg, #94a3b8, #cbd5e1); }
-  .sc-fill.sc-fill-low { background: linear-gradient(90deg, #fbbf24, #fde047); }
-  .sc-fill.sc-fill-normal { background: linear-gradient(90deg, #60a5fa, #93c5fd); }
-  .sc-fill.sc-fill-high { background: linear-gradient(90deg, #4ade80, #86efac); }
+  .sc-fill.sc-fill-hold { background: #9aa3af; }
+  .sc-fill.sc-fill-low { background: #d99a2b; }
+  .sc-fill.sc-fill-normal { background: #6b94d6; }
+  .sc-fill.sc-fill-high { background: #46a06a; }
+  /* 라이트 모드 — 라벨/바 더 차분하게 */
+  body.light .sc-r.sc-hold { color: #8b929c; }
+  body.light .sc-r.sc-low { color: #b8791a; }
+  body.light .sc-r.sc-normal { color: #2563eb; }
+  body.light .sc-r.sc-high { color: var(--pos); }
+  body.light .sc-fill.sc-fill-low { background: #c8881f; }
+  body.light .sc-fill.sc-fill-normal { background: #3b76d4; }
+  body.light .sc-fill.sc-fill-high { background: var(--pos); }
   .sc-meta { font-size: 10px; color: var(--text-3); margin-top: 5px; text-align: right; }
   .sh-cta {
     display: flex; justify-content: flex-end; align-items: center; gap: 4px;
@@ -2801,9 +2811,9 @@
       const nr = r.news_rating || 0;
       const inFeed = stocks.some(x => x.code === r.code);
       return `
-        <div class="sec-stock-row" ${inFeed ? `data-jump="${r.code}"` : ''}>
+        <div class="sec-stock-row" data-code="${r.code}" data-name="${r.name}" data-feed="${inFeed ? 1 : 0}">
           <div>
-            <div class="ssr-name">${r.name}${inFeed ? '' : ' <span style="font-size:10px;opacity:0.4">·핫 외</span>'}</div>
+            <div class="ssr-name">${r.name} <span class="ssr-go">›</span></div>
             <div class="ssr-meta">${r.code} · 뉴스 분위기 ${nr>0?'+':''}${nr.toFixed(0)} · 실질 ${r.sub_count||0}건</div>
           </div>
           <div class="ssr-alpha ${cls}">${r._a5>0?'+':''}${r._a5.toFixed(1)}%p</div>
@@ -2831,14 +2841,31 @@
       <div style="font-size:11px;color:var(--text-3);margin-bottom:6px;line-height:1.5;">개별 종목이 아닌 <b>업종 전체</b>에 영향 미치는 사건만 골라낸 거예요.</div>
       ${artsHtml}`;
     openSheet(sectorSheet, sectorBackdrop);
-    // 종목 클릭 → 핫 탭 점프 (피드에 있으면)
-    document.getElementById('sectorSheetBody').querySelectorAll('.sec-stock-row[data-jump]').forEach(row => {
-      row.addEventListener('click', () => {
-        const idx = stocks.findIndex(x => x.code === row.dataset.jump);
-        if (idx < 0) return;
+    // 종목 클릭 — 피드에 있으면 카드 점프, 없으면 뉴스 시트 바로 열기
+    document.getElementById('sectorSheetBody').querySelectorAll('.sec-stock-row[data-code]').forEach(row => {
+      row.addEventListener('click', async () => {
+        const code = row.dataset.code;
+        if (row.dataset.feed === '1') {
+          const idx = stocks.findIndex(x => x.code === code);
+          if (idx < 0) return;
+          closeSheet(sectorSheet, sectorBackdrop);
+          switchTab('hot');
+          reels[idx].scrollIntoView({ behavior: 'instant', block: 'start' });
+          return;
+        }
+        // 핫 외 종목 — 뉴스 시트를 바로 (5일 수익률은 차트에서 계산)
+        const adhoc = { code, name: row.dataset.name || code, mom_5: null };
+        try {
+          const rr = await fetch(`${API_BASE}/api/stock-chart?code=${code}&range=1mo&market=${CURRENT_MARKET}`);
+          const jj = await rr.json();
+          const bars = jj.bars || [];
+          if (bars.length >= 6) {
+            const last = bars[bars.length-1].c, b5 = bars[bars.length-6].c;
+            if (last && b5) adhoc.mom_5 = (last - b5) / b5 * 100;
+          }
+        } catch (_) {}
         closeSheet(sectorSheet, sectorBackdrop);
-        switchTab('hot');
-        reels[idx].scrollIntoView({ behavior: 'instant', block: 'start' });
+        openNewsSheetFor(adhoc);
       });
     });
     document.getElementById('sectorSheetBody').querySelectorAll('.news-row[data-link]').forEach(row => {
