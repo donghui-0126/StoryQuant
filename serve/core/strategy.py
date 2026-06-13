@@ -215,8 +215,10 @@ def fetch_sweep(top_n, market):
         s['stock_bear']  += r.get('stock_bear', 0)
         s['_pol_sum']    += r.get('polarity', 0)
         s['_mom_sum']    += r.get('mom_5', 0)
-        # 섹터 뉴스 dedup (title prefix 기준)
+        # 섹터 뉴스 dedup (title prefix 기준) + 최근 21일 이내만 (오래된 잡음 제거)
+        _recent_cut = int(time.time() * 1000) - 21 * 86400 * 1000
         for art in r.get('_sector_articles', []) or []:
+            if (art.get('ts') or 0) < _recent_cut: continue
             key = (art.get('title') or '')[:40]
             if key in s['_seen_titles']: continue
             s['_seen_titles'].add(key)
