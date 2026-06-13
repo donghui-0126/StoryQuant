@@ -2619,6 +2619,7 @@
     const visible = arts.filter(a => {
       if (filt === 'bull') return a.sentiment === 'bull';
       if (filt === 'bear') return a.sentiment === 'bear';
+      if (filt === 'sub') return a.substance === 'substantive';
       return true;
     });
     if (visible.length === 0) {
@@ -2658,10 +2659,15 @@
     try {
       const r = await fetch(`${API_BASE}/api/stock-news?code=${s.code}&market=${CURRENT_MARKET}&page=1&page_size=50`);
       const j = await r.json();
-      // 표시 뉴스: priced_in 제외 + 실제 사건 (substantive) 만
+      // 실제 사건(substantive) 우선 + 그 외 뉴스(off_topic·이미반영 제외)도 표시
+      // — 대형주는 실제 사건이 적어 사건만 보이면 비어 보이므로 참고 뉴스도 노출
       const all = (j.articles || []);
-      const arts = all.filter(a => !a.priced_in && a.substance === 'substantive');
+      const substantive = all.filter(a => !a.priced_in && a.substance === 'substantive');
+      const others = all.filter(a => !a.priced_in && a.substance !== 'substantive'
+                                     && a.llm_label !== 'off_topic');
+      const arts = [...substantive, ...others];
       _newsState.all = arts;
+      _newsState.subCount = substantive.length;
 
       const a = computeAlpha(s);
       const sectorAvgAlpha = (() => {
@@ -2692,17 +2698,19 @@
       }
 
       // 헤더 — 실제 사건 건수 + (있으면) 5일 수익률·코스피·섹터 대비
+      const subN = _newsState.subCount || 0;
       newsHeadSub.innerHTML = `
         <div style="display:flex;flex-direction:column;gap:4px;font-size:12px;line-height:1.45;">
-          <div style="opacity:0.85;">실제 사건 뉴스 <b>${arts.length}</b>건 (가격 묘사·논평·이미반영분 제외)</div>
+          <div style="opacity:0.85;">실제 사건 <b>${subN}</b>건 · 참고 뉴스 <b>${arts.length - subN}</b>건 <span style="opacity:0.6">(거시·무관 기사 제외)</span></div>
           ${retLine}
         </div>
       `;
 
       // 본문 — 필터 탭 + 리스트
       newsBody.innerHTML = `
-        <div class="news-filter-bar" style="display:flex;gap:8px;padding:10px 4px 14px 4px;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:8px;">
+        <div class="news-filter-bar" style="display:flex;gap:8px;padding:10px 4px 14px 4px;border-bottom:1px solid var(--border);margin-bottom:8px;">
           <button class="nf-tab active" data-filt="all">전체 ${arts.length}</button>
+          <button class="nf-tab" data-filt="sub">실제 사건 ${subN}</button>
           <button class="nf-tab nf-bull" data-filt="bull">호재 ${bullN}</button>
           <button class="nf-tab nf-bear" data-filt="bear">악재 ${bearN}</button>
         </div>
