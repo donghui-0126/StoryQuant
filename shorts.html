@@ -928,9 +928,17 @@
   .trust-criteria .tc-title { font-size: 12px; font-weight: 800; color: var(--text); margin-bottom: 2px; }
   .trust-criteria .tc-row { display: flex; align-items: flex-start; gap: 8px; font-size: 11.5px; color: var(--text-2); line-height: 1.4; }
   .trust-criteria .tc-badge {
-    flex-shrink: 0; font-size: 10px; font-weight: 800; padding: 1px 7px; border-radius: 5px;
-    border: 1px solid currentColor; min-width: 34px; text-align: center;
+    flex-shrink: 0; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 5px;
+    border: 1px solid currentColor; min-width: 38px; text-align: center; white-space: nowrap;
   }
+  .tc-badge.sc-hold   { color: #9aa3af; }
+  .tc-badge.sc-low    { color: #d99a2b; }
+  .tc-badge.sc-normal { color: #6b94d6; }
+  .tc-badge.sc-high   { color: #46a06a; }
+  body.light .tc-badge.sc-hold   { color: #8b929c; }
+  body.light .tc-badge.sc-low    { color: #b8791a; }
+  body.light .tc-badge.sc-normal { color: #2563eb; }
+  body.light .tc-badge.sc-high   { color: var(--pos); }
   /* 섹터 탭 카드 */
   .sec-card {
     background: var(--fill); border: 1px solid var(--line);
