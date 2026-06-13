@@ -295,6 +295,9 @@
     margin: 4px 0 6px;
     padding-left: 8px; border-left: 2px solid rgba(244,200,105,0.4);
   }
+  /* 라이트 모드 — 크림색 한줄평은 밝은 배경에서 안 보여 → 진한 갈색 */
+  body.light .shn-cmt, body.light .nr-cmt, body.light .dg-cmt { color: #8a6418; }
+  body.light .news-row .nr-cmt, body.light .dg-cmt { border-left-color: rgba(176,122,46,0.5); }
   /* 저장 탭 새 소식 다이제스트 */
   .dg-section {
     background: rgba(255,255,255,0.04);
@@ -2126,6 +2129,17 @@
               <div class="rc-lbl">이 종목 5일</div>
               <div class="rc-val ${s.mom_5>0?'up':s.mom_5<0?'dn':''}">${s.mom_5>0?'+':''}${s.mom_5.toFixed(1)}%</div>
             </div>
+            <div class="ret-cell">
+              <div class="rc-lbl">코스피 5일</div>
+              <div class="rc-val ${a.kospi5>0?'up':a.kospi5<0?'dn':''}">${a.kospi5>0?'+':''}${a.kospi5.toFixed(1)}%</div>
+            </div>
+            <div class="ret-cell">
+              <div class="rc-lbl">섹터 5일</div>
+              <div class="rc-val ${secAvg5 !== null ? (secAvg5>0?'up':secAvg5<0?'dn':'') : ''}">${secAvg5 !== null ? (secAvg5>0?'+':'') + secAvg5.toFixed(1) + '%' : '—'}</div>
+            </div>
+          </div>
+          <div class="ret-divider"></div>
+          <div class="ret-row">
             <div class="ret-cell hl">
               <div class="rc-lbl">코스피 대비</div>
               <div class="rc-val ${kospiCls}">${sign}${alpha.toFixed(1)}%p</div>
