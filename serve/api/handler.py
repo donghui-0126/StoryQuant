@@ -238,15 +238,16 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         market = self._market(q)
         code = (q.get('code', [''])[0] or '').strip()
         page = int(q.get('page', ['1'])[0])
+        page_size = max(10, min(60, int(q.get('page_size', ['40'])[0])))
         if not code:
             return self._send_json({'error': 'code required'}, status=400)
-        key = f'{market.id}|{code}|{page}'
+        key = f'{market.id}|{code}|{page}|{page_size}'
         now = time.time()
         c = Handler.STOCK_NEWS_CACHE.get(key)
         if c and (now - c[0]) < 120:
             return self._send_json(c[1])
         try:
-            data = fetch_stock_news(code, page=page, page_size=20, market=market, use_llm=True)
+            data = fetch_stock_news(code, page=page, page_size=page_size, market=market, use_llm=True)
             Handler.STOCK_NEWS_CACHE[key] = (now, data)
             if len(Handler.STOCK_NEWS_CACHE) > 100:
                 old = min(Handler.STOCK_NEWS_CACHE.items(), key=lambda kv: kv[1][0])
