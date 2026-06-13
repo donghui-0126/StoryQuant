@@ -2891,7 +2891,7 @@
       ${stocksHtml || '<div style="color:var(--text-3);font-size:13px;">종목 없음</div>'}
       <div class="sec-sheet-h4">업종 전반 뉴스 ${arts.length}건 ${arts.length?`(호재 ${bN}·악재 ${rN})`:''}</div>
       <div style="font-size:11px;color:var(--text-3);margin-bottom:6px;line-height:1.5;">개별 종목이 아닌 <b>업종 전체</b>에 영향 미치는 사건만 골라낸 거예요.</div>
-      ${artsHtml}`;
+      <div class="news-list">${artsHtml}</div>`;
     openSheet(sectorSheet, sectorBackdrop);
     // 종목 클릭 — 핫이든 아니든 쇼츠 슬라이드(릴)로 표시
     document.getElementById('sectorSheetBody').querySelectorAll('.sec-stock-row[data-code]').forEach(row => {
