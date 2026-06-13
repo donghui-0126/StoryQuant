@@ -211,85 +211,126 @@ def stats():
 # ═══════════════════════════════════════════════════════════
 #  뉴스별 한줄평 — 실질 사건(event_*)에만 생성. 분류 캐시와 분리.
 # ═══════════════════════════════════════════════════════════
-COMMENT_PROMPT = """당신은 금융·경제·시사·사회를 두루 아는 신중한 전문가 패널입니다.
-뉴스 헤드라인 하나에 대해 개인 투자자용 한줄평을 씁니다.
+COMMENT_PROMPT = """당신은 한국 증권가의 베테랑 애널리스트입니다. 기사 하나를 읽고
+개인 투자자가 "아 그래서 이게 중요하구나"를 깨닫게 하는 한 문장을 씁니다.
 
-먼저 뉴스 성격에 맞는 관점 하나를 고르세요:
-- 금융 애널리스트: 기업 실적·수주·계약 → 규모(시총 대비 유의미한가),
-  성격(일회성 vs 반복 사업), 시점(이미 알려진 재탕인가)
-- 경제 전문가: 산업·거시·환율·금리 → 업황 사이클 위치, 파급 범위,
-  비용/수요 어느 쪽에 작용하는가
-- 시사·정책 전문가: 규제·정책·정치 → 시행 시점과 실효성, 번복 가능성,
-  수혜/피해가 실제 어디로 가는가
-- 사회 전문가: 소비 트렌드·인구·노동·여론 → 구조적 변화인가 일시적 화제인가,
-  실제 매출로 이어지는 경로가 있는가
+핵심 원칙 — 헤드라인을 반복하지 말고, 헤드라인에 '없는' 통찰 하나를 더하세요:
+- 숫자의 의미: 계약·실적 금액이 그 회사 규모에서 큰가 작은가, 무엇과 비교되는가
+- 진짜 수혜 경로: 이 사건이 매출/이익에 닿는 구체적 경로 (또는 안 닿는 이유)
+- 숨은 맥락: 업황 사이클 위치, 경쟁 구도, 일회성인지 반복인지, 이미 알려진 건지
+- 흔한 오해: 투자자가 이 뉴스를 과대/과소평가하기 쉬운 지점
 
-규칙:
-1. 한국어 한 문장, 60자 이내. 평어체(~임, ~음) 또는 명사형 종결.
-2. '사실의 함의 + 주의점' — 고른 관점에서 가장 중요한 것 하나만.
-3. 매수·매도 권유 금지. 주가 방향 예측 금지 ("오를 것" X).
-4. 헤드라인만으로 모르는 것은 단정하지 말 것 ("규모 확인 필요" 같은 표현 OK).
+절대 금지:
+- 양비론 구조 금지: "A이나/하나/지만 B우려", "긍정적이나 ~", "기대되나 ~"처럼
+  좋은 점 하나 + 나쁜 점 하나로 균형 맞추는 문장. 한쪽으로 단정하세요.
+- 면피성 마무리 금지: "확인 필요", "지켜봐야", "주목된다", "기대된다"
+- 헤드라인 동어반복 금지 ("수주는 수주 증가를 의미" 류)
+- 매수·매도 권유, 주가 방향 예측 금지
+- 정말 더할 통찰이 없으면 빈 문자열 "" 반환 (억지로 채우지 말 것)
+
+방법: 헤드라인이 못 말해주는 가장 중요한 사실 '하나'만 골라 단정적으로.
+
+숫자 관련 — 매우 중요:
+- 본문/헤드라인에 '명시된' 숫자만 인용. 본문에 "매출의 30%"라고 적혀 있으면 OK.
+- 회사 연매출·시총을 당신이 추정해 비율("연매출의 24%")을 계산하지 말 것.
+  실제 수치를 모르면서 지어낸 정밀한 비율은 거짓 정보임. 절대 금지.
+- 비교가 필요하면 본문 근거 없이는 "단일 계약치곤 큰 규모" 같은 정성적 표현만.
+
+형식: 한국어 한 문장, 45자 내외, 단정적 평어체(~임/~음/명사형). '하나'에 집중.
+
+좋은 예 (한쪽으로 단정, 통찰 하나):
+- "A사, 1883억 LNG 발전설비 수주" → {"comment":"연매출 맞먹는 단일 수주지만 발전설비라 인도까지 2~3년 분할 인식"}
+- "B사 1분기 영업익 14% 증가" → {"comment":"반도체 바닥 통과 구간이라 전년 기저효과 비중이 큰 증가율"}
+- "C사 코스닥150 지수 편입" → {"comment":"패시브 자금 기계적 유입일 뿐 펀더멘털 변화는 아님"}
+- "D사 HBM 장비 빅3 납품" → {"comment":"HBM 후공정 장비는 고객 다변화가 핵심 — 빅3 동시 진입은 의미 큼"}
+- 통찰 없는 홍보성 → {"comment":""}
 
 출력: JSON 한 줄만 {"comment":"..."}"""
 
+# 면피·양비론·동어반복 마커 — 포함 시 한줄평 폐기 (없느니만 못한 코멘트 제거)
+_HEDGE_MARKERS = ('확인 필요', '지켜봐야', '주목', '귀추', '관심이 필요',
+                  '신중', '유의', '필요해 보', '될 전망', '기대됨', '기대된다',
+                  '기대되나', '기대되지만', '긍정적이나', '긍정적이지만',
+                  '우려가 존재', '우려도 있', '주의 필요', '주의가 필요')
 
-def comment_one(title, name=None, sector=None, label=None, model='gpt-4o-mini'):
-    """헤드라인 한 건에 대한 투자자용 한줄평. 캐시 prefix 'c_' 로 분류 캐시와 분리."""
+
+import re as _re
+# 매출/시총 대비 비율 — LLM이 실제 수치를 모르면서 계산한 거짓 정밀도일 위험 → 폐기
+_FAKE_RATIO = _re.compile(r'(연?매출|시총|시가총액)\D{0,6}\d')
+
+
+def _comment_useful(comment, title, body=None):
+    """면피·양비론·지어낸 비율 한줄평이면 False. (없느니만 못한 코멘트 게이트)"""
+    if not comment or len(comment) < 10:
+        return False
+    if any(m in comment for m in _HEDGE_MARKERS):
+        return False
+    # '연매출의 24%' 류 — 본문에 같은 표현이 없으면 LLM이 지어낸 비율로 간주
+    m = _FAKE_RATIO.search(comment)
+    if m and (not body or '매출' not in (body or '')):
+        return False
+    return True
+
+
+def comment_one(title, name=None, sector=None, label=None, body=None, model='gpt-4o-mini'):
+    """기사 한 건 한줄평. 본문(body) 있으면 함께 투입. 'c5_' 캐시 (프롬프트 v2)."""
     if not title or not (title or '').strip():
         return None
-    key = 'c_' + _cache_key(title, name, sector)
+    key = 'c5_' + _cache_key(title, name, sector)
     cached = _load_cached(key)
     if cached:
         _STATS['hit'] += 1
-        return cached.get('comment')
+        return cached.get('comment') or None
     client = _get_client()
     if client is None:
         return None
-    sent = '호재로 분류됨' if label == 'event_bull' else ('악재로 분류됨' if label == 'event_bear' else '')
+    sent = '(호재 분류)' if label == 'event_bull' else ('(악재 분류)' if label == 'event_bear' else '')
     sec = f' / 섹터: {sector}' if sector else ''
+    body_str = f'\n본문 일부: "{(body or "")[:200]}"' if body else ''
     try:
         rsp = client.chat.completions.create(
             model=model,
             messages=[
                 {'role': 'system', 'content': COMMENT_PROMPT},
-                {'role': 'user', 'content': f'종목: {name or "?"}{sec} {sent}\n헤드라인: "{title}"'},
+                {'role': 'user', 'content': f'종목: {name or "?"}{sec} {sent}\n헤드라인: "{title}"{body_str}'},
             ],
-            temperature=0.2,
-            max_tokens=110,
+            temperature=0.3,
+            max_tokens=120,
             response_format={'type': 'json_object'},
         )
         data = json.loads(rsp.choices[0].message.content or '{}')
-        comment = (data.get('comment') or '').strip()[:80]
-        if not comment:
-            return None
+        comment = (data.get('comment') or '').strip()[:90]
+        if not _comment_useful(comment, title, body):
+            comment = ''     # 면피·지어낸 비율이면 캐시엔 빈값 저장 → UI엔 미표시
         _save_cached(key, {'comment': comment})
         _STATS['miss'] += 1
         usage = getattr(rsp, 'usage', None)
         if usage:
             _STATS['cost_usd'] += usage.prompt_tokens * 0.15/1e6 + usage.completion_tokens * 0.60/1e6
-        return comment
+        return comment or None
     except Exception:
         _STATS['err'] += 1
         return None
 
 
 def comment_batch(items, max_workers=6):
-    """items = [{'title','name','sector','label'}] → [comment|None] (병렬, 캐시 우선)."""
+    """items = [{'title','name','sector','label','body'}] → [comment|None]."""
     results = [None] * len(items)
     pending = []
     for i, it in enumerate(items):
-        key = 'c_' + _cache_key(it.get('title'), it.get('name'), it.get('sector'))
+        key = 'c5_' + _cache_key(it.get('title'), it.get('name'), it.get('sector'))
         cached = _load_cached(key)
         if cached:
             _STATS['hit'] += 1
-            results[i] = cached.get('comment')
+            results[i] = cached.get('comment') or None
         else:
             pending.append(i)
     if not pending:
         return results
     with ThreadPoolExecutor(max_workers=max_workers) as ex:
         futs = {ex.submit(comment_one, items[i].get('title'), items[i].get('name'),
-                          items[i].get('sector'), items[i].get('label')): i for i in pending}
+                          items[i].get('sector'), items[i].get('label'), items[i].get('body')): i
+                for i in pending}
         for f in futs:
             try:
                 results[futs[f]] = f.result()

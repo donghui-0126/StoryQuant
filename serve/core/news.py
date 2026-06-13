@@ -74,7 +74,7 @@ def fetch_stock_news(code, page, page_size, market, use_llm=False):
                 if targets:
                     comments = _llm.comment_batch([
                         {'title': a.get('title'), 'name': name, 'sector': sector,
-                         'label': a.get('llm_label')} for a in targets])
+                         'label': a.get('llm_label'), 'body': a.get('body')} for a in targets])
                     for a, c in zip(targets, comments):
                         if c:
                             a['llm_comment'] = c
