@@ -36,8 +36,13 @@ def fetch_one_for_sweep(code, market, macro_regime='neutral'):
             if std > 0:
                 vol_z = (last_v - avg) / std
 
-        bull = sum(1 for a in articles if a.get('sentiment') == 'bull')
-        bear = sum(1 for a in articles if a.get('sentiment') == 'bear')
+        # priced_in 먼저 annotate — 카드 카운트가 모달 '실제 사건' 정의와 일치하도록
+        from .classify import annotate_priced_in
+        annotate_priced_in(articles, bars)
+        # 실제 사건(event) = substantive & !priced_in  (모달과 동일 정의)
+        is_event = lambda a: a.get('substance') == 'substantive' and not a.get('priced_in')
+        bull = sum(1 for a in articles if a.get('sentiment') == 'bull' and is_event(a))
+        bear = sum(1 for a in articles if a.get('sentiment') == 'bear' and is_event(a))
         polarity = ((bull - bear) / (bull + bear) * 100) if (bull + bear) > 0 else 0
         density = min(3.0, len(articles) * 0.15)
         # scope별 호악재 카운트 (LLM 분류 시 활용)
@@ -53,16 +58,14 @@ def fetch_one_for_sweep(code, market, macro_regime='neutral'):
         spec_avg = (sum(a.get('specificity') or 0 for a in articles) / len(articles)) if articles else 0
         surp_max = max((a.get('surprise') or 0 for a in articles), default=0)
         src_avg = (sum(a.get('source_score') or 0.5 for a in articles) / len(articles)) if articles else 0.5
-        sub_count = sum(1 for a in articles if a.get('substance') == 'substantive')
+        sub_count = sum(1 for a in articles if is_event(a))   # 실제 사건 = 모달 정의와 동일
         cat_dist = {}
         for a in articles:
             c = a.get('category') or '기타'
             cat_dist[c] = cat_dist.get(c, 0) + 1
         is_mystery = (abs(mom_5) >= 3.0 and len(articles) <= 1)
 
-        # v21.6 — priced_in annotation + ratio 산정
-        from .classify import annotate_priced_in
-        annotate_priced_in(articles, bars)
+        # v21.6 — priced_in ratio 산정 (annotate 는 위에서 이미 수행)
         priced_in_count = sum(1 for a in articles if a.get('priced_in'))
         priced_in_ratio = priced_in_count / max(1, len(articles))
 
@@ -123,11 +126,10 @@ def fetch_one_for_sweep(code, market, macro_regime='neutral'):
                  'ts': a.get('ts'), 'sentiment': a.get('sentiment'),
                  'scope': a.get('scope') or 'stock',
                  'comment': a.get('llm_comment'),
-                 'priced_in': bool(a.get('priced_in'))}
+                 'priced_in': False}
                 for a in sorted(
-                    [a for a in articles if a.get('substance') == 'substantive'
-                     and a.get('sentiment') in ('bull', 'bear')],
-                    key=lambda a: (a.get('priced_in') and 1 or 0, -(a.get('ts') or 0)))[:3]
+                    [a for a in articles if is_event(a) and a.get('sentiment') in ('bull', 'bear')],
+                    key=lambda a: -(a.get('ts') or 0))[:3]
             ],
             # scope=sector + event_* 인 기사만 — 섹터 sheet 용
             '_sector_articles': [
