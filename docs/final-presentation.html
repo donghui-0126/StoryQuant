@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>StoryQuant — 최종 발표</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
+<style>
+  :root{
+    --bg:#f4f1ea; --paper:#fffdf8; --ink:#2a2723; --ink-2:#6b6459; --ink-3:#a39b8d;
+    --line:rgba(42,39,35,.10); --line-2:rgba(42,39,35,.16);
+    --accent:#c2410c; --accent-soft:#e8d9c4;
+    --green:#1a9d54; --red:#cf5a52; --blue:#2563eb; --amber:#b8791a; --purple:#7c5bd6;
+    --shadow:0 6px 30px rgba(42,39,35,.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  html,body{height:100%;}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:'Pretendard Variable',Pretendard,-apple-system,system-ui,sans-serif;
+    font-feature-settings:'tnum' 1; overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+  .deck{ height:100vh; width:100vw; position:relative; }
+  .slide{
+    position:absolute; inset:0; display:none;
+    flex-direction:column; justify-content:center;
+    padding:7vh 8vw; opacity:0; transition:opacity .4s ease;
+  }
+  .slide.on{ display:flex; opacity:1; }
+  @media(min-width:900px){ .slide{ padding:9vh 11vw; } }
+
+  .kicker{ font-size:14px; font-weight:700; letter-spacing:.14em; color:var(--accent); text-transform:uppercase; margin-bottom:14px; }
+  h1{ font-size:clamp(34px,6vw,68px); font-weight:800; line-height:1.08; letter-spacing:-.02em; }
+  h2{ font-size:clamp(26px,4.2vw,46px); font-weight:800; line-height:1.15; letter-spacing:-.02em; margin-bottom:6px; }
+  .sub{ font-size:clamp(15px,1.8vw,20px); color:var(--ink-2); line-height:1.6; margin-top:14px; max-width:60ch; }
+  .lead{ font-size:clamp(18px,2.4vw,28px); color:var(--ink); line-height:1.5; font-weight:600; margin-top:18px; max-width:24ch; }
+  .divider{ width:54px; height:4px; background:var(--accent); border-radius:99px; margin:18px 0; }
+
+  .grid{ display:grid; gap:16px; margin-top:30px; }
+  .g2{ grid-template-columns:1fr 1fr; } .g3{ grid-template-columns:1fr 1fr 1fr; }
+  @media(max-width:760px){ .g2,.g3{ grid-template-columns:1fr; } }
+  .card{ background:var(--paper); border:1px solid var(--line); border-radius:16px; padding:22px 22px; box-shadow:var(--shadow); }
+  .card h3{ font-size:18px; font-weight:800; margin-bottom:8px; display:flex; align-items:center; gap:8px; }
+  .card p{ font-size:14.5px; color:var(--ink-2); line-height:1.6; }
+  .card .em{ font-size:22px; }
+
+  ul.clean{ list-style:none; margin-top:24px; display:flex; flex-direction:column; gap:14px; }
+  ul.clean li{ font-size:clamp(16px,2vw,21px); line-height:1.45; display:flex; gap:12px; align-items:flex-start; }
+  ul.clean li .b{ flex-shrink:0; font-weight:800; }
+  .muted{ color:var(--ink-3); }
+  .tag{ display:inline-block; font-size:12px; font-weight:800; padding:3px 10px; border-radius:99px; border:1px solid currentColor; }
+  .t-green{ color:var(--green); } .t-red{ color:var(--red); } .t-blue{ color:var(--blue); } .t-amber{ color:var(--amber); } .t-purple{ color:var(--purple); }
+
+  /* 폐기 vs 남은 것 */
+  .twocol{ display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:28px; }
+  @media(max-width:760px){ .twocol{ grid-template-columns:1fr; } }
+  .panel{ background:var(--paper); border-radius:18px; padding:24px; box-shadow:var(--shadow); border:1px solid var(--line); }
+  .panel.kept{ border-top:4px solid var(--green); }
+  .panel.dropped{ border-top:4px solid var(--red); }
+  .panel h3{ font-size:20px; font-weight:800; margin-bottom:16px; }
+  .panel ul{ list-style:none; display:flex; flex-direction:column; gap:11px; }
+  .panel li{ font-size:15px; line-height:1.4; color:var(--ink); display:flex; gap:9px; }
+  .panel li small{ color:var(--ink-3); font-size:12.5px; display:block; margin-top:1px; }
+  .ic{ flex-shrink:0; font-weight:800; }
+  .kept .ic{ color:var(--green); } .dropped .ic{ color:var(--red); }
+
+  /* 파이프라인 */
+  .pipe{ display:flex; flex-wrap:wrap; align-items:stretch; gap:10px; margin-top:30px; }
+  .pstep{ flex:1; min-width:150px; background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:18px 16px; box-shadow:var(--shadow); position:relative; }
+  .pstep .n{ font-size:12px; font-weight:800; color:var(--accent); }
+  .pstep h4{ font-size:16px; font-weight:800; margin:6px 0 6px; }
+  .pstep p{ font-size:13px; color:var(--ink-2); line-height:1.5; }
+  .arrow{ align-self:center; color:var(--ink-3); font-size:22px; }
+  @media(max-width:760px){ .arrow{ transform:rotate(90deg); } }
+
+  .labels{ display:flex; flex-wrap:wrap; gap:10px; margin-top:24px; }
+  .lab{ background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:12px 16px; font-size:14px; box-shadow:var(--shadow); }
+  .lab b{ font-weight:800; }
+
+  .stat{ font-size:clamp(40px,8vw,90px); font-weight:800; color:var(--accent); line-height:1; letter-spacing:-.02em; }
+  .statrow{ display:flex; gap:48px; flex-wrap:wrap; margin-top:30px; }
+  .statrow .s small{ display:block; font-size:15px; color:var(--ink-2); margin-top:8px; font-weight:600; }
+
+  /* nav */
+  .nav{ position:fixed; bottom:22px; right:26px; display:flex; align-items:center; gap:14px; z-index:10; }
+  .nav button{ width:40px; height:40px; border-radius:50%; border:1px solid var(--line-2); background:var(--paper); color:var(--ink); font-size:18px; cursor:pointer; box-shadow:var(--shadow); }
+  .nav button:active{ transform:scale(.94); }
+  .counter{ font-size:13px; color:var(--ink-3); font-variant-numeric:tabular-nums; }
+  .progress{ position:fixed; top:0; left:0; height:3px; background:var(--accent); transition:width .4s ease; z-index:10; }
+  .brand{ position:fixed; top:22px; left:26px; font-size:14px; font-weight:800; letter-spacing:-.01em; color:var(--ink-2); z-index:10; }
+  .brand span{ color:var(--accent); }
+  .hint{ position:fixed; bottom:24px; left:26px; font-size:12px; color:var(--ink-3); z-index:10; }
+  .quote{ font-size:clamp(22px,3.4vw,40px); font-weight:700; line-height:1.35; letter-spacing:-.01em; max-width:20ch; }
+  .quote .hl{ color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="progress" id="prog"></div>
+<div class="brand">📊 Story<span>Quant</span></div>
+<div class="deck" id="deck">
+
+  <!-- 1. 표지 -->
+  <section class="slide on">
+    <div class="kicker">뉴스 기반 주식 분석 · 최종 발표</div>
+    <h1>가격이 <span style="color:var(--accent)">왜</span> 움직였나,<br>뉴스는 얼마나 <span style="color:var(--accent)">믿을 만한가</span></h1>
+    <p class="sub">예측하지 않습니다. 이미 일어난 변동을 뉴스로 설명하고, 헤드라인의 잡음을 걸러냅니다.<br>KR 주식 · 모바일 reels UI · gpt-4o-mini</p>
+  </section>
+
+  <!-- 2. 문제의식 -->
+  <section class="slide">
+    <div class="kicker">왜 만들었나</div>
+    <h2>증권 뉴스의 90%는 잡음이다</h2>
+    <div class="divider"></div>
+    <p class="sub">"삼성전자" 헤드라인 20건을 열면 — 대부분 시황 중계, 보도자료 재탕, 종목을 스쳐 지나가는 거시 기사입니다. 정작 펀더멘털을 바꾸는 <b>진짜 사건</b>은 한두 건뿐이죠.</p>
+    <div class="statrow">
+      <div class="s"><div class="stat">70–90%</div><small>reactive · speculative · off_topic 으로 분류되는 헤드라인 비율</small></div>
+      <div class="s"><div class="stat">1–3건</div><small>대형주 20건 중 실제 사건(event) 뉴스</small></div>
+    </div>
+  </section>
+
+  <!-- 3. 서비스 목적 -->
+  <section class="slide">
+    <div class="kicker">서비스의 목적</div>
+    <h2>예측이 아니라 <span style="color:var(--accent)">해석</span></h2>
+    <ul class="clean">
+      <li><span class="b" style="color:var(--accent)">①</span><div><b>노이즈 필터</b> — 읽을 가치 있는 사건만 골라 보여준다</div></li>
+      <li><span class="b" style="color:var(--accent)">②</span><div><b>사후 설명(attribution)</b> — "왜 움직였나"를 뉴스로 맥락화한다</div></li>
+      <li><span class="b" style="color:var(--accent)">③</span><div><b>정직한 한계 공개</b> — 검증 안 된 건 주장하지 않는다</div></li>
+    </ul>
+    <p class="lead">"가격이 어디로 갈지"는 시장의 몫.<br>우리는 <span style="color:var(--accent)">읽는 법</span>을 돕는다.</p>
+  </section>
+
+  <!-- 4. LLM 사용방법 — 파이프라인 -->
+  <section class="slide">
+    <div class="kicker">LLM을 어떻게 쓰는가</div>
+    <h2>gpt-4o-mini, 세 가지 역할</h2>
+    <div class="pipe">
+      <div class="pstep"><div class="n">STEP 1</div><h4>헤드라인 분류</h4><p>각 기사를 5개 라벨로 분류 + 영향 범위(scope) 판정</p></div>
+      <div class="arrow">→</div>
+      <div class="pstep"><div class="n">STEP 2</div><h4>분류 근거 생성</h4><p>왜 그렇게 판단했는지 한 줄 근거를 함께 출력</p></div>
+      <div class="arrow">→</div>
+      <div class="pstep"><div class="n">STEP 3</div><h4>전문가 한줄평</h4><p>실제 사건에만 — 본문을 읽고 통찰 한 문장</p></div>
+    </div>
+    <div class="labels">
+      <div class="lab"><span class="tag t-green">event_bull</span> <span class="tag t-red">event_bear</span> &nbsp;실제 사건</div>
+      <div class="lab"><span class="tag t-amber">reactive</span> <span class="tag t-purple">speculative</span> <span class="muted">off_topic</span> &nbsp;잡음</div>
+      <div class="lab">scope: <b>stock / sector / macro</b></div>
+    </div>
+    <p class="sub">캐시 ~86,000 헤드라인 · sweep 1회 갱신 ≈ <b>$0.02</b> · temperature 0 (분류) / 0.3 (한줄평)</p>
+  </section>
+
+  <!-- 5. LLM 신뢰성 설계 -->
+  <section class="slide">
+    <div class="kicker">LLM을 믿을 수 있게</div>
+    <h2>환각·면피를 막는 장치</h2>
+    <div class="grid g2">
+      <div class="card"><h3><span class="em">🎯</span>확신 게이트</h3><p>event 분류는 confidence ≥ 0.7 일 때만 점수 반영. 애매하면 중립 처리.</p></div>
+      <div class="card"><h3><span class="em">🧾</span>본문 근거</h3><p>한줄평은 제목이 아닌 기사 본문을 읽고 작성 — 막연한 코멘트 방지.</p></div>
+      <div class="card"><h3><span class="em">🚫</span>면피 표현 차단</h3><p>"확인 필요·지켜봐야" 양비론 문장은 게이트에서 폐기 → 단정적 통찰만.</p></div>
+      <div class="card"><h3><span class="em">🔢</span>지어낸 숫자 차단</h3><p>본문에 없는 "연매출의 24%" 같은 거짓 정밀도는 자동 폐기.</p></div>
+    </div>
+    <p class="sub">섹터 분류는 LLM이 아니라 <b>한국거래소 WICS 공식 업종</b>(2,800종목 자동 매핑)을 사용 — 분류 정확도와 비용을 분리.</p>
+  </section>
+
+  <!-- 6. 검증: 정직하게 깨부순 가설들 -->
+  <section class="slide">
+    <div class="kicker">검증 — 정직하게 깨부쉈다</div>
+    <h2>되는 것과 안 되는 것을 구분</h2>
+    <div class="divider"></div>
+    <ul class="clean">
+      <li><span class="b t-red">✗</span><div><b>미래 예측</b> — forward 수익률 R² 전 구간 음수 (1·5·20일)</div></li>
+      <li><span class="b t-red">✗</span><div><b>이벤트 인과 attribution</b> — placebo 테스트에서 "조용한 날"이 오히려 뉴스 더 많음 → 인과 근거 없음</div></li>
+      <li><span class="b t-green">✓</span><div><b>노이즈 필터링</b> — 헤드라인 70~90%를 실제로 걸러냄 (분류의 가치)</div></li>
+      <li><span class="b t-green">✓</span><div><b>뉴스 과열 경고</b> — 점수 최상위 구간이 오히려 수익 최악(역상관) 재현</div></li>
+    </ul>
+  </section>
+
+  <!-- 7. 폐기 vs 남김 -->
+  <section class="slide">
+    <div class="kicker">무엇을 버리고 무엇을 남겼나</div>
+    <h2>덜어내며 정직해졌다</h2>
+    <div class="twocol">
+      <div class="panel dropped">
+        <h3>🗑 폐기</h3>
+        <ul>
+          <li><span class="ic">✗</span><div>미래 가격 예측<small>R² &lt; 0 — 통계적으로 불가</small></div></li>
+          <li><span class="ic">✗</span><div>합성 뉴스 점수(0~100)<small>예측력 미확인 → 숫자 강등 후 제거</small></div></li>
+          <li><span class="ic">✗</span><div>이벤트 인과 타임라인<small>placebo로 반증</small></div></li>
+          <li><span class="ic">✗</span><div>키워드 룰 호악재<small>"급등=호재" 역인과 오류</small></div></li>
+          <li><span class="ic">✗</span><div>커뮤니티 · 미장(US) 탭<small>핵심에 집중</small></div></li>
+        </ul>
+      </div>
+      <div class="panel kept">
+        <h3>✓ 남김 (검증된 가치)</h3>
+        <ul>
+          <li><span class="ic">✓</span><div>LLM 노이즈 필터 + 실제 사건 큐레이션</div></li>
+          <li><span class="ic">✓</span><div>호재/악재 <b>집계</b> (세어볼 수 있는 사실)</div></li>
+          <li><span class="ic">✓</span><div>코스피·섹터 대비 상대수익률</div></li>
+          <li><span class="ic">✓</span><div>mystery mover · 뉴스 과열 경고</div></li>
+          <li><span class="ic">✓</span><div>WICS 섹터 분류 · 분류 근거·신뢰도 공개</div></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 8. UX 변화 -->
+  <section class="slide">
+    <div class="kicker">UX는 어떻게 바뀌었나</div>
+    <h2>"점수" 대신 <span style="color:var(--accent)">사실</span>을 보여준다</h2>
+    <div class="grid g2">
+      <div class="card"><h3>전 — 숫자 중심</h3><p>카드에 <b>+46</b> 같은 합성 점수를 크게. 믿을 근거가 약한 정밀함.</p></div>
+      <div class="card" style="border-color:var(--accent);"><h3>후 — 콘텐츠 중심</h3><p><b>실제 사건 헤드라인</b>이 카드의 주인공. "호재 11 · 악재 1 · 잡음 N건 걸러냄".</p></div>
+    </div>
+    <ul class="clean" style="margin-top:22px;">
+      <li><span class="b" style="color:var(--accent)">·</span><div>TikTok식 세로 릴 + 다크/<b>라이트</b> 모드 · Pretendard · 글씨 크기 설정</div></li>
+      <li><span class="b" style="color:var(--accent)">·</span><div>분류 근거 🔎 · 신뢰도 평가 기준 · 제외 사유까지 <b>투명 공개</b></div></li>
+      <li><span class="b" style="color:var(--accent)">·</span><div>저장 종목 <b>새 소식 알림</b> · 섹터 시트 · 검색 → 릴 슬라이드</div></li>
+    </ul>
+  </section>
+
+  <!-- 9. 향후 개발 -->
+  <section class="slide">
+    <div class="kicker">향후 개발 방향</div>
+    <h2>헤드라인 밖의 진짜 신호로</h2>
+    <div class="divider"></div>
+    <p class="sub">검증 결과, 가격을 진짜 움직이는 정보는 헤드라인 밖에 있었습니다. 다음은 그 소스로 향합니다.</p>
+    <div class="grid g3" style="margin-top:24px;">
+      <div class="card"><h3><span class="em">📑</span>DART 공시</h3><p>실적·계약·증자 — 시점이 정확한 진짜 사건 소스</p></div>
+      <div class="card"><h3><span class="em">💹</span>수급 데이터</h3><p>외국인·기관 순매수 (KRX 공개) + 베타 보정 상대수익률</p></div>
+      <div class="card"><h3><span class="em">🔔</span>알림 채널</h3><p>텔레그램·카카오 봇 — 종목별 하루 브리핑으로 리텐션</p></div>
+    </div>
+  </section>
+
+  <!-- 10. 마무리 -->
+  <section class="slide">
+    <div class="kicker">정리</div>
+    <p class="quote">맞추는 게 아니라,<br><span class="hl">이미 일어난 일을 정확히 읽는다.</span></p>
+    <p class="sub" style="margin-top:24px;">예측은 사양합니다. 잡음을 걸러주고, 무엇이 검증됐고 안 됐는지 정직하게 보여주는 것 — 그게 StoryQuant이 남긴 가치입니다.</p>
+    <p class="sub muted" style="margin-top:18px;">감사합니다 · 📊 StoryQuant</p>
+  </section>
+
+</div>
+
+<div class="counter" id="counter" style="position:fixed;bottom:28px;left:50%;transform:translateX(-50%);z-index:10;"></div>
+<div class="nav">
+  <button id="prev" aria-label="이전">‹</button>
+  <button id="next" aria-label="다음">›</button>
+</div>
+<div class="hint">← → 또는 스페이스로 이동</div>
+
+<script>
+  const slides = [...document.querySelectorAll('.slide')];
+  let i = 0;
+  const prog = document.getElementById('prog');
+  const counter = document.getElementById('counter');
+  function show(n){
+    i = Math.max(0, Math.min(slides.length-1, n));
+    slides.forEach((s,j)=>s.classList.toggle('on', j===i));
+    prog.style.width = ((i+1)/slides.length*100)+'%';
+    counter.textContent = `${i+1} / ${slides.length}`;
+  }
+  document.getElementById('next').onclick = ()=>show(i+1);
+  document.getElementById('prev').onclick = ()=>show(i-1);
+  document.addEventListener('keydown', e=>{
+    if(['ArrowRight',' ','PageDown'].includes(e.key)){ e.preventDefault(); show(i+1); }
+    else if(['ArrowLeft','PageUp'].includes(e.key)){ e.preventDefault(); show(i-1); }
+    else if(e.key==='Home'){ show(0); } else if(e.key==='End'){ show(slides.length-1); }
+  });
+  // 터치 스와이프
+  let x0=null;
+  document.addEventListener('touchstart', e=>{ x0=e.touches[0].clientX; }, {passive:true});
+  document.addEventListener('touchend', e=>{
+    if(x0===null) return;
+    const dx = e.changedTouches[0].clientX - x0;
+    if(Math.abs(dx)>50) show(i + (dx<0?1:-1));
+    x0=null;
+  }, {passive:true});
+  show(0);
+</script>
+</body>
+</html>
