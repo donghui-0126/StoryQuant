@@ -74,10 +74,6 @@
   .arrow{ align-self:center; color:var(--ink-3); font-size:22px; }
   @media(max-width:760px){ .arrow{ transform:rotate(90deg); } }
 
-  .shots{ display:flex; gap:40px; margin-top:26px; align-items:flex-start; justify-content:center; flex-wrap:wrap; }
-  .shots figure{ display:flex; flex-direction:column; align-items:center; max-width:300px; }
-  .shots img{ height:58vh; max-height:480px; width:auto; border-radius:18px; box-shadow:0 12px 40px rgba(42,39,35,.18); border:1px solid var(--line); }
-  .shots figcaption{ font-size:13px; color:var(--ink-2); line-height:1.5; margin-top:14px; text-align:center; max-width:300px; }
   .feedmock{ display:flex; flex-direction:column; gap:8px; margin-top:26px; }
   .fm{ display:flex; gap:12px; align-items:center; background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:11px 16px; font-size:15px; box-shadow:var(--shadow); }
   .fm .tag{ flex-shrink:0; min-width:86px; text-align:center; }
@@ -288,22 +284,6 @@
       <li><span class="b" style="color:var(--accent)">·</span><div>분류 근거 🔎 · 신뢰도 평가 기준 · 제외 사유까지 <b>투명 공개</b></div></li>
       <li><span class="b" style="color:var(--accent)">·</span><div>저장 종목 <b>새 소식 알림</b> · 섹터 시트 · 검색 → 릴 슬라이드</div></li>
     </ul>
-  </section>
-
-  <!-- 8b. 실제 화면 -->
-  <section class="slide">
-    <div class="kicker">실제 화면 · 효성중공업</div>
-    <h2>이렇게 생겼습니다</h2>
-    <div class="shots">
-      <figure>
-        <img src="assets/app-card.png" alt="종목 카드">
-        <figcaption><b>카드</b> — 실제 사건 헤드라인 + 💬한줄평 · "호재 7 · 악재 0 · 잡음 13건 걸러냄" · 신뢰도 게이지 · 코스피/섹터 대비</figcaption>
-      </figure>
-      <figure>
-        <img src="assets/app-news.png" alt="뉴스 모달">
-        <figcaption><b>뉴스</b> — 전체/실제사건/호재/악재/제외 필터 · 🔎분류 근거 · 💬전문가 한줄평</figcaption>
-      </figure>
-    </div>
   </section>
 
   <!-- 9. 향후 개발 -->
