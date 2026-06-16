@@ -18,5 +18,8 @@ from serve.main import run
 
 
 if __name__ == '__main__':
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
-    run(port=port)
+    import os
+    env_port = os.environ.get('PORT')   # Render 등 PaaS 가 주입
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else int(env_port or 8765)
+    host = '0.0.0.0' if env_port else '127.0.0.1'
+    run(port=port, host=host)

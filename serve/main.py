@@ -20,7 +20,13 @@ def load_universes():
 
 
 def warm_sweep(top_n=200):
-    """기본 sweep(KR top_n) 미리 계산해 캐시 적재 — 첫 사용자 콜드 로딩(~86s) 방지."""
+    """기본 sweep(KR top_n) 미리 계산해 캐시 적재 — 첫 사용자 콜드 로딩(~86s) 방지.
+       SWEEP_WARM=0 이면 비활성 (Render 무료 티어 콜드스타트 LLM 비용 절감용)."""
+    import os
+    if os.environ.get('SWEEP_WARM') == '0':
+        print('[Warm] disabled (SWEEP_WARM=0)')
+        return
+    top_n = int(os.environ.get('SWEEP_WARM_N', top_n))
     time.sleep(8)   # universe 로드 먼저 끝나도록 대기
     try:
         from .core.strategy import fetch_sweep
@@ -33,21 +39,23 @@ def warm_sweep(top_n=200):
         print(f'[Warm] sweep 워밍 실패: {e}')
 
 
-def run(port=8765):
+class _Server(socketserver.ThreadingTCPServer):
+    allow_reuse_address = True
+    daemon_threads = True
+
+
+def run(port=8765, host='127.0.0.1'):
     threading.Thread(target=load_universes, daemon=True).start()
     threading.Thread(target=warm_sweep, daemon=True).start()
-    print(f'╔══════════════════════════════════════════╗')
-    print(f'║  StoryQuant local server                 ║')
-    print(f'║  http://127.0.0.1:{port}/story_quant.html ║')
-    print(f'║  API: /api/news /quote /universe /sweep  ║')
-    print(f'║       /walkforward /recent-picks         ║')
-    print(f'║  ?market=kr|us — 다중 시장 지원          ║')
-    print(f'╚══════════════════════════════════════════╝')
-    socketserver.ThreadingTCPServer.allow_reuse_address = True
-    with socketserver.ThreadingTCPServer(('127.0.0.1', port), Handler) as srv:
+    print(f'StoryQuant server → http://{host}:{port}/shorts.html')
+    with _Server((host, port), Handler) as srv:
         srv.serve_forever()
 
 
 if __name__ == '__main__':
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8765
-    run(port=port)
+    import os
+    # Render 등 PaaS: $PORT 주입 + 0.0.0.0 바인딩. 로컬: argv 또는 8765.
+    env_port = os.environ.get('PORT')
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else int(env_port or 8765)
+    host = '0.0.0.0' if env_port else '127.0.0.1'
+    run(port=port, host=host)

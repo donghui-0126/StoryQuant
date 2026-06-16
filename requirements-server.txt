@@ -1,0 +1,4 @@
+# StoryQuant 백엔드 서버 (serve.py) — Render/PaaS 배포용 최소 의존성.
+# 본체는 Python stdlib(http.server·urllib)만 사용. 외부는 LLM 클라이언트뿐.
+openai>=1.0
+python-dotenv>=1.0

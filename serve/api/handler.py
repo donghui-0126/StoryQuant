@@ -14,7 +14,9 @@ from ..core.strategy import fetch_sweep, fetch_recent_picks, walkforward_backtes
 from ..core.macro import compute_macro_stress, compute_macro_beta
 
 
-ROOT = '/home/amuredo/StoryQuant'
+# 정적 파일 루트 — 이 파일(serve/api/handler.py) 기준 2단계 상위 = repo 루트.
+# 배포 환경(Render 등)에서도 경로가 자동으로 맞도록 하드코딩 제거.
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 class Handler(http.server.SimpleHTTPRequestHandler):

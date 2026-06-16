@@ -1,0 +1,26 @@
+# Render 배포 블루프린트 — StoryQuant 백엔드(쇼츠 앱 + API)
+# 한 서비스가 정적 shorts.html 과 /api/* 를 같은 origin 으로 서빙 → 고정 *.onrender.com 주소.
+#
+# 사용법:
+#   1) render.com → New → Blueprint → 이 repo 선택 (render.yaml 자동 인식)
+#   2) OPENAI_API_KEY 를 대시보드 Environment 에 입력 (아래 sync:false)
+#   3) 배포되면 https://storyquant.onrender.com/shorts.html 로 접속
+#      docs/index.html 의 DEMO_URL 을 이 주소로 바꾸면 GitHub Pages 데모 버튼이 고정됨.
+services:
+  - type: web
+    name: storyquant
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements-server.txt
+    startCommand: python serve.py
+    healthCheckPath: /shorts.html
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false            # ← Render 대시보드에서 직접 입력
+      - key: PYTHON_VERSION
+        value: "3.12.6"
+      # 무료 티어는 15분 미사용 시 sleep → 깨어날 때 sweep 재계산(LLM 비용 발생).
+      # 워밍은 프론트 요청(top_n=200)과 같아야 효과가 있음.
+      # 콜드스타트 비용을 아예 없애려면 SWEEP_WARM=0 으로 끄세요 (대신 첫 접속자가 ~1분 대기).
+      - key: SWEEP_WARM_N
+        value: "200"
