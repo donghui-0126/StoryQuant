@@ -74,6 +74,13 @@
   .arrow{ align-self:center; color:var(--ink-3); font-size:22px; }
   @media(max-width:760px){ .arrow{ transform:rotate(90deg); } }
 
+  .feedmock{ display:flex; flex-direction:column; gap:8px; margin-top:26px; }
+  .fm{ display:flex; gap:12px; align-items:center; background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:11px 16px; font-size:15px; box-shadow:var(--shadow); }
+  .fm .tag{ flex-shrink:0; min-width:86px; text-align:center; }
+  .fm.noise{ opacity:.5; }
+  .fm.noise span:last-child{ text-decoration:line-through; text-decoration-color:var(--ink-3); }
+  .fm.hit{ border:1.5px solid var(--accent); background:#fff; opacity:1; box-shadow:0 4px 18px rgba(194,65,12,.12); }
+  .fm.hit span:last-child{ text-decoration:none; }
   .deflist{ display:flex; flex-direction:column; gap:12px; margin-top:24px; }
   .def{ display:flex; gap:14px; align-items:flex-start; background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:14px 18px; box-shadow:var(--shadow); }
   .def > .tag{ flex-shrink:0; margin-top:2px; min-width:92px; text-align:center; }
@@ -121,6 +128,22 @@
       <div class="s"><div class="stat">70–90%</div><small>reactive · speculative · off_topic 으로 분류되는 헤드라인 비율</small></div>
       <div class="s"><div class="stat">1–3건</div><small>대형주 20건 중 실제 사건(event) 뉴스</small></div>
     </div>
+  </section>
+
+  <!-- 2b. 실제 사례 -->
+  <section class="slide">
+    <div class="kicker">실제 사례 · 한화오션 (042660)</div>
+    <h2>같은 날 25건 — 진짜 사건은 <span style="color:var(--accent)">1건</span></h2>
+    <div class="feedmock">
+      <div class="fm noise"><span class="tag" style="color:var(--ink-3)">off_topic</span><span>급식·세탁 하청과도 교섭하라고?… '정부 하청'부터 교섭해야</span></div>
+      <div class="fm noise"><span class="tag" style="color:var(--ink-3)">off_topic</span><span>[서울데이터랩] 개장 직후 인기 검색 종목 20選</span></div>
+      <div class="fm noise"><span class="tag t-purple">speculative</span><span>60조 캐나다 잠수함 사업자 선정 초읽기…희비 가를 변수는?</span></div>
+      <div class="fm noise"><span class="tag t-amber">reactive</span><span>"조선주 조정은 끝났다?"…주가 약세에도 선가는 신고가</span></div>
+      <div class="fm noise"><span class="muted" style="font-size:13px;padding-left:4px;">… 그 외 잡음 17건</span></div>
+      <div class="fm hit"><span class="tag t-red">event_bear</span><span><b>中, 세계 첫 27만㎥급 LNG 운반선 건조… "韓 경쟁 우위 위협"</b></span></div>
+    </div>
+    <p class="sub">앞의 21건은 시황·하청 교섭·검색 순위 — 펀더멘털과 무관. <b>딱 하나</b>, 중국의 초대형 LNG선 건조 성공만이
+    한화오션의 경쟁 구도를 실제로 흔드는 사건입니다. <b style="color:var(--accent)">이 한 건을 찾아주는 것</b>이 StoryQuant의 일.</p>
   </section>
 
   <!-- 3. 서비스 목적 -->
