@@ -74,6 +74,10 @@
   .arrow{ align-self:center; color:var(--ink-3); font-size:22px; }
   @media(max-width:760px){ .arrow{ transform:rotate(90deg); } }
 
+  .deflist{ display:flex; flex-direction:column; gap:12px; margin-top:24px; }
+  .def{ display:flex; gap:14px; align-items:flex-start; background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:14px 18px; box-shadow:var(--shadow); }
+  .def > .tag{ flex-shrink:0; margin-top:2px; min-width:92px; text-align:center; }
+  .def b{ font-size:15.5px; } .def small{ color:var(--ink-3); font-size:13px; line-height:1.5; }
   .labels{ display:flex; flex-wrap:wrap; gap:10px; margin-top:24px; }
   .lab{ background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:12px 16px; font-size:14px; box-shadow:var(--shadow); }
   .lab b{ font-weight:800; }
@@ -150,6 +154,21 @@
     <p class="sub">캐시 ~86,000 헤드라인 · sweep 1회 갱신 ≈ <b>$0.02</b> · temperature 0 (분류) / 0.3 (한줄평)</p>
   </section>
 
+  <!-- 4b. 라벨 설명 -->
+  <section class="slide">
+    <div class="kicker">5개 라벨이 뜻하는 것</div>
+    <h2>무엇이 <span style="color:var(--green)">사건</span>이고 무엇이 <span class="muted">잡음</span>인가</h2>
+    <div class="deflist">
+      <div class="def"><span class="tag t-green">event_bull</span><div><b>호재 사건</b> — 펀더멘털을 <b>+</b>로 바꾸는 새로운 사실<br><small>수주·흑자전환·신규 승인·인수·실적 상회·규제 완화</small></div></div>
+      <div class="def"><span class="tag t-red">event_bear</span><div><b>악재 사건</b> — 펀더멘털을 <b>−</b>로 바꾸는 새로운 사실<br><small>적자전환·리콜·압수수색·실적 미스·소송·가이던스 하향</small></div></div>
+      <div class="def"><span class="tag t-amber">reactive</span><div><b>시황 중계</b> — 이미 일어난 가격·거래를 묘사 (사건 아님)<br><small>"급등"·"급락"·"외국인 순매수"·"신고가 돌파"</small></div></div>
+      <div class="def"><span class="tag t-purple">speculative</span><div><b>추측·전망</b> — 의견·기대·논평 (사실 아님)<br><small>"수혜 기대"·"전문가 추천"·칼럼·보도자료 재탕</small></div></div>
+      <div class="def"><span class="tag" style="color:var(--ink-3)">off_topic</span><div><b>무관</b> — 이 종목/섹터와 직접 관계 없는 일반 기사<br><small>인물 칼럼·거시 일반론·종목명만 스쳐 가는 기사</small></div></div>
+    </div>
+    <p class="sub"><b>scope</b>(영향 범위)도 함께 판정 — <b>stock</b> 종목 자체 · <b>sector</b> 업종 전반 · <b>macro</b> 시장 전반.
+    위 둘(event_bull/bear)만 "실제 사건", 나머지 셋은 걸러냅니다.</p>
+  </section>
+
   <!-- 5. LLM 신뢰성 설계 -->
   <section class="slide">
     <div class="kicker">LLM을 믿을 수 있게</div>
@@ -161,6 +180,31 @@
       <div class="card"><h3><span class="em">🔢</span>지어낸 숫자 차단</h3><p>본문에 없는 "연매출의 24%" 같은 거짓 정밀도는 자동 폐기.</p></div>
     </div>
     <p class="sub">섹터 분류는 LLM이 아니라 <b>한국거래소 WICS 공식 업종</b>(2,800종목 자동 매핑)을 사용 — 분류 정확도와 비용을 분리.</p>
+  </section>
+
+  <!-- 5b. 신뢰도(confidence) -->
+  <section class="slide">
+    <div class="kicker">신뢰도 (confidence)</div>
+    <h2>이 판단을 <span style="color:var(--accent)">얼마나 믿을지</span></h2>
+    <div class="divider"></div>
+    <p class="sub"><b>"맞다/틀리다"가 아니라 "근거가 충분한가"</b> 입니다. 두 층위로 작동해요.</p>
+    <div class="grid g2" style="margin-top:22px;">
+      <div class="card">
+        <h3><span class="em">①</span>헤드라인 분류 확신도</h3>
+        <p>LLM이 <b>이 기사를 그 라벨로</b> 얼마나 확신하는지 (0~1).<br>
+        event는 <b>0.7 이상</b>일 때만 호재/악재로 반영 — 애매하면 중립 처리.</p>
+      </div>
+      <div class="card">
+        <h3><span class="em">②</span>종목 신뢰도 등급</h3>
+        <p>이 <b>종목 평가 전체</b>를 얼마나 믿을지. 표본 크기·실질 뉴스 비율·언론사 평균으로 자동 산정.</p>
+      </div>
+    </div>
+    <div class="labels" style="margin-top:18px;">
+      <div class="lab"><span class="tag" style="color:#9aa3af">보류</span> 실질 0건 또는 전체 3건 미만</div>
+      <div class="lab"><span class="tag t-amber">낮음</span> 실질 2건 미만</div>
+      <div class="lab"><span class="tag t-blue">보통</span> 실질 5건 미만 · 신뢰도 0.45↓</div>
+      <div class="lab"><span class="tag t-green">높음</span> 실질 8건+ · 신뢰 매체(0.55↑)</div>
+    </div>
   </section>
 
   <!-- 6. 검증: 정직하게 깨부순 가설들 -->
