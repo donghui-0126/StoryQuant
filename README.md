@@ -4,11 +4,12 @@
 
 ### **가격이 왜 움직였는가, 뉴스는 얼마나 믿을 만한가**
 
-뉴스 기반 KR · US 주식 모바일 분석 도구
-가격 예측이 아닌 **변동의 attribution** + **뉴스 quality** 평가
+뉴스 기반 KR 주식 모바일 분석 도구
+가격 예측이 아닌 **노이즈 필터링 + 변동의 사후 설명(attribution)**
 
 [![Python](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/)
 [![gpt-4o-mini](https://img.shields.io/badge/LLM-gpt--4o--mini-10a37f.svg)](https://platform.openai.com/)
+[![Sector](https://img.shields.io/badge/sector-KRX_WICS-8a6418.svg)](#)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](#)
 [![Mobile-First](https://img.shields.io/badge/mobile-first-ff4858.svg)](#)
 
@@ -18,8 +19,11 @@
 
 ## 💡 한 줄 요약
 
-> 시장이 움직였을 때 **"왜?"** 를 즉시 답할 수 있는 모바일 reels-style 인터페이스.
-> 가격을 예측하지 않고, **이미 일어난 가격 변동을 뉴스로 설명**합니다.
+> 증권 뉴스의 70~90%는 잡음입니다. StoryQuant은 **읽을 가치 있는 실제 사건만 골라내고**,
+> 가격이 왜 움직였는지를 뉴스로 사후 설명합니다. **예측은 하지 않습니다.**
+
+TikTok 스타일 세로 reels UI에서 종목별 **실제 사건 헤드라인**과 **호재/악재 집계**, 그리고
+그 분류의 **AI 판단 근거**까지 투명하게 보여줍니다.
 
 ---
 
@@ -27,14 +31,48 @@
 
 | | 설명 |
 |:---:|---|
-| 🎬 | **TikTok 스타일 모바일 카드** — 종목별 점수·뉴스·섹터 정보 vertical scroll |
-| 🧠 | **gpt-4o-mini 헤드라인 분류** — `event_bull · event_bear · reactive · speculative · off_topic` 5단계 + scope 분리 (`stock · sector · macro`) |
-| 📈 | **코스피·섹터 대비 alpha** — 절대 수익률이 아닌 **상대 수익률** 평가 |
-| 📁 | **섹터 sheet** — 업종 전체 호악재 + 종목 리스트 한눈에 |
-| 🔬 | **Bayesian shrinkage polarity** — 1건짜리 호재가 +100점 받지 못하게 보정 |
-| 📊 | **회귀 분석 endpoint** — Logistic / Linear 모델로 forward·past 시그널 정량 검증 |
-| ⚡ | **이미 반영분 자동 차감** — `priced_in` 뉴스 점수에서 빼고 모달에서도 숨김 |
-| 🌐 | **Cloudflared 즉시 배포** — `serve.py 8765` + tunnel 한 줄로 외부 공유 |
+| 🎬 | **세로 reels 카드** — 실제 사건 헤드라인이 카드의 콘텐츠. "호재 N · 악재 N · 잡음 N건 걸러냄" |
+| 🧠 | **gpt-4o-mini 분류** — `event_bull · event_bear · reactive · speculative · off_topic` 5단계 + scope(`stock · sector · macro`) |
+| 🔎 | **분류 근거 + 한줄평** — 왜 호재/악재인지(또는 왜 제외인지)와 전문가 관점 한 줄 코멘트 |
+| 📈 | **코스피·섹터 대비 상대수익률** — 절대 수익률이 아닌 alpha로 종목 고유 움직임 분리 |
+| 📁 | **KRX WICS 섹터 분류** — 2,800종목 자동 매핑, 섹터 시트(같은 섹터 종목 + 업종 뉴스) |
+| 🔔 | **저장 종목 새 소식 알림** — 실제 사건·큰 변동만 (최근 3일), 알림 피로 방지 |
+| ⚡ | **이미 반영분 자동 차감** — `priced_in` 사건은 "실제 사건"에서 빼고 사유 표기 |
+| 🎨 | **다크/라이트 모드 · Pretendard · 글씨 크기** — 설정 탭에서 조절 |
+| 🌐 | **Cloudflare Worker 배포** — 고정 주소 1개로 정적 앱 + API 프록시 |
+
+---
+
+## 🧠 LLM은 어떻게 쓰이나
+
+```
+헤드라인/본문  ──▶  ① 분류        event_bull / event_bear / reactive / speculative / off_topic
+                              + scope(stock/sector/macro) + confidence
+              ──▶  ② 분류 근거   왜 그렇게 판단했는지 한 줄
+              ──▶  ③ 한줄평      실제 사건에만 — 본문을 읽고 통찰 한 문장 (금융·경제·시사·사회 관점)
+```
+
+**신뢰성 장치**
+- event 분류는 `confidence ≥ 0.7`일 때만 점수 반영 (애매하면 중립)
+- 한줄평은 제목이 아닌 **본문**을 투입 → 막연한 코멘트 방지
+- "확인 필요·지켜봐야" 류 **면피 표현**, 본문에 없는 **지어낸 비율("연매출의 24%")** 은 게이트에서 폐기
+- 캐시 ~86,000 헤드라인 · sweep 1회 갱신 ≈ **$0.02** · 분류 temp 0 / 한줄평 temp 0.3
+
+> 섹터 분류는 LLM이 아니라 **한국거래소 WICS 공식 업종**을 사용합니다 (`scripts/gen_sector_map.py`).
+
+---
+
+## 🎯 무엇을 버리고 무엇을 남겼나
+
+자체 검증을 통해 **되는 것과 안 되는 것을 구분**했습니다.
+
+| 🗑 폐기 (검증 실패) | ✓ 남김 (검증된 가치) |
+|---|---|
+| 미래 가격 예측 — forward R² < 0 (전 구간) | LLM 노이즈 필터 + 실제 사건 큐레이션 |
+| 합성 뉴스 점수(0~100) — 예측력 미확인 | 호재/악재 **집계** (세어볼 수 있는 사실) |
+| 이벤트 인과 타임라인 — placebo로 반증 | 코스피·섹터 대비 상대수익률 |
+| 키워드 룰 호악재 — "급등=호재" 역인과 | mystery mover · 뉴스 과열 경고 |
+| 커뮤니티 · 미장(US) 탭 — 핵심에 집중 | WICS 섹터 분류 · 분류 근거·신뢰도 공개 |
 
 ---
 
@@ -42,28 +80,28 @@
 
 ```
                 ┌──────────────────────────────────────────┐
-                │           shorts.html (모바일)           │
+                │            shorts.html (모바일)          │
                 │   ┌────┬────┬────┬────┬────┐             │
-                │   │핫  │섹터 │탐색│저장│ 나 │             │
+                │   │핫  │탐색│저장│설정│ 나 │             │
                 │   └────┴────┴────┴────┴────┘             │
                 └──────────────┬───────────────────────────┘
-                               │ /api/sweep, /walkforward, /stock-news
+                               │ /api/sweep, /stock-news, /stock-one,
+                               │ /saved-digest, /stock-chart, /universe
                 ┌──────────────▼───────────────────────────┐
                 │     serve/  —  Python stdlib HTTP        │
-                │                                          │
                 │   ┌──────────────┬──────────────┐        │
                 │   │  markets/    │   core/      │        │
-                │   │  ─ kr.py     │  ─ news      │        │
-                │   │  ─ us.py     │  ─ classify  │        │
-                │   │  ─ base.py   │  ─ strategy  │        │
-                │   │              │  ─ llm_class │        │
+                │   │  ─ kr.py     │  ─ strategy  │        │
+                │   │  ─ kr_sectors│  ─ news      │        │
+                │   │    (WICS)    │  ─ classify  │        │
+                │   │  ─ us.py     │  ─ llm_class │        │
+                │   │  ─ base.py   │  ─ digest    │        │
                 │   └──────────────┴──────────────┘        │
                 └──────────────┬───────────────────────────┘
-                               │
        ┌───────────────────────┼───────────────────────────┐
        ▼                       ▼                           ▼
-  Yahoo Finance v8       Naver / Google News         OpenAI API
-  (OHLC 차트)            (헤드라인 RSS)              (gpt-4o-mini)
+  Yahoo Finance v8     Naver / Google News           OpenAI API
+  (OHLC 차트)          (헤드라인 · WICS 업종)         (gpt-4o-mini)
 ```
 
 ---
@@ -72,36 +110,23 @@
 
 ```
 storyquant/
-├── shorts.html                  # 메인 모바일 UI (vertical reels)
-├── index.html                   # mobile/desktop redirect entry
+├── shorts.html                  # 메인 모바일 UI (세로 reels)
 ├── serve.py                     # entry point — python serve.py 8765
 ├── serve/                       # backend 패키지
 │   ├── api/handler.py           #   HTTP 라우터
-│   ├── core/                    #   strategy · classify · news · llm_classify · macro
-│   ├── markets/                 #   KR / US 시장 어댑터 (base · kr · us)
-│   └── utils/                   #   http · parsing · stats
+│   ├── core/                    #   strategy · news · classify · llm_classify · digest · quote · macro
+│   └── markets/                 #   kr · us · base · kr_sectors (WICS 자동생성)
 │
-├── worker/                      # Cloudflare Worker (정적 호스팅 + KV)
-├── deploy/                      # 배포 스크립트
+├── worker/                      # Cloudflare Worker — 정적 앱 + /api 프록시 (고정 주소)
+├── deploy/                      # setup.sh · build-public.sh · tunnel-keeper.sh
 │
-├── docs/                        # 문서 · 발표 · 보고서
-│   ├── report.md                       # 중간보고서
-│   ├── consulting-questions.md         # UX 컨설팅 질문
-│   ├── presentation.html               # 발표 슬라이드
-│   ├── ux-mocks.html                   # UX 목업
-│   ├── supabase-setup.md               # Supabase + Google OAuth 가이드
-│   └── pdfs/                           # PDF 산출물
+├── docs/                        # 문서 · 발표
+│   ├── final-presentation.html  #   최종 발표 슬라이드 (10장)
+│   ├── report.md / report.html  #   보고서
+│   └── ...
 │
-├── scripts/                     # 빌드 · 캡쳐 · TTS 유틸
-│   ├── capture-*.mjs                   # playwright 캡쳐
-│   ├── tts-generate.py                 # OpenAI TTS 나레이션
-│   └── html-to-pptx.py                 # HTML → PowerPoint
-│
-└── legacy/                      # v1 (Streamlit · amure-db) · v2 (단일 HTML) 보존
-    ├── src/                            # v1 pipeline
-    ├── run.py / seed_*.py
-    ├── serve.legacy.py                 # v2 단일 파일 backend
-    └── story_quant.html                # v2 desktop SPA
+├── scripts/                     # gen_sector_map.py(WICS) · 캡쳐 · TTS
+└── legacy/                      # v1(Streamlit) · v2(단일 HTML) · 구 RSS worker 보존
 ```
 
 ---
@@ -109,26 +134,27 @@ storyquant/
 ## ⚡ 빠른 시작
 
 ```bash
-# 1. 환경 준비
-python3 -m venv .venv
-source .venv/bin/activate
+# 1. 환경
+python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-# 2. OpenAI API 키 설정 (LLM 분류용)
+# 2. OpenAI 키 (LLM 분류용)
 echo "OPENAI_API_KEY=sk-..." > .env
 
-# 3. 서버 실행
+# 3. 서버 (부팅 시 KR sweep 캐시 자동 워밍)
 python serve.py 8765
+open http://127.0.0.1:8765/shorts.html
 
-# 4. 모바일에서 열기 (LAN)
-open http://<your-ip>:8765/shorts.html
+# 4. WICS 섹터 맵 갱신 (선택, 일회성)
+python scripts/gen_sector_map.py
 ```
 
-### 외부 공유 (cloudflared)
+**배포 (Cloudflare Worker — 고정 주소)**
 
 ```bash
-cloudflared tunnel --url http://127.0.0.1:8765 --no-autoupdate
-# → https://<random>.trycloudflare.com 발급
+npx wrangler login          # 1회
+bash deploy/setup.sh        # KV 생성 → 빌드 → 배포 → 터널 등록
+bash deploy/tunnel-keeper.sh &   # 백엔드 터널 상시 유지 + 주소 변경 시 KV 자동 갱신
 ```
 
 ---
@@ -137,93 +163,69 @@ cloudflared tunnel --url http://127.0.0.1:8765 --no-autoupdate
 
 | Endpoint | 설명 |
 |:---|:---|
-| `GET /api/sweep?top_n=120&market=kr` | 현재 시점 종목별 점수 + 섹터 신호 |
-| `GET /api/walkforward?...&market=kr` | 1년 backtest + 회귀 분석 (Logistic/Linear) |
-| `GET /api/stock-news?code=...&market=kr` | 종목 뉴스 (LLM 분류 적용) |
+| `GET /api/sweep?top_n=200&market=kr` | 종목별 집계 + 섹터 신호 (부팅 시 워밍) |
+| `GET /api/stock-one?code=...` | 단일 종목 카드 데이터 (검색·섹터 → 릴 삽입용) |
+| `GET /api/stock-news?code=...&page_size=50` | 종목 뉴스 (LLM 분류·근거·한줄평 적용) |
+| `GET /api/saved-digest?codes=a,b,c` | 저장 종목 새 소식 (실제 사건 + 큰 변동, 최근 3일) |
 | `GET /api/stock-chart?code=...&range=1mo` | OHLC 차트 |
-| `GET /api/recent-picks?lookbacks=5,10,20` | 과거 시점 픽 forward test |
+| `GET /api/walkforward?...` | 1년 backtest + 회귀 (검증용) |
 
 ---
 
-## 🧬 점수 계산 — 무엇을 측정하나
+## 🧬 무엇을 측정하나 — "점수" 대신 "집계"
+
+카드에는 **세어볼 수 있는 사실**만 표시합니다 (검증 실패한 합성 점수는 제거).
 
 ```
-news_rating  =  (bull - bear) / (bull + bear + 5)  ×  100      ← Bayesian shrinkage
-             ×  (0.5 + 0.5 × sub_ratio)                          ← 실질 뉴스 가중
-
-news_score   =  0.40 × news_rating
-              + 0.25 × density
-              + 0.15 × sub_ratio
-              + 0.10 × source_reliability
-              + 0.10 × specificity
-              − priced_in_penalty
+실제 사건  =  substantive(LLM event_*)  &  !priced_in
+호재 N · 악재 N  =  실제 사건 중 sentiment 집계  (최신 20건 기준)
+뉴스 분위기  =  (호재 - 악재) / (호재 + 악재 + 5) × 100   ← Bayesian shrinkage
+                × (0.5 + 0.5 × 실질비율)
 ```
 
-가격은 **점수에 포함하지 않음**. 가격은 점수와 매칭(verdict)에만 쓰임:
+가격은 **집계에 넣지 않습니다.** 가격은 비교(verdict)에만 쓰입니다:
 
-- **일치**: 좋은 뉴스 + 종목이 코스피 이김 → 신호 강함
-- **불일치**: 좋은 뉴스 + 종목이 코스피 못 이김 → 이미 반영 / 분류 오류 의심
+- **일치**: 좋은 사건 + 코스피 이김 → 분류와 시장 반응 합치
+- **안 맞음**: 좋은 사건인데 코스피 못 이김 → 이미 반영 / 분류 오류 의심
 - **원인 미상**: 뉴스 없이 가격만 움직임 (`mystery mover`)
 
+**신뢰도** 는 표본 크기·실질 뉴스 비율·언론사 평균으로 자동 산정 (보류 / 낮음 / 보통 / 높음).
+
 ---
 
-## 📊 회귀 분석 결과 (KR top-80 · n=1,927 · **시계열 75/25 split**)
+## 📊 검증 — 정직하게 깨부쉈다 (KR top-80 · 시계열 75/25 split)
 
-| 모델 | R² test / F1 | baseline |
-|:---|:---:|:---:|
-| LIN forward alpha 1d / 5d / 20d | **−0.055 / −0.031 / −0.008** | — |
-| LIN past mom5 (뉴스만, 가격 모멘텀 제외) | **+0.013** | 0 |
-| LOG KOSPI 이김 | F1 = 0.401 | 0.348 |
-| LOG 섹터 평균 이김 | F1 = 0.414 | 0.440 |
+| 검증 | 결과 | 결론 |
+|:---|:---:|:---|
+| forward 수익률 R² (1d / 5d / 20d) | **−0.055 / −0.031 / −0.008** | 미래 예측 불가 |
+| past 설명 R² (뉴스만) | **+0.013** | 동시기 변동 일부 설명 |
+| 이벤트 attribution placebo | 조용한 날이 뉴스 **더 많음** | 인과 근거 없음 |
+| 노이즈 필터 (헤드라인 분류) | 70~90% 잡음 제거 | ✅ 검증된 가치 |
 
-→ **미래 예측은 모든 horizon에서 불가** (R² 전부 음수).
-→ 과거 변동 설명력은 약하지만 양수 (+0.013, train +0.016과 일치 — overfit 아님).
-
-> ⚠ 초기엔 random split으로 past R² +0.034가 나왔으나, 시계열 데이터에 random split은
-> look-ahead leakage를 일으킵니다. 시간 기준 split로 바꾼 정직한 수치가 위 표입니다.
-> Scaler 도 train 구간에만 fit합니다.
-
-### Event-driven attribution placebo 검증 (2026-06)
-
-일 단위 ±2.5% 상대 변동을 직전 48h 사건 뉴스와 매칭하는 attribution도 검증했습니다:
-
-| | 이벤트 날 | 조용한 날 (placebo) | lift |
-|:---|:---:|:---:|:---:|
-| 방향일치 뉴스 존재율 (상승) | 54% | 63% | **−9%p** |
-| 방향일치 뉴스 존재율 (하락) | 40% | 51% | **−11%p** |
-| 48h 사건 뉴스 양 | 7.2건 | 8.7건 | 음수 |
-
-→ **대형주는 아무 날이나 사건 뉴스가 있습니다.** "변동일에 뉴스가 있다"는 것은
-원인의 증거가 아니므로, UI는 "관련 뉴스 있음"이라고만 표기하고 인과를 주장하지 않습니다.
-이 시스템의 검증된 가치는 **노이즈 필터링** (헤드라인 70%가 reactive/speculative/off_topic),
-**mystery mover 탐지**, **뉴스 과열 경고**입니다.
+> 시계열 split + train 구간에만 scaler fit. random split의 leakage(+0.034)를 정직하게 교정한 수치.
+> 미래를 맞추지 않습니다 — **이미 일어난 일을 정확히 읽습니다.**
 
 ---
 
 ## 🛠 기술 스택
 
-- **Backend**: Python 3.12 stdlib `http.server` (no Flask), `concurrent.futures` parallel fetch
-- **LLM**: OpenAI `gpt-4o-mini` (zero-shot 분류, temperature=0)
-- **데이터 소스**: Yahoo Finance v8 · Naver Finance · Google News RSS · ^VIX · CL=F
-- **분석**: `scikit-learn` (Logistic/Linear regression) · `numpy` (Bayesian shrinkage)
-- **Frontend**: Vanilla JS · CSS Grid · No framework · ~100KB single file
-- **배포**: Cloudflare Worker (정적) + Cloudflared tunnel (backend)
-- **인증** (선택): Supabase + Google OAuth
+- **Backend**: Python 3.12 stdlib `http.server`, `concurrent.futures` 병렬 fetch
+- **LLM**: OpenAI `gpt-4o-mini` (분류 + 근거 + 한줄평, 디스크 캐시)
+- **데이터**: Yahoo Finance v8 · Naver Finance(뉴스·WICS 업종) · Google News RSS
+- **분석**: `scikit-learn`(검증용 회귀) · Bayesian shrinkage
+- **Frontend**: Vanilla JS · CSS 변수 테마(다크/라이트) · Pretendard · 단일 파일
+- **배포**: Cloudflare Worker(정적+프록시) + cloudflared tunnel
+- **인증/광고**(설정 시): Firebase Google 로그인 · AdSense in-feed (config-gated)
 
 ---
 
 ## 🎯 철학
 
-> "가격이 어디로 갈지" 는 시장이 결정합니다. 우린 그걸 알 수 없어요.
-> 하지만 **"가격이 왜 움직였는지"** 는 뉴스로 사후 설명할 수 있습니다.
+> "가격이 어디로 갈지"는 시장이 정합니다. 우린 그걸 알 수 없어요.
+> 하지만 **"무엇이 진짜 사건이고 무엇이 잡음인지"** 는 정직하게 골라줄 수 있습니다.
 
-회귀 결과가 이 철학을 통계적으로 입증합니다:
-
-- **forward R² < 0 (전 horizon)** → 가격 예측은 불가능
-- **past R² > 0** → 동시기 가격 변동의 일부(~1.3%)는 뉴스로 설명 가능
-- **시스템은 attribution + quality 평가에 집중** — UI에도 "사후 설명 · 예측 아님"을 명시
-
-가격을 맞추는 게 아니라 **이미 일어난 일을 정확히 해석**합니다.
+검증 안 된 것은 주장하지 않습니다. 숫자 하나로 요약하는 대신,
+**세어볼 수 있는 사실과 그 판단 근거**를 투명하게 보여줍니다.
 
 ---
 
