@@ -240,3 +240,5 @@ MIT
 **Built with curiosity · 가격 예측은 사양합니다 · 뉴스를 정직하게 읽습니다**
 
 </div>
+
+https://drive.google.com/file/d/1NVwUineLlse-_6UOkUWcsFJkJQp7d3mB/view?usp=drivesdk
