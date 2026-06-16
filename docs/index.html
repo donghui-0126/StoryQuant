@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>StoryQuant — 뉴스 기반 주식 분석</title>
+<meta property="og:title" content="StoryQuant">
+<meta property="og:description" content="가격이 왜 움직였는가, 뉴스는 얼마나 믿을 만한가 — 예측이 아닌 노이즈 필터링 + 사후 설명">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
+<style>
+  :root{
+    --bg:#f4f1ea; --paper:#fffdf8; --ink:#2a2723; --ink-2:#6b6459; --ink-3:#a39b8d;
+    --line:rgba(42,39,35,.12); --accent:#c2410c; --green:#1a9d54; --red:#cf5a52;
+    --shadow:0 6px 30px rgba(42,39,35,.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{
+    background:var(--bg); color:var(--ink); min-height:100vh;
+    font-family:'Pretendard Variable',Pretendard,-apple-system,system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased; line-height:1.6;
+  }
+  .wrap{ max-width:880px; margin:0 auto; padding:64px 24px 80px; }
+  .brand{ font-size:15px; font-weight:800; letter-spacing:-.01em; color:var(--ink-2); margin-bottom:40px; }
+  .brand span{ color:var(--accent); }
+  .hero h1{ font-size:clamp(34px,7vw,60px); font-weight:800; line-height:1.1; letter-spacing:-.02em; }
+  .hero h1 .hl{ color:var(--accent); }
+  .hero .tag{ font-size:clamp(16px,2.4vw,21px); color:var(--ink-2); margin-top:18px; max-width:36ch; }
+  .pill{ display:inline-flex; gap:8px; flex-wrap:wrap; margin-top:20px; }
+  .pill span{ font-size:12.5px; font-weight:700; background:var(--paper); border:1px solid var(--line); border-radius:99px; padding:5px 12px; box-shadow:var(--shadow); }
+
+  .cta{ display:flex; gap:14px; flex-wrap:wrap; margin-top:36px; }
+  .btn{
+    display:inline-flex; align-items:center; gap:9px; text-decoration:none;
+    font-size:16px; font-weight:800; padding:15px 24px; border-radius:14px;
+    border:1.5px solid var(--line); color:var(--ink); background:var(--paper); box-shadow:var(--shadow);
+    transition:transform .12s ease;
+  }
+  .btn:active{ transform:scale(.97); }
+  .btn.primary{ background:var(--accent); color:#fff; border-color:var(--accent); }
+  .btn .ar{ opacity:.7; }
+
+  section.block{ margin-top:56px; }
+  h2{ font-size:22px; font-weight:800; letter-spacing:-.01em; margin-bottom:6px; }
+  .lead{ color:var(--ink-2); font-size:16px; max-width:60ch; }
+  .divider{ width:48px; height:4px; background:var(--accent); border-radius:99px; margin:14px 0 18px; }
+
+  .grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:22px; }
+  @media(max-width:680px){ .grid{ grid-template-columns:1fr; } .cta .btn{ width:100%; justify-content:center; } }
+  .card{ background:var(--paper); border:1px solid var(--line); border-radius:16px; padding:20px; box-shadow:var(--shadow); }
+  .card h3{ font-size:16px; font-weight:800; margin-bottom:6px; display:flex; gap:8px; align-items:center; }
+  .card p{ font-size:14px; color:var(--ink-2); }
+
+  .twocol{ display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:22px; }
+  @media(max-width:680px){ .twocol{ grid-template-columns:1fr; } }
+  .panel{ background:var(--paper); border:1px solid var(--line); border-radius:16px; padding:20px; box-shadow:var(--shadow); }
+  .panel.kept{ border-top:4px solid var(--green); } .panel.dropped{ border-top:4px solid var(--red); }
+  .panel h3{ font-size:15px; font-weight:800; margin-bottom:12px; }
+  .panel ul{ list-style:none; display:flex; flex-direction:column; gap:9px; }
+  .panel li{ font-size:14px; display:flex; gap:8px; } .panel .ic{ font-weight:800; }
+  .kept .ic{ color:var(--green); } .dropped .ic{ color:var(--red); }
+
+  .note{ font-size:13px; color:var(--ink-3); background:var(--paper); border:1px dashed var(--line); border-radius:12px; padding:14px 16px; margin-top:14px; line-height:1.55; }
+  footer{ margin-top:64px; padding-top:24px; border-top:1px solid var(--line); font-size:13px; color:var(--ink-3); }
+  footer a{ color:var(--accent); text-decoration:none; font-weight:700; }
+  .quote{ font-size:clamp(18px,3vw,26px); font-weight:700; line-height:1.4; letter-spacing:-.01em; margin-top:8px; }
+  .quote .hl{ color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">📊 Story<span>Quant</span></div>
+
+  <header class="hero">
+    <h1>가격이 <span class="hl">왜</span> 움직였나,<br>뉴스는 얼마나 <span class="hl">믿을 만한가</span></h1>
+    <p class="tag">예측하지 않습니다. 증권 뉴스의 70~90%를 차지하는 잡음을 걸러내고, 가격 변동을 뉴스로 사후 설명합니다.</p>
+    <div class="pill">
+      <span>🇰🇷 KR 주식</span><span>🎬 세로 reels UI</span><span>🧠 gpt-4o-mini</span><span>📁 KRX WICS 섹터</span>
+    </div>
+    <div class="cta">
+      <a class="btn primary" id="demo" href="#" target="_blank" rel="noopener">▶ 라이브 데모 (쇼츠 보기) <span class="ar">↗</span></a>
+      <a class="btn" href="final-presentation.html" target="_blank" rel="noopener">📊 발표 자료 <span class="ar">↗</span></a>
+      <a class="btn" href="https://github.com/donghui-0126/StoryQuant" target="_blank" rel="noopener">💻 GitHub <span class="ar">↗</span></a>
+    </div>
+    <div class="note" id="demoNote">
+      ⚠ 라이브 데모는 백엔드 서버가 켜져 있을 때만 동작합니다. 화면이 안 뜨면 서버가 꺼진 상태예요 —
+      발표 자료로 화면을 확인하실 수 있습니다.
+    </div>
+  </header>
+
+  <section class="block">
+    <h2>무엇을 하나</h2>
+    <div class="divider"></div>
+    <p class="lead">"삼성전자" 헤드라인 20건을 열면 대부분 시황 중계·보도자료 재탕·종목을 스쳐 가는 거시 기사입니다.
+    StoryQuant은 그중 <b>펀더멘털을 바꾸는 진짜 사건</b>만 골라, 호재/악재 집계와 AI 판단 근거까지 함께 보여줍니다.</p>
+    <div class="grid">
+      <div class="card"><h3>🔎 노이즈 필터</h3><p>gpt-4o-mini가 헤드라인을 event / reactive / speculative / off_topic 으로 분류 — 잡음을 걸러냅니다.</p></div>
+      <div class="card"><h3>🧾 사후 설명</h3><p>"왜 움직였나"를 뉴스로 맥락화. 코스피·섹터 대비 상대수익률로 종목 고유 움직임을 분리.</p></div>
+      <div class="card"><h3>💬 판단 근거 공개</h3><p>호재/악재로 분류한 이유와 전문가 관점 한줄평을 투명하게 — 블랙박스가 아닙니다.</p></div>
+      <div class="card"><h3>🔔 새 소식 알림</h3><p>저장한 종목에 실제 사건·큰 변동이 생기면 알려줍니다 (알림 피로 방지).</p></div>
+    </div>
+  </section>
+
+  <section class="block">
+    <h2>정직하게 검증했습니다</h2>
+    <div class="divider"></div>
+    <p class="lead">되는 것과 안 되는 것을 자체 검증으로 구분했고, 안 되는 것은 과감히 버렸습니다.</p>
+    <div class="twocol">
+      <div class="panel dropped">
+        <h3>🗑 폐기 (검증 실패)</h3>
+        <ul>
+          <li><span class="ic">✗</span>미래 가격 예측 — forward R² &lt; 0</li>
+          <li><span class="ic">✗</span>합성 뉴스 점수 — 예측력 미확인</li>
+          <li><span class="ic">✗</span>이벤트 인과 — placebo로 반증</li>
+        </ul>
+      </div>
+      <div class="panel kept">
+        <h3>✓ 남김 (검증된 가치)</h3>
+        <ul>
+          <li><span class="ic">✓</span>노이즈 필터링 (70~90% 잡음 제거)</li>
+          <li><span class="ic">✓</span>호재/악재 집계 · 뉴스 과열 경고</li>
+          <li><span class="ic">✓</span>코스피·섹터 대비 상대수익률</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="block">
+    <h2>철학</h2>
+    <div class="divider"></div>
+    <p class="quote">맞추는 게 아니라,<br><span class="hl">이미 일어난 일을 정확히 읽는다.</span></p>
+  </section>
+
+  <footer>
+    📊 StoryQuant · 뉴스 기반 KR 주식 분석 ·
+    <a href="https://github.com/donghui-0126/StoryQuant" target="_blank" rel="noopener">github.com/donghui-0126/StoryQuant</a>
+    · MIT License
+  </footer>
+</div>
+
+<script>
+  // 라이브 데모 주소 — 백엔드 터널이 바뀌면 이 한 줄만 갱신
+  var DEMO_URL = "https://exists-analyzed-bid-wealth.trycloudflare.com/shorts.html";
+  var d = document.getElementById('demo');
+  d.href = DEMO_URL;
+</script>
+</body>
+</html>
