@@ -2540,11 +2540,23 @@
     _newsState = { stockIdx: -1, all: [], filter: 'all' };
     newsHeadName.textContent = `${s.name} (${s.code})`;
     newsHeadSub.innerHTML = '로딩중...';
-    newsBody.innerHTML = '<div class="news-load">⌛ 뉴스 가져오는 중...</div>';
+    newsBody.innerHTML = '<div class="news-load">⌛ 뉴스 가져오는 중…</div>';
     openSheet(newsSheet, newsBackdrop);
     try {
-      const r = await fetch(`${API_BASE}/api/stock-news?code=${s.code}&market=${CURRENT_MARKET}&page=1&page_size=50`);
-      const j = await r.json();
+      // 처음 보는 종목은 서버가 헤드라인을 즉석 분류·코멘트(LLM) → 느릴 수 있음.
+      // 오래 걸리면 안내 갱신, 90s 타임아웃 (무한 스피너 방지).
+      const slowTimer = setTimeout(() => {
+        const el = newsBody.querySelector('.news-load');
+        if (el) el.textContent = '⌛ 처음 여는 종목이라 뉴스 분석 중… (최대 1분)';
+      }, 4000);
+      const ctrl = new AbortController();
+      const toTimer = setTimeout(() => ctrl.abort(), 90000);
+      let r, j;
+      try {
+        r = await fetch(`${API_BASE}/api/stock-news?code=${s.code}&market=${CURRENT_MARKET}&page=1&page_size=50`, { signal: ctrl.signal });
+        j = await r.json();
+      } finally { clearTimeout(slowTimer); clearTimeout(toTimer); }
+      if (!r.ok) throw new Error('HTTP ' + r.status);
       // 모든 뉴스에 분류(_cat) + 제외 사유(_reason) 부여 — 사건/제외를 한 화면에서
       const all = (j.articles || []);
       all.forEach(a => {
@@ -2613,8 +2625,11 @@
       `;
       _renderNewsList();
     } catch (e) {
-      newsHeadSub.textContent = '오류';
-      newsBody.innerHTML = `<div class="news-empty">뉴스 fetch 실패: ${e.message}</div>`;
+      const msg = e.name === 'AbortError' ? '뉴스 준비가 오래 걸려요 — 잠시 후 다시 눌러주세요' : ('뉴스 불러오기 실패: ' + e.message);
+      newsHeadSub.textContent = '잠시 후 다시';
+      newsBody.innerHTML = `<div class="news-empty" style="padding:30px 16px;text-align:center;line-height:1.6;">${msg}<br><br><button class="cta-btn" id="newsRetry" style="display:inline-flex">다시 시도</button></div>`;
+      const rb = document.getElementById('newsRetry');
+      if (rb) rb.addEventListener('click', () => openNewsSheetFor(s));
     }
   }
 
