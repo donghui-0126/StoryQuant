@@ -23,4 +23,4 @@ services:
       # 워밍은 프론트 요청(top_n=200)과 같아야 효과가 있음.
       # 콜드스타트 비용을 아예 없애려면 SWEEP_WARM=0 으로 끄세요 (대신 첫 접속자가 ~1분 대기).
       - key: SWEEP_WARM_N
-        value: "200"
+        value: "80"

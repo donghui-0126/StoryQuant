@@ -10,8 +10,10 @@ from ..utils.parsing import decode_entities, parse_date
 from .classify import enrich_article, simple_dedup, annotate_priced_in
 
 
-def fetch_stock_news(code, page, page_size, market, use_llm=False):
-    """시장 native API → 룰 enrich → (옵션) LLM batch override → dedup → priced_in."""
+def fetch_stock_news(code, page, page_size, market, use_llm=False, gen_comments=True):
+    """시장 native API → 룰 enrich → (옵션) LLM batch override → dedup → priced_in.
+       gen_comments=False 면 한줄평 생성을 건너뜀 (sweep 콜드스타트 비용/시간 절감 —
+       한줄평은 뉴스 모달 열 때 on-demand 로 생성)."""
     try:
         articles = market.fetch_stock_news_native(code, page=page, page_size=page_size)
     except Exception as e:
@@ -64,7 +66,7 @@ def fetch_stock_news(code, page, page_size, market, use_llm=False):
     except Exception:
         pass
     # 한줄평 — 실질·미반영 사건 뉴스에만 (비용 통제: 최대 8건, 자체 캐시)
-    if use_llm:
+    if use_llm and gen_comments:
         try:
             from . import llm_classify as _llm
             if _llm.is_enabled():

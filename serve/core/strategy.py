@@ -16,7 +16,8 @@ def fetch_one_for_sweep(code, market, macro_regime='neutral'):
         bars = chart.get('bars', [])
         if len(bars) < 5:
             return None
-        news = fetch_stock_news(code, page=1, page_size=20, market=market, use_llm=True)
+        # sweep 은 분류만 (한줄평은 뉴스 모달 열 때 생성), 종목당 14건만 — 콜드스타트 비용/시간 절감
+        news = fetch_stock_news(code, page=1, page_size=14, market=market, use_llm=True, gen_comments=False)
         articles = news.get('articles', [])
 
         last = bars[-1]['c']
