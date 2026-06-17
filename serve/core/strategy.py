@@ -16,8 +16,9 @@ def fetch_one_for_sweep(code, market, macro_regime='neutral'):
         bars = chart.get('bars', [])
         if len(bars) < 5:
             return None
-        # sweep 은 분류만 (한줄평은 뉴스 모달 열 때 생성), 종목당 14건만 — 콜드스타트 비용/시간 절감
-        news = fetch_stock_news(code, page=1, page_size=14, market=market, use_llm=True, gen_comments=False)
+        # 수집 단계에서 분류 + 한줄평까지 모두 생성 → 모달은 DB(스냅샷)에서 읽기만 (콜드 LLM 제거).
+        # 종목당 30건 (모달 표시 분량).
+        news = fetch_stock_news(code, page=1, page_size=30, market=market, use_llm=True, gen_comments=True)
         articles = news.get('articles', [])
 
         last = bars[-1]['c']
@@ -141,6 +142,17 @@ def fetch_one_for_sweep(code, market, macro_regime='neutral'):
                 for a in articles
                 if a.get('scope') == 'sector' and a.get('llm_label') in ('event_bull','event_bear')
             ],
+            # 뉴스 모달용 — 분류·근거·한줄평이 모두 끝난 전체 기사 (모달은 이걸 그대로 읽음)
+            '_news': [
+                {'title': a.get('title'), 'link': a.get('link'),
+                 'paper': a.get('paper') or a.get('source'),
+                 'ts': a.get('ts'), 'sentiment': a.get('sentiment'),
+                 'substance': a.get('substance'), 'priced_in': bool(a.get('priced_in')),
+                 'llm_label': a.get('llm_label'), 'llm_reason': a.get('llm_reason'),
+                 'llm_comment': a.get('llm_comment'), 'category': a.get('category'),
+                 'scope': a.get('scope')}
+                for a in articles
+            ],
         }
     except Exception:
         return None
@@ -235,8 +247,13 @@ def fetch_sweep(top_n, market):
         s['articles'].sort(key=lambda a: -(a.get('ts') or 0))
         s['articles'] = s['articles'][:50]    # 상위 50건
         del s['_pol_sum'], s['_mom_sum'], s['_seen_titles']
-    # 종목 응답에서는 _sector_articles 제거 (응답 size 축소)
+    # 종목별 전체 뉴스(분류·한줄평 완료)를 모아 별도 보관 — 모달이 DB처럼 읽음.
+    # sweep 응답 본문에서는 분리해 _stock_news 로만 전달 (핸들러가 추출, 클라엔 안 보냄).
+    stock_news = {}
     for r in results:
+        nr = r.pop('_news', None)
+        if nr is not None:
+            stock_news[r['code']] = nr
         r.pop('_sector_articles', None)
     try:
         from . import llm_classify as _llm
@@ -255,6 +272,7 @@ def fetch_sweep(top_n, market):
         'sector_signals': sector_signals,
         'llm_stats': llm_stats,
         'all': results,
+        '_stock_news': stock_news,   # 핸들러가 추출 → NEWS_SNAPSHOT (클라 응답에선 제외)
     }
 
 

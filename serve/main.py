@@ -38,9 +38,12 @@ def refresh_loop():
         try:
             t0 = time.time()
             data = fetch_sweep(top_n=top_n, market=m)
+            news = data.pop('_stock_news', {})       # 종목별 뉴스 → DB(NEWS_SNAPSHOT), 클라 응답엔 제외
             Handler.SWEEP_CACHE[key] = {'ts': time.time(), 'data': data, 'computing': False}
-            Handler._save_snapshot(key, data)
-            print(f'[Refresh] {key} 갱신·저장 ({int(time.time()-t0)}s)')
+            if news:
+                Handler.NEWS_SNAPSHOT.update(news)
+            Handler._save_snapshot(key, data, news)
+            print(f'[Refresh] {key} 갱신·저장 ({int(time.time()-t0)}s, 뉴스 {len(news)}종목)')
         except Exception as e:
             print(f'[Refresh] {key} 실패: {e}')
         time.sleep(period)

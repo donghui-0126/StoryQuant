@@ -84,6 +84,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             if not row:
                 return self._send_json({'error': 'no data', 'code': code}, status=404)
             row.pop('_sector_articles', None)
+            news = row.pop('_news', None)
+            if news:
+                Handler.NEWS_SNAPSHOT[code] = news   # 이 종목 모달도 이후 DB에서 즉시 (콜드 없음)
             Handler.STOCK_ONE_CACHE[key] = (now, row)
             if len(Handler.STOCK_ONE_CACHE) > 100:
                 Handler.STOCK_ONE_CACHE.pop(min(Handler.STOCK_ONE_CACHE.items(), key=lambda kv: kv[1][0])[0])
@@ -272,6 +275,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         page_size = max(10, min(60, int(q.get('page_size', ['40'])[0])))
         if not code:
             return self._send_json({'error': 'code required'}, status=400)
+        # ① DB(NEWS_SNAPSHOT) 우선 — 수집 때 분류·한줄평까지 끝낸 데이터를 그대로 읽음 (LLM 호출 0, 콜드 없음)
+        snap = Handler.NEWS_SNAPSHOT.get(code)
+        if page == 1 and snap:
+            return self._send_json({'code': code, 'page': 1, 'articles': snap,
+                                    'total': len(snap), 'source': 'snapshot'})
+        # ② 스냅샷에 없는 종목(검색한 비-수집 종목)만 live fetch (fallback)
         key = f'{market.id}|{code}|{page}|{page_size}'
         now = time.time()
         c = Handler.STOCK_NEWS_CACHE.get(key)
@@ -313,18 +322,19 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._send_json({'error': str(e)[:200]}, status=500)
 
     SWEEP_CACHE = {}
+    NEWS_SNAPSHOT = {}      # code → 분류·한줄평 완료된 전체 기사 (모달이 DB처럼 읽음)
     SWEEP_LOCK = __import__('threading').Lock()
     SNAP_DIR = os.path.join(ROOT, 'data', 'snapshots')
 
     @classmethod
-    def _save_snapshot(cls, key, data):
-        """sweep 결과를 디스크에 영속 — 부팅 시 즉시 로드해 콜드스타트 제거."""
+    def _save_snapshot(cls, key, data, news=None):
+        """sweep 결과(+종목별 뉴스)를 디스크에 영속 — 부팅 시 즉시 로드해 콜드스타트 제거."""
         try:
             os.makedirs(cls.SNAP_DIR, exist_ok=True)
             fn = key.replace('|', '_') + '.json'
             tmp = os.path.join(cls.SNAP_DIR, fn + '.tmp')
             with open(tmp, 'w') as f:
-                json.dump({'key': key, 'ts': time.time(), 'data': data}, f, ensure_ascii=False)
+                json.dump({'key': key, 'ts': time.time(), 'data': data, 'news': news or {}}, f, ensure_ascii=False)
             os.replace(tmp, os.path.join(cls.SNAP_DIR, fn))
         except Exception as e:
             print(f'[Snapshot] save {key} 실패: {e}')
@@ -351,6 +361,9 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                     if prev and prev.get('ts', 0) >= obj.get('ts', 0):
                         continue
                     cls.SWEEP_CACHE[key] = {'ts': obj.get('ts', 0), 'data': obj['data'], 'computing': False}
+                    news = obj.get('news') or {}
+                    if news:
+                        cls.NEWS_SNAPSHOT.update(news)   # 종목별 뉴스 DB 복원
                     n += 1
                 except Exception:
                     continue
@@ -364,9 +377,12 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         import time as _t
         try:
             data = fetch_sweep(top_n=top_n, market=market)
+            news = data.pop('_stock_news', {})      # 종목별 뉴스 분리 → DB, 클라 응답엔 제외
             cls.SWEEP_CACHE[key] = {'ts': _t.time(), 'data': data, 'computing': False}
-            cls._save_snapshot(key, data)
-            print(f'[Sweep] {key} 계산 완료 ({data.get("count")}종목)')
+            if news:
+                cls.NEWS_SNAPSHOT.update(news)
+            cls._save_snapshot(key, data, news)
+            print(f'[Sweep] {key} 계산 완료 ({data.get("count")}종목, 뉴스 {len(news)}종목)')
         except Exception as e:
             slot = cls.SWEEP_CACHE.get(key)
             if slot:
