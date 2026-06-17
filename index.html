@@ -5,21 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>StoryQuant</title>
 <script>
-// 모바일/태블릿 → shorts.html · 데스크탑 → story_quant.html
-// 단 URL에 ?force=desktop / ?force=mobile 있으면 강제 우회
-(function() {
-  var q = new URLSearchParams(location.search);
-  var force = q.get('force');
-  var isMobile;
-  if (force === 'mobile') isMobile = true;
-  else if (force === 'desktop') isMobile = false;
-  else {
-    // viewport width + UA 둘 다 체크 (UA 단독은 spoofing 위험)
-    isMobile = window.innerWidth <= 768 ||
-      /Android|iPhone|iPad|iPod|Mobile|BlackBerry|webOS|Opera Mini|IEMobile/i.test(navigator.userAgent);
-  }
-  location.replace(isMobile ? './shorts.html' : './story_quant.html');
-})();
+// 항상 shorts.html 로 — 데스크탑에서도 폰 프레임으로 렌더링됨.
+// (구 story_quant.html 은 legacy/ 로 이동·폐기되어 더 이상 리다이렉트하지 않음)
+location.replace('./shorts.html' + location.search);
 </script>
 <style>
   html, body { background: #0c0b0a; color: #aaa; margin: 0; height: 100%; font-family: system-ui, sans-serif; }
@@ -36,8 +24,7 @@
   <div class="spin"></div>
   <div style="font-size:11px;opacity:0.6;">리디렉션 중...</div>
   <div class="links">
-    <a href="./shorts.html">📱 모바일</a>
-    <a href="./story_quant.html?force=desktop">🖥 데스크탑</a>
+    <a href="./shorts.html">📱 앱 열기</a>
   </div>
 </body>
 </html>
