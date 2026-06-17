@@ -13,6 +13,10 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](#)
 [![Mobile-First](https://img.shields.io/badge/mobile-first-ff4858.svg)](#)
 
+### 🔗 [**소개·데모·발표 자료 →  donghui-0126.github.io/StoryQuant**](https://donghui-0126.github.io/StoryQuant/)
+
+[라이브 데모(쇼츠)](https://donghui-0126.github.io/StoryQuant/) · [발표 슬라이드](https://donghui-0126.github.io/StoryQuant/final-presentation.html)
+
 </div>
 
 ---
