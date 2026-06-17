@@ -82,8 +82,9 @@
       <a class="btn" href="https://github.com/donghui-0126/StoryQuant" target="_blank" rel="noopener">💻 GitHub <span class="ar">↗</span></a>
     </div>
     <div class="note" id="demoNote">
-      ⚠ 라이브 데모는 백엔드 서버가 켜져 있을 때만 동작합니다. 화면이 안 뜨면 서버가 꺼진 상태예요 —
-      발표 자료로 화면을 확인하실 수 있습니다.
+      ⚠ 라이브 데모는 무료 서버(Render)에 올라가 있어, 한동안 접속이 없으면 잠들어 있다가
+      <b>첫 접속 시 깨어나는 데 ~30초</b> 걸릴 수 있어요. 로딩이 길면 잠시 기다리거나 한 번 새로고침 해주세요.
+      바로 화면만 보려면 <b>발표 자료</b>를 참고하세요.
     </div>
   </header>
 
@@ -138,8 +139,8 @@
 </div>
 
 <script>
-  // 라이브 데모 주소 — 백엔드 터널이 바뀌면 이 한 줄만 갱신
-  var DEMO_URL = "https://exists-analyzed-bid-wealth.trycloudflare.com/shorts.html";
+  // 라이브 데모 주소 — Render 고정 배포 (storyquant.onrender.com)
+  var DEMO_URL = "https://storyquant.onrender.com/shorts.html";
   var d = document.getElementById('demo');
   d.href = DEMO_URL;
 </script>
