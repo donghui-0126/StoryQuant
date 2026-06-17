@@ -314,14 +314,58 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
     SWEEP_CACHE = {}
     SWEEP_LOCK = __import__('threading').Lock()
+    SNAP_DIR = os.path.join(ROOT, 'data', 'snapshots')
+
+    @classmethod
+    def _save_snapshot(cls, key, data):
+        """sweep 결과를 디스크에 영속 — 부팅 시 즉시 로드해 콜드스타트 제거."""
+        try:
+            os.makedirs(cls.SNAP_DIR, exist_ok=True)
+            fn = key.replace('|', '_') + '.json'
+            tmp = os.path.join(cls.SNAP_DIR, fn + '.tmp')
+            with open(tmp, 'w') as f:
+                json.dump({'key': key, 'ts': time.time(), 'data': data}, f, ensure_ascii=False)
+            os.replace(tmp, os.path.join(cls.SNAP_DIR, fn))
+        except Exception as e:
+            print(f'[Snapshot] save {key} 실패: {e}')
+
+    SEED_DIR = os.path.join(ROOT, 'seed')   # repo 에 커밋되는 시드 (Render 재배포 후 즉시 서빙용)
+
+    @classmethod
+    def load_snapshots(cls):
+        """스냅샷을 메모리 캐시로 로드 — 부팅 직후 즉시 서빙(콜드스타트 제거).
+           seed/(커밋됨) 먼저 → data/snapshots/(런타임, 더 신선) 가 덮어씀."""
+        n = 0
+        for d in (cls.SEED_DIR, cls.SNAP_DIR):
+            if not os.path.isdir(d):
+                continue
+            for fn in os.listdir(d):
+                if not fn.endswith('.json'):
+                    continue
+                try:
+                    with open(os.path.join(d, fn)) as f:
+                        obj = json.load(f)
+                    key = obj.get('key') or fn[:-5].replace('_', '|', 1)
+                    prev = cls.SWEEP_CACHE.get(key)
+                    # 더 신선한 것만 유지 (런타임이 시드보다 최신이면 유지)
+                    if prev and prev.get('ts', 0) >= obj.get('ts', 0):
+                        continue
+                    cls.SWEEP_CACHE[key] = {'ts': obj.get('ts', 0), 'data': obj['data'], 'computing': False}
+                    n += 1
+                except Exception:
+                    continue
+        if n:
+            print(f'[Snapshot] {n}개 로드 — 콜드스타트 없이 즉시 서빙')
+        return n
 
     @classmethod
     def _compute_sweep_bg(cls, key, top_n, market):
-        """백그라운드 sweep 계산 — HTTP 요청을 블로킹하지 않음."""
+        """백그라운드 sweep 계산 — HTTP 요청을 블로킹하지 않음. 완료 시 디스크 저장."""
         import time as _t
         try:
             data = fetch_sweep(top_n=top_n, market=market)
             cls.SWEEP_CACHE[key] = {'ts': _t.time(), 'data': data, 'computing': False}
+            cls._save_snapshot(key, data)
             print(f'[Sweep] {key} 계산 완료 ({data.get("count")}종목)')
         except Exception as e:
             slot = cls.SWEEP_CACHE.get(key)

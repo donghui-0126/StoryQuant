@@ -19,24 +19,31 @@ def load_universes():
             print(f'[Universe:{mid}] load failed: {e}')
 
 
-def warm_sweep(top_n=200):
-    """기본 sweep(KR top_n) 미리 계산해 캐시 적재 — 첫 사용자 콜드 로딩(~86s) 방지.
-       SWEEP_WARM=0 이면 비활성 (Render 무료 티어 콜드스타트 LLM 비용 절감용)."""
+def refresh_loop():
+    """주기적 sweep 갱신 — 백엔드가 '시간마다 폴링·저장', 클라는 읽기만.
+       부팅 시 디스크/시드 스냅샷을 먼저 로드(즉시 서빙)한 뒤, 백그라운드로 라이브 갱신.
+       env: SWEEP_WARM=0(끄기) · SWEEP_WARM_N(종목 수) · SWEEP_REFRESH_MIN(주기, 기본 30)."""
     import os
+    Handler.load_snapshots()                 # 디스크/시드 즉시 로드 → 콜드스타트 없음
     if os.environ.get('SWEEP_WARM') == '0':
-        print('[Warm] disabled (SWEEP_WARM=0)')
+        print('[Refresh] disabled (SWEEP_WARM=0) — 시드 스냅샷만 서빙')
         return
-    top_n = int(os.environ.get('SWEEP_WARM_N', top_n))
-    time.sleep(8)   # universe 로드 먼저 끝나도록 대기
-    try:
-        from .core.strategy import fetch_sweep
-        m = get_market('kr')
-        t0 = time.time()
-        data = fetch_sweep(top_n=top_n, market=m)
-        Handler.SWEEP_CACHE[f'kr|{top_n}'] = {'ts': time.time(), 'data': data, 'computing': False}
-        print(f'[Warm] kr sweep top_n={top_n} 캐시 적재 ({int(time.time()-t0)}s)')
-    except Exception as e:
-        print(f'[Warm] sweep 워밍 실패: {e}')
+    top_n = int(os.environ.get('SWEEP_WARM_N', 80))
+    period = int(os.environ.get('SWEEP_REFRESH_MIN', 30)) * 60
+    key = f'kr|{top_n}'
+    from .core.strategy import fetch_sweep
+    m = get_market('kr')
+    time.sleep(8)                            # universe 로드 먼저
+    while True:
+        try:
+            t0 = time.time()
+            data = fetch_sweep(top_n=top_n, market=m)
+            Handler.SWEEP_CACHE[key] = {'ts': time.time(), 'data': data, 'computing': False}
+            Handler._save_snapshot(key, data)
+            print(f'[Refresh] {key} 갱신·저장 ({int(time.time()-t0)}s)')
+        except Exception as e:
+            print(f'[Refresh] {key} 실패: {e}')
+        time.sleep(period)
 
 
 class _Server(socketserver.ThreadingTCPServer):
@@ -46,7 +53,7 @@ class _Server(socketserver.ThreadingTCPServer):
 
 def run(port=8765, host='127.0.0.1'):
     threading.Thread(target=load_universes, daemon=True).start()
-    threading.Thread(target=warm_sweep, daemon=True).start()
+    threading.Thread(target=refresh_loop, daemon=True).start()
     print(f'StoryQuant server → http://{host}:{port}/shorts.html')
     with _Server((host, port), Handler) as srv:
         srv.serve_forever()
