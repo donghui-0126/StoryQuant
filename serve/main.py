@@ -24,7 +24,8 @@ def refresh_loop():
        부팅 시 디스크/시드 스냅샷을 먼저 로드(즉시 서빙)한 뒤, 백그라운드로 라이브 갱신.
        env: SWEEP_WARM=0(끄기) · SWEEP_WARM_N(종목 수) · SWEEP_REFRESH_MIN(주기, 기본 30)."""
     import os
-    Handler.load_snapshots()                 # 디스크/시드 즉시 로드 → 콜드스타트 없음
+    Handler.load_from_db()                   # 영구 DB(Supabase) 우선 로드 — 있으면 재웜업 불필요
+    Handler.load_snapshots()                 # DB 없거나 빈 키는 시드/스냅샷으로 보완
     if os.environ.get('SWEEP_WARM') == '0':
         print('[Refresh] disabled (SWEEP_WARM=0) — 시드 스냅샷만 서빙')
         return
@@ -43,6 +44,15 @@ def refresh_loop():
             if news:
                 Handler.NEWS_SNAPSHOT.update(news)
             Handler._save_snapshot(key, data, news)
+            # 영구 DB(Supabase)에도 insert — 다음 부팅부터 재웜업·콜드 없이 즉시
+            try:
+                from .core import db
+                if db.is_enabled():
+                    db.upsert_sweep(key, data)
+                    for c, arts in (news or {}).items():
+                        db.upsert_news(c, arts)
+            except Exception:
+                pass
             print(f'[Refresh] {key} 갱신·저장 ({int(time.time()-t0)}s, 뉴스 {len(news)}종목)')
         except Exception as e:
             print(f'[Refresh] {key} 실패: {e}')
@@ -73,7 +83,7 @@ def warm_universe():
                                             market=m, use_llm=True, gen_comments=True)
                     arts = news.get('articles') or []
                     if arts:
-                        Handler.NEWS_SNAPSHOT[code] = [
+                        rows = [
                             {'title': a.get('title'), 'link': a.get('link'),
                              'paper': a.get('paper') or a.get('source'), 'ts': a.get('ts'),
                              'sentiment': a.get('sentiment'), 'substance': a.get('substance'),
@@ -81,9 +91,16 @@ def warm_universe():
                              'llm_reason': a.get('llm_reason'), 'llm_comment': a.get('llm_comment'),
                              'category': a.get('category'), 'scope': a.get('scope')}
                             for a in arts]
+                        Handler.NEWS_SNAPSHOT[code] = rows
+                        try:
+                            from .core import db
+                            if db.is_enabled():
+                                db.upsert_news(code, rows)   # 영구 DB insert
+                        except Exception:
+                            pass
                         done += 1
                     if (i + 1) % 25 == 0:
-                        Handler.save_news_snapshot('kr')   # 주기적 영속
+                        Handler.save_news_snapshot('kr')   # 주기적 영속(디스크)
                 except Exception:
                     continue
                 time.sleep(0.2)   # rate-limit 완화

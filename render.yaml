@@ -24,3 +24,10 @@ services:
       # 콜드스타트 비용을 아예 없애려면 SWEEP_WARM=0 으로 끄세요 (대신 첫 접속자가 ~1분 대기).
       - key: SWEEP_WARM_N
         value: "80"
+      # 영구 DB (Supabase) — 설정 시 뉴스/종목을 DB에 저장하고 부팅 시 즉시 로드(콜드 0).
+      # 없으면 디스크 스냅샷/시드로 자동 폴백. (deploy/supabase-schema.sql 실행 필요)
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+

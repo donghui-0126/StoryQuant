@@ -379,6 +379,32 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         return n
 
     @classmethod
+    def load_from_db(cls):
+        """Supabase 에서 sweep·news 를 메모리 캐시로 로드 — 영구 DB라 부팅 시 재웜업 불필요."""
+        try:
+            from ..core import db
+        except Exception:
+            return 0
+        if not db.is_enabled():
+            return 0
+        n = 0
+        try:
+            news = db.fetch_all_news()    # {code: [articles]}
+            if news:
+                cls.NEWS_SNAPSHOT.update(news)
+                print(f'[DB] news {len(news)}종목 로드')
+            for key in ('kr|80',):
+                row = db.fetch_latest_sweep(key)
+                if row and row.get('data'):
+                    cls.SWEEP_CACHE[key] = {'ts': time.time(), 'data': row['data'], 'computing': False}
+                    n += 1
+            if n:
+                print(f'[DB] sweep {n}개 로드 — 콜드스타트 없이 즉시 서빙')
+        except Exception as e:
+            print(f'[DB] load 실패: {str(e)[:120]}')
+        return n
+
+    @classmethod
     def save_news_snapshot(cls, market_id='kr'):
         """universe 전체 뉴스 DB 를 디스크에 영속 (검색 웜업 결과 보존)."""
         try:
