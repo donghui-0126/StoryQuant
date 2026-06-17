@@ -9,12 +9,15 @@ from .markets import get_market, list_markets
 
 
 def load_universes():
-    """모든 등록된 시장의 universe 부팅 시 백그라운드 로드."""
+    """모든 등록된 시장의 universe 부팅 시 백그라운드 로드.
+       UNIVERSE_N 환경변수로 시장당 종목 수 조절 (자가호스팅 시 크게 → 전 종목 웜업)."""
+    import os
+    n = int(os.environ.get('UNIVERSE_N', 200))
     for mid in list_markets():
         m = get_market(mid)
         try:
-            u = m.load_universe(top_per_market=200)
-            print(f'[Universe:{mid}] loaded {len(u)} tickers')
+            u = m.load_universe(top_per_market=n)
+            print(f'[Universe:{mid}] loaded {len(u)} tickers (top_per_market={n})')
         except Exception as e:
             print(f'[Universe:{mid}] load failed: {e}')
 

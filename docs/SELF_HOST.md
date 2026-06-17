@@ -77,6 +77,27 @@ git add docs/index.html && git commit -m "Point demo to self-hosted Worker" && g
 
 ---
 
+## 4.5. ★ "전 종목 미리 분류" — 검색도 즉시 (자가호스팅 전용)
+
+PC는 캐시·디스크가 영구라, 전 종목을 한 번 분류해두면 계속 살아있어요.
+`serve.py` 실행 시 환경변수로 universe 를 크게 잡으면 됩니다 (WSL/bash 예):
+
+```bash
+UNIVERSE_N=1500 WARM_UNIVERSE_N=99999 WARM_UNIVERSE_PAGE=20 .venv/bin/python serve.py 8765
+```
+- `UNIVERSE_N=1500` : 시장당 상위 1500 (KOSPI 전부 + KOSDAQ 대부분 ≈ 전 종목 커버)
+- `WARM_UNIVERSE_N=99999` : universe 전체를 백그라운드 웜업
+- 백그라운드가 전 종목 뉴스를 분류·한줄평해서 DB/스냅샷에 저장 → **검색 즉시**
+
+비용·시간 (솔직히):
+- **첫 1회 풀 패스**: 수백~2천 종목 × LLM → 한두 시간 백그라운드 + OpenAI 비용 한 번에 좀 듦
+  (대략 종목당 1~2센트 → 1500종목 ≈ $15~30 **최초 1회**. 이후엔 캐시라 거의 0)
+- **그 이후**: 같은 헤드라인은 캐시 → 재분류 0. 새 뉴스만 분류 → 푼돈
+- 검색이 첫 패스 끝나기 전이어도, 카드는 ~3초로 뜨고(경량 분류) 뒤에서 풀버전이 채워짐
+
+> 비용이 부담되면 `UNIVERSE_N=600` 정도만 해도 "검색했더니 없는 종목"은 거의 안 나와요.
+> **OpenAI Usage limit 꼭 설정.**
+
 ## 5. 콜드스타트가 왜 사라지나
 - PC 디스크는 안 날아가서 `seed/` + `data/snapshots/` 스냅샷이 그대로 살아있음
   → 부팅 시 즉시 로드, 재웜업 불필요.

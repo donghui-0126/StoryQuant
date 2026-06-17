@@ -80,13 +80,17 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         try:
             from ..core.strategy import fetch_one_for_sweep
             regime = (Handler.SWEEP_CACHE.get(f'{market.id}|200', {}).get('data') or {}).get('macro_regime', 'neutral')
-            row = fetch_one_for_sweep(code, market, macro_regime=regime)
+            # 검색 즉시 응답 — 가볍게(14건·한줄평 생략)로 카드 빨리. 풀 분류·한줄평은
+            # 백그라운드 universe 웜업이 채움. (이미 웜업된 종목은 아래 NEWS_SNAPSHOT 사용)
+            row = fetch_one_for_sweep(code, market, macro_regime=regime,
+                                      page_size=14, gen_comments=False)
             if not row:
                 return self._send_json({'error': 'no data', 'code': code}, status=404)
             row.pop('_sector_articles', None)
             news = row.pop('_news', None)
-            if news:
-                Handler.NEWS_SNAPSHOT[code] = news   # 이 종목 모달도 이후 DB에서 즉시 (콜드 없음)
+            # 이미 웜업된(한줄평 포함) 버전이 있으면 가벼운 검색본으로 덮어쓰지 않음
+            if news and code not in Handler.NEWS_SNAPSHOT:
+                Handler.NEWS_SNAPSHOT[code] = news   # 임시(가벼운) — 웜업이 풀버전으로 교체
             Handler.STOCK_ONE_CACHE[key] = (now, row)
             if len(Handler.STOCK_ONE_CACHE) > 100:
                 Handler.STOCK_ONE_CACHE.pop(min(Handler.STOCK_ONE_CACHE.items(), key=lambda kv: kv[1][0])[0])

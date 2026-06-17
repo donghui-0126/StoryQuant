@@ -9,16 +9,19 @@ from .macro import apply_macro_adjustment, compute_macro_stress, compute_macro_b
 
 
 # ─── 단일 종목 sweep candidate 계산 ─────────────────────────
-def fetch_one_for_sweep(code, market, macro_regime='neutral'):
-    """Composite signal — mom5+mom20+뉴스 polarity·density+거래량 z + macro_adj."""
+def fetch_one_for_sweep(code, market, macro_regime='neutral', page_size=30, gen_comments=True):
+    """Composite signal — mom5+mom20+뉴스 polarity·density+거래량 z + macro_adj.
+       page_size/gen_comments: 검색(stock-one) 즉시 응답 시 가볍게(14, False) 호출 가능 —
+       카드 빨리 띄우고 한줄평은 모달/백그라운드 웜업이 채움."""
     try:
         chart = fetch_stock_chart(code, '1mo', market)
         bars = chart.get('bars', [])
         if len(bars) < 5:
             return None
-        # 수집 단계에서 분류 + 한줄평까지 모두 생성 → 모달은 DB(스냅샷)에서 읽기만 (콜드 LLM 제거).
-        # 종목당 30건 (모달 표시 분량).
-        news = fetch_stock_news(code, page=1, page_size=30, market=market, use_llm=True, gen_comments=True)
+        # 수집(웜업) 단계: 분류 + 한줄평까지 (모달이 DB에서 읽기만 → 콜드 0).
+        # 검색 즉시 응답: 가볍게 분류만 → 카드 빨리.
+        news = fetch_stock_news(code, page=1, page_size=page_size, market=market,
+                                use_llm=True, gen_comments=gen_comments)
         articles = news.get('articles', [])
 
         last = bars[-1]['c']
