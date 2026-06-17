@@ -14,6 +14,14 @@
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
 <!-- Supabase SDK (있으면 클라우드 모드, 없거나 미설정 시 localStorage fallback) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js"></script>
+<!-- ▼▼ Supabase 설정 — Google 로그인용 (anon 키는 공개 안전). 아래 두 값만 채우세요 ▼▼ -->
+<script>
+  // Supabase 대시보드 → Settings → API 에서 복사
+  // (값이 비어 있으면 로그인 비활성 + 로컬 닉네임 모드로 자동 폴백)
+  window.SQ_SUPABASE_URL = "";   // 예: https://abcxyz.supabase.co
+  window.SQ_SUPABASE_KEY = "";   // anon public key (service_role 아님!)
+</script>
+<!-- ▲▲ ───────────────────────────────────────────────────────────── ▲▲ -->
 <style>
   /* ─── 테마 변수 (다크 기본) ─── */
   :root {
