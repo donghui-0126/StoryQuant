@@ -355,6 +355,13 @@ class Handler(http.server.SimpleHTTPRequestHandler):
                 try:
                     with open(os.path.join(d, fn)) as f:
                         obj = json.load(f)
+                    # news_*.json = universe 전체 뉴스 DB (검색 웜업용)
+                    if fn.startswith('news_'):
+                        ns = obj.get('news') or {}
+                        if ns:
+                            cls.NEWS_SNAPSHOT.update(ns)
+                            print(f'[Snapshot] 뉴스 DB {len(ns)}종목 로드')
+                        continue
                     key = obj.get('key') or fn[:-5].replace('_', '|', 1)
                     prev = cls.SWEEP_CACHE.get(key)
                     # 더 신선한 것만 유지 (런타임이 시드보다 최신이면 유지)
@@ -370,6 +377,19 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         if n:
             print(f'[Snapshot] {n}개 로드 — 콜드스타트 없이 즉시 서빙')
         return n
+
+    @classmethod
+    def save_news_snapshot(cls, market_id='kr'):
+        """universe 전체 뉴스 DB 를 디스크에 영속 (검색 웜업 결과 보존)."""
+        try:
+            os.makedirs(cls.SNAP_DIR, exist_ok=True)
+            fn = f'news_{market_id}.json'
+            tmp = os.path.join(cls.SNAP_DIR, fn + '.tmp')
+            with open(tmp, 'w') as f:
+                json.dump({'ts': time.time(), 'news': cls.NEWS_SNAPSHOT}, f, ensure_ascii=False)
+            os.replace(tmp, os.path.join(cls.SNAP_DIR, fn))
+        except Exception as e:
+            print(f'[Snapshot] news save 실패: {e}')
 
     @classmethod
     def _compute_sweep_bg(cls, key, top_n, market):
