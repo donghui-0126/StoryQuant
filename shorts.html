@@ -171,6 +171,15 @@
     border: 1px solid var(--line-2);
     border-radius: 4px; padding: 2px 6px;
   }
+  /* 광고 미리보기 플레이스홀더 (AdSense 승인 전) */
+  .ad-ph-box {
+    width: 86%; max-width: 360px; padding: 40px 24px;
+    border: 2px dashed var(--line-2); border-radius: 18px;
+    background: var(--surface); text-align: center;
+  }
+  .ad-ph-ic { font-size: 40px; margin-bottom: 12px; }
+  .ad-ph-t { font-size: 18px; font-weight: 800; color: var(--text-2); margin-bottom: 8px; }
+  .ad-ph-s { font-size: 12.5px; color: var(--text-3); line-height: 1.6; }
   .reel.up   { background: radial-gradient(circle at 70% 25%, rgba(74,222,128,0.18), transparent 55%), linear-gradient(180deg, rgba(74,222,128,0.08), var(--reel-base) 70%); }
   .reel.upS  { background: radial-gradient(circle at 70% 25%, rgba(74,222,128,0.28), transparent 55%), linear-gradient(180deg, rgba(74,222,128,0.14), var(--reel-base) 70%); }
   .reel.dn   { background: radial-gradient(circle at 70% 25%, rgba(239,68,68,0.18), transparent 55%), linear-gradient(180deg, rgba(239,68,68,0.08), var(--reel-base) 70%); }
@@ -1455,10 +1464,15 @@
     || null;   // ← { apiKey:'...', authDomain:'xxx.firebaseapp.com', projectId:'xxx', appId:'...' }
 
   // ═══════════════════════════════════════════════
-  //  Google AdSense — client/slot 채우면 쇼츠 every 개마다 광고 카드 삽입
-  //  adsense.google.com 승인 후: client='ca-pub-XXXXXXXXXXXXXXXX', slot=인피드 광고 단위 ID
+  //  Google AdSense — 쇼츠 every 개마다 광고 카드 1개 삽입
+  //  · 승인 후: window.SQ_ADSENSE = { client:'ca-pub-…', slot:'…', every:8 }
+  //  · 승인 전: localStorage.setItem('sq_ad_preview','1') 하면 '광고 자리' 미리보기 표시
+  //    (또는 SQ_ADSENSE.preview = true) — 실제 광고 없이 N개마다 들어가는 포맷만 확인
   // ═══════════════════════════════════════════════
-  const ADSENSE = window.SQ_ADSENSE || { client: '', slot: '', every: 8 };
+  const ADSENSE = Object.assign(
+    { client: '', slot: '', every: 8, preview: false },
+    window.SQ_ADSENSE || {});
+  if (localStorage.getItem('sq_ad_preview') === '1') ADSENSE.preview = true;
 
   const loadScript = (src) => new Promise((res, rej) => {
     const el = document.createElement('script');
@@ -2097,24 +2111,38 @@
   // progress segments
   progressEl.innerHTML = stocks.map((_, i) => `<div class="seg" data-i="${i}"><div class="fill"></div></div>`).join('');
 
-  // 카드 렌더 — AdSense 설정 시 every 개마다 광고 카드 삽입
-  const adsOn = !!(ADSENSE.client && ADSENSE.slot && ADSENSE.every > 0);
-  function renderAdReel() {
+  // 카드 렌더 — every 개마다 광고 카드 1개 삽입
+  // 실제 광고: client+slot 있을 때 / 미리보기: preview 플래그
+  const adsReal = !!(ADSENSE.client && ADSENSE.slot && ADSENSE.every > 0);
+  const adsOn = (adsReal || ADSENSE.preview) && ADSENSE.every > 0;
+  function renderAdReel(n) {
+    if (adsReal) {
+      return `
+        <div class="reel reel-ad" data-ad="1">
+          <div class="ad-tag">광고</div>
+          <ins class="adsbygoogle" style="display:block;width:100%;max-width:374px;"
+               data-ad-client="${ADSENSE.client}" data-ad-slot="${ADSENSE.slot}"
+               data-ad-format="fluid" data-full-width-responsive="true"></ins>
+        </div>`;
+    }
+    // 미리보기 플레이스홀더 — 실제 광고 없이 포맷·간격만 확인
     return `
-      <div class="reel reel-ad">
+      <div class="reel reel-ad reel-ad-ph" data-ad="1">
         <div class="ad-tag">광고</div>
-        <ins class="adsbygoogle" style="display:block;width:100%;max-width:374px;"
-             data-ad-client="${ADSENSE.client}" data-ad-slot="${ADSENSE.slot}"
-             data-ad-format="fluid" data-full-width-responsive="true"></ins>
+        <div class="ad-ph-box">
+          <div class="ad-ph-ic">📣</div>
+          <div class="ad-ph-t">광고 자리</div>
+          <div class="ad-ph-s">AdSense 승인 후 이 자리에 인피드 광고가 노출됩니다<br>(쇼츠 ${ADSENSE.every}개마다 1개)</div>
+        </div>
       </div>`;
   }
-  let reelsHtml = '';
+  let reelsHtml = '', adN = 0;
   stocks.forEach((s, i) => {
     reelsHtml += renderReel(s, i, stocks.length);
-    if (adsOn && (i + 1) % ADSENSE.every === 0 && i < stocks.length - 1) reelsHtml += renderAdReel();
+    if (adsOn && (i + 1) % ADSENSE.every === 0 && i < stocks.length - 1) reelsHtml += renderAdReel(++adN);
   });
   reelsEl.innerHTML = reelsHtml;
-  if (adsOn) {
+  if (adsReal) {
     reelsEl.querySelectorAll('ins.adsbygoogle').forEach(() => {
       try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch (_) {}
     });
