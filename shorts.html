@@ -1934,7 +1934,7 @@
         <span class="shn-chip ${t.sentiment === 'bull' ? 'bull' : 'bear'}">${t.sentiment === 'bull' ? '호재' : '악재'}</span>
         <div class="shn-body">
           <div class="shn-title">${t.title || ''}</div>
-          ${i === 0 && t.comment ? `<div class="shn-cmt">💬 ${t.comment}</div>` : ''}
+          ${t.comment ? `<div class="shn-cmt">💬 ${t.comment}</div>` : ''}
           <div class="shn-meta">${t.paper || ''} · ${timeAgo(t.ts)}${t.scope === 'sector' ? ' · 업종 전반' : ''}${t.priced_in ? ' · <span class="shn-pi">이미 반영</span>' : ''}</div>
         </div>
       </div>`).join('') + '</div>';
