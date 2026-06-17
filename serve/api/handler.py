@@ -313,6 +313,22 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self._send_json({'error': str(e)[:200]}, status=500)
 
     SWEEP_CACHE = {}
+    SWEEP_LOCK = __import__('threading').Lock()
+
+    @classmethod
+    def _compute_sweep_bg(cls, key, top_n, market):
+        """백그라운드 sweep 계산 — HTTP 요청을 블로킹하지 않음."""
+        import time as _t
+        try:
+            data = fetch_sweep(top_n=top_n, market=market)
+            cls.SWEEP_CACHE[key] = {'ts': _t.time(), 'data': data, 'computing': False}
+            print(f'[Sweep] {key} 계산 완료 ({data.get("count")}종목)')
+        except Exception as e:
+            slot = cls.SWEEP_CACHE.get(key)
+            if slot:
+                slot['computing'] = False
+            print(f'[Sweep] {key} 계산 실패: {e}')
+
     def _api_sweep(self, u):
         q = urllib.parse.parse_qs(u.query)
         market = self._market(q)
@@ -321,20 +337,21 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         key = f'{market.id}|{top_n}'
         now = time.time()
         slot = Handler.SWEEP_CACHE.setdefault(key, {'ts': 0, 'data': None, 'computing': False})
+        # 신선한 캐시 → 즉시 반환
         if not force and slot['data'] and (now - slot['ts']) < 3600:
-            self._send_json({'cached': True, 'cached_age_sec': int(now - slot['ts']), **slot['data']})
-            return
-        if slot['computing'] and slot['data']:
-            self._send_json({'cached': True, 'cached_age_sec': int(now - slot['ts']), **slot['data']})
-            return
-        slot['computing'] = True
-        try:
-            data = fetch_sweep(top_n=top_n, market=market)
-            Handler.SWEEP_CACHE[key] = {'ts': now, 'data': data, 'computing': False}
-            self._send_json({'cached': False, **data})
-        except Exception as e:
-            slot['computing'] = False
-            self._send_json({'error': str(e)[:200]}, status=500)
+            return self._send_json({'cached': True, 'cached_age_sec': int(now - slot['ts']), **slot['data']})
+        # 캐시 없음 → 블로킹하지 않고 백그라운드 계산 시작 + 즉시 '준비 중'(503) 응답.
+        # 프론트가 폴링하다 완료되면 위 분기에서 데이터 수신. (콜드스타트 멈춤·타임아웃 방지)
+        with Handler.SWEEP_LOCK:
+            if not slot.get('computing'):
+                slot['computing'] = True
+                import threading
+                threading.Thread(target=Handler._compute_sweep_bg,
+                                 args=(key, top_n, market), daemon=True).start()
+        # 오래된 데이터라도 있으면 그걸 주고(stale-while-revalidate), 없으면 503
+        if slot['data']:
+            return self._send_json({'cached': True, 'stale': True, 'cached_age_sec': int(now - slot['ts']), **slot['data']})
+        return self._send_json({'computing': True, 'retry_after': 4}, status=503)
 
     RECENT_PICKS_CACHE = {}
     def _api_recent_picks(self, u):
