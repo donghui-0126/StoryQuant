@@ -220,9 +220,13 @@ def fetch_sweep(top_n, market):
             'stock_bull': 0, 'stock_bear': 0,
             'avg_polarity': 0.0, 'avg_mom5': 0.0,
             'codes': [], 'articles': [], '_seen_titles': set(),
-            '_pol_sum': 0.0, '_mom_sum': 0.0,
+            '_pol_sum': 0.0, '_mom_sum': 0.0, '_brief': [],
         })
         s['n_stocks'] += 1
+        # 일일 브리핑 입력 — 멤버 종목의 실제 사건 헤드라인 (종목명 + 제목 + 호/악)
+        for t in (r.get('top_news') or [])[:2]:
+            s['_brief'].append({'stock': r['name'], 'title': t.get('title'),
+                                'sentiment': t.get('sentiment')})
         s['codes'].append({'code': r['code'], 'name': r['name'], 'mom_5': r['mom_5'],
                            'news_count': r.get('sub_count', 0),
                            'news_rating': r.get('polarity', 0),
@@ -249,7 +253,15 @@ def fetch_sweep(top_n, market):
         s['sector_news_rating'] = round(((sb - sx) / (sb + sx + 5)) * 100, 1) if (sb + sx) > 0 else 0.0
         s['articles'].sort(key=lambda a: -(a.get('ts') or 0))
         s['articles'] = s['articles'][:50]    # 상위 50건
-        del s['_pol_sum'], s['_mom_sum'], s['_seen_titles']
+        # 일일 시황 브리핑 (LLM, 하루 1회 캐시) — 멤버 사건 헤드라인 + 섹터 평균 등락 요약
+        try:
+            from . import llm_classify as _llm
+            briefs = s.get('_brief') or []
+            if briefs:
+                s['briefing'] = _llm.sector_briefing(sec, briefs, s.get('avg_mom5', 0))
+        except Exception:
+            pass
+        del s['_pol_sum'], s['_mom_sum'], s['_seen_titles'], s['_brief']
     # 종목별 전체 뉴스(분류·한줄평 완료)를 모아 별도 보관 — 모달이 DB처럼 읽음.
     # sweep 응답 본문에서는 분리해 _stock_news 로만 전달 (핸들러가 추출, 클라엔 안 보냄).
     stock_news = {}

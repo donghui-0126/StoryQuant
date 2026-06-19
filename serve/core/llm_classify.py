@@ -337,3 +337,66 @@ def comment_batch(items, max_workers=6):
             except Exception:
                 results[futs[f]] = None
     return results
+
+
+# ═══════════════════════════════════════════════════════════
+#  섹터 일일 시황 브리핑 — 멤버 종목 사건 헤드라인을 2~3문장 요약. 하루 1회 캐시.
+# ═══════════════════════════════════════════════════════════
+import time as _time
+
+_SECTOR_KR = {
+    'tech': '반도체·테크', 'battery': '2차전지', 'chemicals': '화학', 'auto': '자동차',
+    'defense': '방산·조선', 'utility': '전력·에너지', 'materials': '소재', 'financials': '금융',
+    'healthcare': '바이오·헬스', 'consumer': '소비재·엔터', 'transport': '운송',
+    'telecom': '통신', 'industrials': '산업재', 'real_estate': '리츠·부동산',
+}
+
+SECTOR_BRIEF_PROMPT = """당신은 증권사 섹터 애널리스트입니다. 오늘 한 업종의 주요 사건 헤드라인들을 보고
+개인 투자자용 '일일 시황 브리핑'을 2~3문장으로 씁니다.
+
+규칙:
+1. 한국어, 2~3문장, 사실 기반. 오늘 이 섹터에서 무슨 일이 있었는지 핵심만.
+2. 개별 종목명을 1~2개 구체적으로 언급해도 좋음(근거가 된 사건).
+3. 섹터 평균 등락(코스피 대비)이 주어지면 한 줄로 반영.
+4. 매수·매도 권유 금지. 미래 예측("오를 것") 금지. 과장 금지.
+5. 사건이 빈약하면 "오늘은 큰 사건이 적었다"고 솔직하게.
+
+출력: JSON 한 줄 {"brief":"..."}"""
+
+
+def sector_briefing(sector_key, briefs, avg_mom5=0.0, model='gpt-4o-mini'):
+    """briefs = [{'stock','title','sentiment'}]. 하루 1회 캐시(sb_ prefix + 날짜)."""
+    if not briefs:
+        return None
+    label = _SECTOR_KR.get(sector_key, sector_key)
+    day = _time.strftime('%Y%m%d')
+    key = 'sb_' + hashlib.sha1(f'{sector_key}|{day}'.encode()).hexdigest()[:18]
+    cached = _load_cached(key)
+    if cached:
+        _STATS['hit'] += 1
+        return cached.get('brief') or None
+    client = _get_client()
+    if client is None:
+        return None
+    lines = [f"- [{b.get('stock')}] {b.get('title')} ({'호재' if b.get('sentiment')=='bull' else '악재' if b.get('sentiment')=='bear' else '-'})"
+             for b in briefs[:12] if b.get('title')]
+    user = (f"업종: {label}\n섹터 평균 5일 등락(코스피 대비 아님, 단순 평균): {avg_mom5:+.1f}%\n"
+            f"오늘 주요 사건:\n" + "\n".join(lines))
+    try:
+        rsp = client.chat.completions.create(
+            model=model,
+            messages=[{'role': 'system', 'content': SECTOR_BRIEF_PROMPT},
+                      {'role': 'user', 'content': user}],
+            temperature=0.3, max_tokens=200, response_format={'type': 'json_object'})
+        brief = (json.loads(rsp.choices[0].message.content or '{}').get('brief') or '').strip()[:300]
+        if not brief:
+            return None
+        _save_cached(key, {'brief': brief})
+        _STATS['miss'] += 1
+        usage = getattr(rsp, 'usage', None)
+        if usage:
+            _STATS['cost_usd'] += usage.prompt_tokens * 0.15/1e6 + usage.completion_tokens * 0.60/1e6
+        return brief
+    except Exception:
+        _STATS['err'] += 1
+        return None
