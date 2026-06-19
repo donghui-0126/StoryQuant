@@ -2522,7 +2522,7 @@
     newsBody.querySelector('#newsListInner').innerHTML = visible.slice(0, 40).map(a => `
       <div class="news-row" data-link="${a.link || ''}">
         <div class="meta-row">
-          <span class="src">${a.paper || a.source || ''}</span>
+          <span class="src">${a._stock ? '📁 ' + a._stock + ' · ' : ''}${a.paper || a.source || ''}</span>
           <span class="time">${timeAgo(a.ts || Date.now())}</span>
         </div>
         <div class="ttl" style="${a._cat === 'excluded' ? 'opacity:0.6;' : ''}">${a.title || ''}</div>

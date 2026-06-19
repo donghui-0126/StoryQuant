@@ -19,6 +19,42 @@ from ..core.macro import compute_macro_stress, compute_macro_beta
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
+# ─── ETF 판별 + 섹터 추론 (섹터 ETF → 섹터 뉴스 라우팅) ───
+_ETF_KW = ('KODEX', 'TIGER', 'ACE', 'SOL ', 'RISE', 'KBSTAR', 'HANARO', 'PLUS ',
+           'ARIRANG', 'KOSEF', 'TIMEFOLIO', 'ETF', '레버리지', '인버스')
+# ETF 이름 키워드 → 섹터 (KR_SECTOR_MAP에 없을 때 추론)
+_ETF_SECTOR_KW = [
+    (('반도체', 'AI반도체', 'IT', '디스플레이', '소프트', '인터넷', '게임', '테크'), 'tech'),
+    (('방산', '우주', '항공', '국방', '조선', '디펜스'), 'defense'),
+    (('2차전지', '배터리', '전지'), 'battery'),
+    (('바이오', '헬스', '제약', '의료'), 'healthcare'),
+    (('은행', '금융', '증권', '보험', '카드'), 'financials'),
+    (('자동차', '모빌리티', '전기차'), 'auto'),
+    (('화학', '석유', '정유'), 'chemicals'),
+    (('철강', '소재', '비철', '금속'), 'materials'),
+    (('전력', '에너지', '원자력', '원전', '유틸', '태양광', '풍력'), 'utility'),
+    (('소비', '엔터', '미디어', '리테일', '음식료', '화장품'), 'consumer'),
+    (('건설', '산업재', '기계', '인프라'), 'industrials'),
+    (('운송', '물류', '해운'), 'transport'),
+    (('통신', '5G'), 'telecom'),
+]
+
+
+def _is_etf(name):
+    n = (name or '').upper()
+    return any(k.upper() in n for k in _ETF_KW)
+
+
+def _etf_sector(name, sector_map_val):
+    if sector_map_val:
+        return sector_map_val
+    n = name or ''
+    for kws, sec in _ETF_SECTOR_KW:
+        if any(k in n for k in kws):
+            return sec
+    return None
+
+
 class Handler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=ROOT, **kwargs)
@@ -279,6 +315,15 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         page_size = max(10, min(60, int(q.get('page_size', ['40'])[0])))
         if not code:
             return self._send_json({'error': 'code required'}, status=400)
+        # ⓪ 섹터 ETF → 섹터 종목들의 실제 사건 뉴스를 모아 보여줌 (ETF 자체 뉴스는 거의 없음)
+        info = market.universe().get(code) or {}
+        nm = info.get('name') or ''
+        if page == 1 and _is_etf(nm):
+            arts = Handler._etf_sector_news(code, nm, market)
+            if arts:
+                return self._send_json({'code': code, 'page': 1, 'articles': arts,
+                                        'total': len(arts), 'source': 'sector_etf',
+                                        'etf': True, 'sector': _etf_sector(nm, market.sector_map.get(code))})
         # ① DB(NEWS_SNAPSHOT) 우선 — 수집 때 분류·한줄평까지 끝낸 데이터를 그대로 읽음 (LLM 호출 0, 콜드 없음)
         snap = Handler.NEWS_SNAPSHOT.get(code)
         if page == 1 and snap:
@@ -381,6 +426,30 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         if n:
             print(f'[Snapshot] {n}개 로드 — 콜드스타트 없이 즉시 서빙')
         return n
+
+    @classmethod
+    def _etf_sector_news(cls, code, name, market):
+        """섹터 ETF → 같은 섹터 종목들의 실제 사건 뉴스를 모아 반환 (분류·한줄평 포함)."""
+        sector = _etf_sector(name, market.sector_map.get(code))
+        if not sector:
+            return []
+        smap = market.sector_map
+        uni = market.universe()
+        members = [c for c in uni if smap.get(c) == sector and not _is_etf((uni.get(c) or {}).get('name') or '')]
+        seen, out = set(), []
+        for c in members:
+            mname = (uni.get(c) or {}).get('name') or c
+            for a in cls.NEWS_SNAPSHOT.get(c, []):
+                # 실제 사건만 (잡음 제외)
+                if a.get('substance') != 'substantive' or a.get('priced_in'):
+                    continue
+                k = (a.get('title') or '')[:40]
+                if k in seen:
+                    continue
+                seen.add(k)
+                out.append({**a, '_stock': mname})   # 어느 종목 사건인지 표기용
+        out.sort(key=lambda a: -(a.get('ts') or 0))
+        return out[:50]
 
     @classmethod
     def load_from_db(cls):
